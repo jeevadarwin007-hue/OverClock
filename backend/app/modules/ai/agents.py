@@ -66,17 +66,24 @@ class VerificationAuditResult(BaseModel):
 # ==============================================================================
 
 WORKER_DISPATCH_PROMPT = """You are the Worker Dispatch AI Agent for SRM Easwari Engineering College CampusOps.
-A maintenance problem has been assigned to a worker (such as an Electrician or Plumber).
-Your task is to generate a comprehensive, highly actionable email notification to the worker.
+A maintenance problem has been assigned to a worker (such as an Electrician, Plumber, or HVAC technician).
+Your task is to generate a comprehensive, professional, highly actionable email notification to the worker.
+
+The email MUST contain:
+- Ticket Number, Category, and Urgency / Priority level
+- Exact Location: Room Number / Code, Floor Number, and Building Name
+- Full Details of the Problem reported by the campus user
+- Trade-specific tools and materials required
+- Immediate safety precautions and containment protocol
 
 Return ONLY a valid JSON object with:
-- "subject": Clear, concise subject line with ticket number, urgency level, and concise issue.
+- "subject": Clear, concise subject line with ticket number, urgency level, category, and room code (e.g. "[DISPATCH #105] [P0_CRITICAL] ELECTRICAL - RM-ACAD-204 (Floor 2)").
 - "html_body": Well-formatted, responsive HTML email containing:
-    * Incident overview, ticket number, and priority badge
-    * Location (Building, Floor, Room Code/Name)
-    * Specific reported problem and symptoms
-    * Action items checklist tailored to the worker's trade (e.g. pipe wrench/sealant for Plumber, multimeter/insulated screwdrivers for Electrician)
-    * Critical safety warnings (e.g. shut off main valve, isolate circuit breaker)
+    * SRM Easwari Engineering College CampusOps header
+    * Structured key-value table: Ticket #, Category, Priority, Building, Floor, Room Code
+    * Full reported problem description and diagnostic symptoms
+    * Action items and required tools checklist tailored to the worker's trade
+    * Critical safety warnings and immediate precautions
 - "text_body": Plain text equivalent of the email
 - "tools_needed": List of 3-5 specific tools or materials required
 - "safety_precautions": List of 2-3 specific safety precautions
@@ -90,21 +97,39 @@ class WorkerDispatchAgent:
         ticket_number: int,
         category: str,
         raw_description: str,
-        location_hint: Optional[str],
-        worker_name: str,
-        worker_role: str,
+        location_hint: Optional[str] = None,
+        room_code: Optional[str] = None,
+        floor_number: Optional[int] = None,
+        building_name: Optional[str] = None,
+        worker_name: str = "Assigned Technician",
+        worker_role: str = "TECHNICIAN",
         urgency: str = "P2_MEDIUM"
     ) -> WorkerDispatchEmailSchema:
         """Generates worker notification email using Groq with deterministic fallback."""
-        loc_str = location_hint or "Campus Facility (General)"
+        loc_parts = []
+        if room_code:
+            loc_parts.append(f"Room: {room_code}")
+        if floor_number is not None:
+            loc_parts.append(f"Floor: Floor {floor_number}")
+        if building_name:
+            loc_parts.append(f"Building: {building_name}")
+        if location_hint and not loc_parts:
+            loc_parts.append(f"Location: {location_hint}")
+
+        loc_str = " | ".join(loc_parts) if loc_parts else "Campus Facility (General)"
+
         prompt_input = (
             f"Ticket Number: #{ticket_number}\n"
             f"Category / Domain: {category}\n"
             f"Worker Name: {worker_name}\n"
             f"Worker Role/Trade: {worker_role}\n"
-            f"Location: {loc_str}\n"
-            f"Urgency: {urgency}\n"
-            f"Reported Problem:\n{raw_description}"
+            f"Room Code: {room_code or 'Not specified'}\n"
+            f"Floor Number: Floor {floor_number if floor_number is not None else 'N/A'}\n"
+            f"Building: {building_name or 'Main Campus'}\n"
+            f"Location Summary: {loc_str}\n"
+            f"Priority / Urgency: {urgency}\n\n"
+            f"Reported Incident Details:\n{raw_description}\n\n"
+            f"Generate a comprehensive dispatch email for {worker_name} containing the problem details, room number, floor, building, required tools, and safety protocol."
         )
 
         if settings.GROQ_API_KEY:
@@ -129,7 +154,7 @@ class WorkerDispatchAgent:
                         content = res.json()["choices"][0]["message"]["content"]
                         parsed = json.loads(content)
                         return WorkerDispatchEmailSchema(
-                            subject=parsed.get("subject") or f"[DISPATCH #{ticket_number}] {category} Work Order",
+                            subject=parsed.get("subject") or f"[DISPATCH #{ticket_number}] [{urgency}] {category} in {room_code or loc_str}",
                             html_body=parsed.get("html_body") or f"<p>{raw_description}</p>",
                             text_body=parsed.get("text_body") or raw_description,
                             tools_needed=parsed.get("tools_needed") or [],
@@ -152,38 +177,40 @@ class WorkerDispatchAgent:
             precautions = ["De-energize condensing unit before servicing fan motors", "Handle refrigerant cylinders in well-ventilated areas"]
 
         html_body = f"""
-        <div style="font-family: Arial, sans-serif; background-color: #0f172a; color: #f8fafc; padding: 24px; border-radius: 8px;">
-            <div style="border-bottom: 2px solid #3b82f6; padding-bottom: 12px; margin-bottom: 16px;">
-                <h2 style="color: #60a5fa; margin: 0;">SRM Easwari Engineering College &bull; CampusOps</h2>
-                <p style="color: #94a3b8; margin: 4px 0 0 0; font-size: 13px;">Maintenance Work Order Dispatch Notice</p>
+        <div style="font-family: Arial, sans-serif; background-color: #0a0a0a; color: #f8fafc; padding: 24px; border-radius: 12px; border: 1px solid #262626;">
+            <div style="border-bottom: 2px solid #d73832; padding-bottom: 12px; margin-bottom: 16px;">
+                <h2 style="color: #ffffff; margin: 0; font-family: monospace;">SRM EASWARI ENGINEERING COLLEGE &bull; CAMPOPS</h2>
+                <p style="color: #a3a3a3; margin: 4px 0 0 0; font-size: 13px;">Autonomous Maintenance Work Order Dispatch Notice</p>
             </div>
             
-            <p>Dear <strong>{worker_name}</strong> ({worker_role}),</p>
-            <p>You have been assigned to maintenance <strong>Ticket #{ticket_number}</strong>.</p>
+            <p style="font-size: 14px;">Dear <strong>{worker_name}</strong> ({worker_role}),</p>
+            <p style="font-size: 14px;">You have been assigned to maintenance <strong>Ticket #{ticket_number}</strong>.</p>
             
-            <div style="background-color: #1e293b; padding: 16px; border-radius: 6px; border-left: 4px solid #3b82f6; margin: 16px 0;">
-                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                    <tr><td style="color: #94a3b8; padding: 4px 0;"><strong>Location:</strong></td><td style="color: #f1f5f9;">{loc_str}</td></tr>
-                    <tr><td style="color: #94a3b8; padding: 4px 0;"><strong>Category:</strong></td><td style="color: #f1f5f9;">{category}</td></tr>
-                    <tr><td style="color: #94a3b8; padding: 4px 0;"><strong>Urgency Level:</strong></td><td style="color: #f87171;">{urgency}</td></tr>
+            <div style="background-color: #171717; padding: 16px; border-radius: 8px; border-left: 4px solid #d73832; margin: 16px 0;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 13px; font-family: monospace;">
+                    <tr><td style="color: #a3a3a3; padding: 4px 0;"><strong>Room Number:</strong></td><td style="color: #ffffff; font-weight: bold;">{room_code or 'N/A'}</td></tr>
+                    <tr><td style="color: #a3a3a3; padding: 4px 0;"><strong>Floor:</strong></td><td style="color: #ffffff;">Floor {floor_number if floor_number is not None else 'N/A'}</td></tr>
+                    <tr><td style="color: #a3a3a3; padding: 4px 0;"><strong>Building:</strong></td><td style="color: #ffffff;">{building_name or 'Campus Facility'}</td></tr>
+                    <tr><td style="color: #a3a3a3; padding: 4px 0;"><strong>Category / Trade:</strong></td><td style="color: #ffffff;">{category}</td></tr>
+                    <tr><td style="color: #a3a3a3; padding: 4px 0;"><strong>Priority Level:</strong></td><td style="color: #ef4444; font-weight: bold;">{urgency}</td></tr>
                 </table>
-                <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #334155;">
-                    <strong style="color: #cbd5e1;">Reported Issue:</strong>
-                    <p style="color: #e2e8f0; margin: 6px 0 0 0; font-style: italic;">"{raw_description}"</p>
+                <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid #262626;">
+                    <strong style="color: #ffffff; font-size: 13px;">Reported Problem Details:</strong>
+                    <p style="color: #e5e5e5; margin: 6px 0 0 0; font-style: italic; font-size: 13px; background: #262626; padding: 10px; border-radius: 6px;">"{raw_description}"</p>
                 </div>
             </div>
 
-            <h4 style="color: #38bdf8; margin: 16px 0 8px 0;">Recommended Tools & Materials:</h4>
-            <ul style="color: #cbd5e1; font-size: 13px; margin: 0 0 16px 0; padding-left: 20px;">
+            <h4 style="color: #ffffff; margin: 16px 0 8px 0; font-family: monospace;">Required Tools & Materials:</h4>
+            <ul style="color: #d4d4d4; font-size: 13px; margin: 0 0 16px 0; padding-left: 20px;">
                 {''.join(f'<li>{t}</li>' for t in tools)}
             </ul>
 
-            <h4 style="color: #fbbf24; margin: 16px 0 8px 0;">Safety Precautions:</h4>
-            <ul style="color: #cbd5e1; font-size: 13px; margin: 0 0 16px 0; padding-left: 20px;">
+            <h4 style="color: #f59e0b; margin: 16px 0 8px 0; font-family: monospace;">Immediate Safety Precautions:</h4>
+            <ul style="color: #d4d4d4; font-size: 13px; margin: 0 0 16px 0; padding-left: 20px;">
                 {''.join(f'<li>{p}</li>' for p in precautions)}
             </ul>
 
-            <p style="color: #64748b; font-size: 11px; margin-top: 24px; border-top: 1px solid #334155; padding-top: 12px;">
+            <p style="color: #737373; font-size: 11px; margin-top: 24px; border-top: 1px solid #262626; padding-top: 12px; font-family: monospace;">
                 Automated dispatch via CampusOps AI &bull; SRM Easwari Engineering College (Autonomous), Ramapuram, Chennai.
             </p>
         </div>
@@ -192,15 +219,16 @@ class WorkerDispatchAgent:
         text_body = (
             f"[CampusOps Dispatch] Ticket #{ticket_number} - {category}\n"
             f"Assigned to: {worker_name} ({worker_role})\n"
-            f"Location: {loc_str}\n"
-            f"Urgency: {urgency}\n\n"
-            f"Issue: {raw_description}\n\n"
+            f"Room: {room_code or 'N/A'} (Floor {floor_number if floor_number is not None else 'N/A'})\n"
+            f"Building: {building_name or 'Campus Facility'}\n"
+            f"Priority: {urgency}\n\n"
+            f"Problem Details:\n{raw_description}\n\n"
             f"Required Tools: {', '.join(tools)}\n"
-            f"Safety: {', '.join(precautions)}\n"
+            f"Safety Precautions: {', '.join(precautions)}\n"
         )
 
         return WorkerDispatchEmailSchema(
-            subject=f"[DISPATCH #{ticket_number}] {category} Work Order at {loc_str}",
+            subject=f"[DISPATCH #{ticket_number}] [{urgency}] {category} at {room_code or loc_str}",
             html_body=html_body,
             text_body=text_body,
             tools_needed=tools,

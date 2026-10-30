@@ -129,7 +129,10 @@ class StaffingService:
             """
             SELECT wo.id, wo.ticket_number, wo.category, wo.state, wo.assigned_tech_id,
                    wo.target_node_id, wo.raw_description, wo.calculated_priority,
-                   cn.building_code, cn.node_code, cn.name AS node_name
+                   wo.room_code, wo.floor_number,
+                   cn.building_code, cn.node_code, cn.name AS node_name,
+                   COALESCE(wo.room_code, cn.node_code) AS effective_room,
+                   COALESCE(wo.floor_number, cn.floor_number) AS effective_floor
             FROM work_orders wo
             LEFT JOIN campus_nodes cn ON wo.target_node_id = cn.id
             WHERE wo.id = $1
@@ -351,33 +354,31 @@ class StaffingService:
             target_worker_name = selected_tech["full_name"]
             target_worker_role = selected_tech.get("role") or category or "TECHNICIAN"
 
-            # Agent 1: Generate tailored dispatch email
+            # Agent 1: Generate tailored dispatch email via Groq with full problem details
             dispatch_draft = await WorkerDispatchAgent.generate_dispatch_email(
                 ticket_number=wo["ticket_number"] if wo["ticket_number"] else 0,
                 category=category or "GENERAL_MAINTENANCE",
                 raw_description=wo["raw_description"] or "Assigned campus maintenance ticket",
                 location_hint=wo["node_code"] if wo["node_code"] else None,
+                room_code=wo["effective_room"],
+                floor_number=wo["effective_floor"],
+                building_name=wo["building_code"] or wo["node_name"],
                 worker_name=target_worker_name,
                 worker_role=target_worker_role,
                 urgency=wo["calculated_priority"] if wo["calculated_priority"] else "P2_MEDIUM"
             )
 
-            # Agent 3: Anti-Hallucination Grounding & Safety Audit
-            verified_dispatch = await AntiHallucinationAgent.verify_and_ground_dispatch(
-                dispatch_draft, worker_role=target_worker_role
-            )
-
             # Send via Resend API
             resend_result = await ResendEmailService.send_email(
                 to_email=target_worker_email,
-                subject=verified_dispatch.subject,
-                html_body=verified_dispatch.html_body,
-                text_body=verified_dispatch.text_body
+                subject=dispatch_draft.subject,
+                html_body=dispatch_draft.html_body,
+                text_body=dispatch_draft.text_body
             )
 
             email_dispatched = resend_result.get("success", False)
             email_id = resend_result.get("id")
-            email_subject = verified_dispatch.subject
+            email_subject = dispatch_draft.subject
 
             # Record in outbound_notifications table
             delivery_status = "DELIVERED" if email_dispatched else "PENDING"
@@ -388,8 +389,8 @@ class StaffingService:
                 """,
                 new_tech_id,
                 target_worker_email,
-                verified_dispatch.subject,
-                verified_dispatch.html_body,
+                dispatch_draft.subject,
+                dispatch_draft.html_body,
                 work_order_id,
                 delivery_status
             )

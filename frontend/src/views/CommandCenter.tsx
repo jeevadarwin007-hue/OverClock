@@ -242,11 +242,11 @@ export const CommandCenter: React.FC = () => {
                 <thead className="bg-[#121215] text-neutral-400 font-ndot text-[10px] border-b border-white/10 sticky top-0 shadow-sm">
                   <tr>
                     <th className="py-2.5 px-3 w-20 border-r border-white/10">Ticket</th>
-                    <th className="py-2.5 px-3 w-32 border-r border-white/10">Room</th>
-                    <th className="py-2.5 px-3 w-36 border-r border-white/10">Trade</th>
+                    <th className="py-2.5 px-3 w-36 border-r border-white/10">Room / Floor</th>
+                    <th className="py-2.5 px-3 w-32 border-r border-white/10">Trade</th>
                     <th className="py-2.5 px-3 w-24 border-r border-white/10 text-right">Priority</th>
                     <th className="py-2.5 px-3 w-28 border-r border-white/10 text-right">State</th>
-                    <th className="py-2.5 px-3 text-right">Assigned</th>
+                    <th className="py-2.5 px-3 text-right">Assigned Worker</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 font-sans">
@@ -259,7 +259,10 @@ export const CommandCenter: React.FC = () => {
                         #{t.ticket_number}
                       </td>
                       <td className="py-1.5 px-3 font-mono text-neutral-300 border-r border-white/10 truncate">
-                        {t.node_code || 'Campus General'}
+                        <span className="font-semibold text-white">{t.room_code || t.node_code || 'Campus General'}</span>
+                        {t.floor_number !== undefined && t.floor_number !== null && (
+                          <span className="text-[10px] text-neutral-400 ml-1.5 font-sans">Fl {t.floor_number}</span>
+                        )}
                       </td>
                       <td className="py-1.5 px-3 font-ndot text-neutral-400 text-[11px] border-r border-white/10">
                         {t.category || 'TBD'}
@@ -442,12 +445,19 @@ export const CommandCenter: React.FC = () => {
                     <span>TICKET #{intakeResult.ticket_number} REGISTERED</span>
                     <span className="text-emerald-400 font-sans">{intakeResult.state}</span>
                   </div>
-                  <div className="text-neutral-300 text-[11px]">
-                    Category: <span className="text-white font-semibold font-ndot">{intakeResult.category || 'TBD'}</span>
+                  <div className="text-neutral-300 text-[11px] flex justify-between">
+                    <span>Category: <strong className="text-white font-ndot">{intakeResult.category || 'TBD'}</strong></span>
+                    <span>Room: <strong className="text-white font-mono">{intakeResult.room_code || intakeResult.target_node_code} (Floor {intakeResult.floor_number ?? '1'})</strong></span>
                   </div>
                   <div className="text-neutral-400 text-[10px]">
                     Summary: {intakeResult.concise_summary}
                   </div>
+                  {intakeResult.assigned_tech_name && (
+                    <div className="text-[11px] text-emerald-400 flex items-center justify-between pt-1 border-t border-white/10 font-sans">
+                      <span>Worker: <strong className="text-white">{intakeResult.assigned_tech_name}</strong> ({intakeResult.assigned_tech_role || 'Technician'})</span>
+                      <span className="text-[10px] bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full text-emerald-400">✓ Notified via Email</span>
+                    </div>
+                  )}
                 </div>
               </div>
             )

@@ -18,49 +18,93 @@ class IntakeService:
     @staticmethod
     async def resolve_campus_node(
         conn: asyncpg.Connection,
-        hint: Optional[str]
+        hint: Optional[str],
+        raw_text: Optional[str] = None
     ) -> Tuple[Optional[dict], List[dict], bool]:
         """
         Resolves an extracted room or location hint against campus_nodes.
         Returns:
             (resolved_node, candidate_nodes, is_ambiguous)
         """
-        if not hint:
+        target_text = f"{hint or ''} {raw_text or ''}".strip()
+        if not target_text:
             return None, [], False
 
-        hint_clean = hint.strip().upper()
+        # 1. Exact node_code match if hint is provided
+        if hint:
+            hint_clean = hint.strip().upper()
+            exact = await conn.fetchrow(
+                """
+                SELECT id, node_code, name, building_code, floor_number, node_type
+                FROM campus_nodes
+                WHERE UPPER(node_code) = $1;
+                """,
+                hint_clean
+            )
+            if exact:
+                return dict(exact), [], False
 
-        # 1. Exact node_code match (e.g. RM-ACAD-204, LAB-ACAD-301, EEC-MAIN)
-        exact = await conn.fetchrow(
-            """
-            SELECT id, node_code, name, building_code, floor_number, node_type
-            FROM campus_nodes
-            WHERE node_code = $1;
-            """,
-            hint_clean
-        )
-        if exact:
-            return dict(exact), [], False
-
-        # 2. Check if a known node_code is embedded in the hint
+        # 2. Check if a known node_code is embedded in hint or raw_text
         embedded_match = re.search(
             r"\b(RM-[A-Z0-9-]+|LAB-[A-Z0-9-]+|EEC-[A-Z0-9-]+|SUBSTATION-[A-Z0-9-]+|PANEL-[A-Z0-9-]+|SW-[A-Z0-9-]+|AHU-[A-Z0-9-]+)\b",
-            hint,
+            target_text,
             re.IGNORECASE
         )
         if embedded_match:
             embedded_code = embedded_match.group(1).upper()
             found = await conn.fetchrow(
-                "SELECT id, node_code, name, building_code, floor_number, node_type FROM campus_nodes WHERE node_code = $1;",
+                "SELECT id, node_code, name, building_code, floor_number, node_type FROM campus_nodes WHERE UPPER(node_code) = $1;",
                 embedded_code
             )
             if found:
                 return dict(found), [], False
 
-        # 3. Check floor hints: e.g. "3rd floor lab"
-        hint_lower = hint.lower()
+        # 3. Check for specific room numbers (e.g. "room 204", "rm 204", "204", "lab 301")
+        room_num_match = re.search(
+            r"\b(?:RM|LAB|ROOM|HALL|CLASSROOM)?\s*[:#\-]?\s*([1-9][0-9]{2})\b",
+            target_text,
+            re.IGNORECASE
+        )
+        if room_num_match:
+            num = room_num_match.group(1)
+            num_matches = await conn.fetch(
+                """
+                SELECT id, node_code, name, building_code, floor_number, node_type
+                FROM campus_nodes
+                WHERE node_code LIKE '%-' || $1
+                ORDER BY node_code ASC;
+                """,
+                num
+            )
+            if len(num_matches) == 1:
+                return dict(num_matches[0]), [], False
+            elif len(num_matches) > 1:
+                t_lower = target_text.lower()
+                filtered = []
+                for m in num_matches:
+                    b = m["building_code"].lower()
+                    if ("acad" in t_lower or "cse" in t_lower or "it" in t_lower) and "acad" in b:
+                        filtered.append(m)
+                    elif ("mech" in t_lower or "civil" in t_lower or "library" in t_lower) and "mech" in b:
+                        filtered.append(m)
+                    elif ("admin" in t_lower or "main" in t_lower) and "main" in b:
+                        filtered.append(m)
+                    elif ("rob" in t_lower or "abb" in t_lower) and "rob" in b:
+                        filtered.append(m)
+                    elif ("aud" in t_lower or "food" in t_lower) and "aud" in b:
+                        filtered.append(m)
+                if len(filtered) == 1:
+                    return dict(filtered[0]), [], False
+                elif len(filtered) > 1:
+                    return None, [dict(c) for c in filtered], True
+                return None, [dict(c) for c in num_matches], True
+
+        # 4. Check floor hints: e.g. "3rd floor lab"
+        hint_lower = target_text.lower()
         floor_num = None
-        if "3rd floor" in hint_lower or "floor 3" in hint_lower or "third floor" in hint_lower:
+        if "4th floor" in hint_lower or "floor 4" in hint_lower or "fourth floor" in hint_lower:
+            floor_num = 4
+        elif "3rd floor" in hint_lower or "floor 3" in hint_lower or "third floor" in hint_lower:
             floor_num = 3
         elif "2nd floor" in hint_lower or "floor 2" in hint_lower or "second floor" in hint_lower:
             floor_num = 2
@@ -86,7 +130,7 @@ class IntakeService:
             elif len(candidates) == 1:
                 return dict(candidates[0]), [], False
 
-        # 4. Partial name match
+        # 5. Partial name match
         name_match = await conn.fetch(
             """
             SELECT id, node_code, name, building_code, floor_number, node_type
@@ -94,7 +138,7 @@ class IntakeService:
             WHERE name ILIKE '%' || $1 || '%'
             LIMIT 5;
             """,
-            hint
+            hint or target_text
         )
         if len(name_match) == 1:
             return dict(name_match[0]), [], False
@@ -163,65 +207,110 @@ class IntakeService:
                 created_at=datetime.now(timezone.utc)
             )
 
-        # Phase 3: Location Resolution
+        # Phase 3: Location Resolution & Room Validation
         node, candidates, is_ambiguous = await IntakeService.resolve_campus_node(
-            conn, extraction.extracted_room_or_node_hint
+            conn, extraction.extracted_room_or_node_hint, raw_text=request.text
         )
 
-        category = extraction.category
+        category = extraction.category or "ELECTRICAL"
         urgency = extraction.reporter_urgency
 
-        clarification_needed = False
-        clarification_question = None
+        # If location is ambiguous between multiple valid rooms
+        if is_ambiguous:
+            cand_codes = [c["node_code"] for c in candidates]
+            reply_msg = f"Multiple rooms match: {', '.join(cand_codes)}. Please specify which exact room or lab you are reporting from."
+            return IntakeResponse(
+                is_ticket_created=False,
+                decision="REPLY_QUESTION",
+                reply_message=reply_msg,
+                work_order_id=None,
+                ticket_number=None,
+                conversation_thread_id=thread_id,
+                state="AWAITING_INCIDENT",
+                category=category,
+                target_node_code=None,
+                target_node_name=None,
+                room_code=None,
+                floor_number=None,
+                assigned_tech_name=None,
+                assigned_tech_email=None,
+                assigned_tech_role=None,
+                email_dispatched=False,
+                clarification_needed=True,
+                clarification_question=reply_msg,
+                partial_slots={"candidate_rooms": cand_codes, "category": category},
+                correlation_action="NONE",
+                concise_summary=extraction.concise_summary or "Ambiguous room specified.",
+                extractor_used=extraction.extractor_used,
+                emergency_instructions=None,
+                created_at=datetime.now(timezone.utc)
+            )
+
+        # If room is NOT specified or does NOT exist on campus -> Reject and ask for valid room
+        if not node:
+            room_hint_str = extraction.extracted_room_or_node_hint
+            if room_hint_str:
+                reply_msg = f"There is no room available in that name ('{room_hint_str}') on campus. Please specify a valid room number (e.g. RM-ACAD-204, LAB-ACAD-301) and floor."
+            else:
+                reply_msg = "There is no room available in that name. Please specify the room number (e.g. RM-ACAD-204, LAB-ACAD-301) and floor."
+
+            return IntakeResponse(
+                is_ticket_created=False,
+                decision="REPLY_QUESTION",
+                reply_message=reply_msg,
+                work_order_id=None,
+                ticket_number=None,
+                conversation_thread_id=thread_id,
+                state="AWAITING_INCIDENT",
+                category=category,
+                target_node_code=None,
+                target_node_name=None,
+                room_code=None,
+                floor_number=None,
+                assigned_tech_name=None,
+                assigned_tech_email=None,
+                assigned_tech_role=None,
+                email_dispatched=False,
+                clarification_needed=True,
+                clarification_question=reply_msg,
+                partial_slots={"room_hint": room_hint_str, "category": category},
+                correlation_action="NONE",
+                concise_summary=extraction.concise_summary or "No valid room specified on campus.",
+                extractor_used=extraction.extractor_used,
+                emergency_instructions=None,
+                created_at=datetime.now(timezone.utc)
+            )
+
         partial_slots = {
             "room_hint": extraction.extracted_room_or_node_hint,
+            "room_code": node["node_code"],
+            "floor_number": node["floor_number"],
+            "building_code": node["building_code"],
             "asset_hint": extraction.extracted_asset_hint,
             "category": category,
             "safety_hazard": extraction.safety_hazard_detected,
         }
 
-        if is_ambiguous:
-            clarification_needed = True
-            cand_codes = [c["node_code"] for c in candidates]
-            partial_slots["candidate_rooms"] = cand_codes
-            clarification_question = (
-                f"Multiple rooms match on that floor: {', '.join(cand_codes)}. "
-                "Which specific room or lab are you reporting from?"
-            )
-            wo_state = "AWAITING_CLARIFICATION"
-        elif not node or not category:
-            clarification_needed = True
-            if not node and not category:
-                clarification_question = "Could you specify the room or lab number, and describe the type of fault?"
-            elif not node:
-                clarification_question = "Could you please specify the room number, lab code, or building name?"
-            else:
-                clarification_question = "Could you clarify the category of the issue (electrical, network, AC, plumbing, or projector)?"
-            wo_state = "AWAITING_CLARIFICATION"
-        else:
-            wo_state = "TRIAGED"
-
         # Department mapping
-        target_node_id = node["id"] if node else None
+        target_node_id = node["id"]
         target_dept_id = None
-        if node:
-            bldg = node["building_code"]
-            if bldg == "EEC-ACAD":
-                target_dept_id = await conn.fetchval("SELECT id FROM departments WHERE code = 'DEPT-CSE-IT';")
-            elif bldg == "EEC-MECH-PG":
-                target_dept_id = await conn.fetchval("SELECT id FROM departments WHERE code = 'DEPT-MECH-CIVIL';")
-            elif bldg == "EEC-ROBOTICS":
-                target_dept_id = await conn.fetchval("SELECT id FROM departments WHERE code = 'DEPT-ROBOTICS';")
-            else:
-                target_dept_id = await conn.fetchval("SELECT id FROM departments WHERE code = 'DEPT-ADMIN';")
+        bldg = node["building_code"]
+        if bldg == "EEC-ACAD":
+            target_dept_id = await conn.fetchval("SELECT id FROM departments WHERE code = 'DEPT-CSE-IT';")
+        elif bldg == "EEC-MECH-PG":
+            target_dept_id = await conn.fetchval("SELECT id FROM departments WHERE code = 'DEPT-MECH-CIVIL';")
+        elif bldg == "EEC-ROBOTICS":
+            target_dept_id = await conn.fetchval("SELECT id FROM departments WHERE code = 'DEPT-ROBOTICS';")
+        else:
+            target_dept_id = await conn.fetchval("SELECT id FROM departments WHERE code = 'DEPT-ADMIN';")
 
         # Multi-Agent Emergency & Instruction Safety Pipeline
         emergency_instructions = None
         is_emergency = InstructionAgent.is_emergency_incident(request.text) or extraction.safety_hazard_detected
         if is_emergency:
             urgency = "P0_CRITICAL"
-            b_code = node["building_code"] if node else None
-            r_code = node["node_code"] if node else None
+            b_code = node["building_code"]
+            r_code = node["node_code"]
             raw_instructions = await InstructionAgent.generate_safety_instructions(
                 raw_description=request.text,
                 detected_building=b_code,
@@ -231,29 +320,34 @@ class IntakeService:
             emergency_instructions = grounded_instructions.model_dump()
             partial_slots["emergency_instructions"] = emergency_instructions
 
+        wo_state = "TRIAGED"
+
         # Phase 4: Atomic Operational Commit
         row = await conn.fetchrow(
             """
             INSERT INTO work_orders (
                 conversation_thread_id, reporter_user_id, target_node_id,
+                room_code, floor_number,
                 category, reporter_urgency, calculated_priority, state,
                 raw_description, ai_summary, partial_slots, clarification_question,
                 department_id
             )
-            VALUES ($1, $2, $3, $4::issue_category, $5::priority_level, $5::priority_level,
-                    $6::wo_state, $7, $8, $9::jsonb, $10, $11)
+            VALUES ($1, $2, $3, $4, $5, $6::issue_category, $7::priority_level, $7::priority_level,
+                    $8::wo_state, $9, $10, $11::jsonb, $12, $13)
             RETURNING id, ticket_number, created_at;
             """,
             thread_id,
             reporter_id,
             target_node_id,
+            node["node_code"],
+            node["floor_number"],
             category,
             urgency,
             wo_state,
             request.text,
             extraction.concise_summary,
             json.dumps(partial_slots),
-            clarification_question,
+            None,
             target_dept_id
         )
 
@@ -272,58 +366,53 @@ class IntakeService:
             wo_state,
             json.dumps({
                 "extractor_used": extraction.extractor_used,
-                "clarification_needed": clarification_needed,
+                "room_code": node["node_code"],
+                "floor_number": node["floor_number"],
                 "channel": request.channel
             })
         )
 
-        # Correlation execution if resolved
+        # Correlation execution
         correlation_action = "NONE"
-        if wo_state == "TRIAGED":
-            correl_res = await CorrelationService.correlate_incident(
-                conn,
-                work_order_id=wo_id,
-                target_node_id=target_node_id,
-                category=category,
-                actor_id=reporter_id
-            )
-            correlation_action = correl_res.get("action", "NONE")
-            if correlation_action == "MERGED_DUPLICATE":
-                wo_state = "MERGED_DUPLICATE"
-            else:
-                # Deterministic auto-dispatch to registered technician if available
-                try:
-                    candidates = await StaffingService.score_eligible_technicians(
-                        conn,
-                        category=category,
-                        target_building=node["building_code"] if node else None
+        correl_res = await CorrelationService.correlate_incident(
+            conn,
+            work_order_id=wo_id,
+            target_node_id=target_node_id,
+            category=category,
+            actor_id=reporter_id
+        )
+        correlation_action = correl_res.get("action", "NONE")
+        if correlation_action == "MERGED_DUPLICATE":
+            wo_state = "MERGED_DUPLICATE"
+
+        # Autonomous Worker Assignment & Groq-Generated Email Notification via Resend API
+        assigned_worker_res = None
+        if wo_state != "MERGED_DUPLICATE":
+            try:
+                candidates = await StaffingService.score_eligible_technicians(
+                    conn,
+                    category=category,
+                    target_building=node["building_code"]
+                )
+                chosen_tech_id = candidates[0].technician_id if candidates else None
+
+                if not chosen_tech_id:
+                    chosen_tech_id = await conn.fetchval(
+                        "SELECT id FROM users WHERE role = 'TECHNICIAN' AND is_available = TRUE LIMIT 1;"
                     )
-                    if candidates:
-                        best_candidate = candidates[0]
-                        assign_res = await StaffingService.assign_technician(
-                            conn,
-                            work_order_id=wo_id,
-                            technician_id=best_candidate.technician_id,
-                            actor_id=reporter_id
-                        )
-                        wo_state = assign_res.work_order_state
-                except Exception:
-                    # Non-fatal if no technician registered on shift
-                    pass
-        elif clarification_needed:
-            # Queue clarification question notification
-            user_email = await conn.fetchval("SELECT email FROM users WHERE id = $1;", reporter_id)
-            await conn.execute(
-                """
-                INSERT INTO outbound_notifications (recipient_user_id, recipient_email, subject, body, work_order_id)
-                VALUES ($1, $2, $3, $4, $5);
-                """,
-                reporter_id,
-                user_email or "student@easwari.edu",
-                f"Action Required: Clarification for Ticket #{ticket_num}",
-                clarification_question,
-                wo_id
-            )
+
+                if chosen_tech_id:
+                    assign_res = await StaffingService.assign_technician(
+                        conn,
+                        work_order_id=wo_id,
+                        technician_id=chosen_tech_id,
+                        actor_id=reporter_id
+                    )
+                    wo_state = assign_res.work_order_state
+                    assigned_worker_res = assign_res
+            except Exception as e:
+                import logging
+                logging.getLogger("intake").error(f"Worker auto-assignment error: {e}")
 
         response_payload = {
             "work_order_id": str(wo_id),
@@ -331,10 +420,16 @@ class IntakeService:
             "conversation_thread_id": thread_id,
             "state": wo_state,
             "category": category,
-            "target_node_code": node["node_code"] if node else None,
-            "target_node_name": node["name"] if node else None,
-            "clarification_needed": clarification_needed,
-            "clarification_question": clarification_question,
+            "target_node_code": node["node_code"],
+            "target_node_name": node["name"],
+            "room_code": node["node_code"],
+            "floor_number": node["floor_number"],
+            "assigned_tech_name": assigned_worker_res.assigned_tech_name if assigned_worker_res else None,
+            "assigned_tech_email": assigned_worker_res.assigned_tech_email if assigned_worker_res else None,
+            "assigned_tech_role": assigned_worker_res.assigned_tech_role if assigned_worker_res else None,
+            "email_dispatched": assigned_worker_res.email_dispatched if assigned_worker_res else False,
+            "clarification_needed": False,
+            "clarification_question": None,
             "partial_slots": partial_slots,
             "correlation_action": correlation_action,
             "concise_summary": extraction.concise_summary,
@@ -362,10 +457,16 @@ class IntakeService:
             conversation_thread_id=thread_id,
             state=wo_state,
             category=category,
-            target_node_code=node["node_code"] if node else None,
-            target_node_name=node["name"] if node else None,
-            clarification_needed=clarification_needed,
-            clarification_question=clarification_question,
+            target_node_code=node["node_code"],
+            target_node_name=node["name"],
+            room_code=node["node_code"],
+            floor_number=node["floor_number"],
+            assigned_tech_name=assigned_worker_res.assigned_tech_name if assigned_worker_res else None,
+            assigned_tech_email=assigned_worker_res.assigned_tech_email if assigned_worker_res else None,
+            assigned_tech_role=assigned_worker_res.assigned_tech_role if assigned_worker_res else None,
+            email_dispatched=assigned_worker_res.email_dispatched if assigned_worker_res else False,
+            clarification_needed=False,
+            clarification_question=None,
             partial_slots=partial_slots,
             correlation_action=correlation_action,
             concise_summary=extraction.concise_summary,

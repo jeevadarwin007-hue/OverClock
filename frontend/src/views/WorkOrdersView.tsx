@@ -257,7 +257,7 @@ export const WorkOrdersView: React.FC = () => {
               <tr>
                 <th className="py-2.5 px-3 w-8 border-r border-white/10 text-center">●</th>
                 <th className="py-2.5 px-3 w-20 border-r border-white/10">Ticket</th>
-                <th className="py-2.5 px-3 w-40 border-r border-white/10">Room / Node</th>
+                <th className="py-2.5 px-3 w-40 border-r border-white/10">Room / Floor</th>
                 <th className="py-2.5 px-3 w-44 border-r border-white/10">Category</th>
                 <th className="py-2.5 px-3 w-28 border-r border-white/10 text-right">Priority</th>
                 <th className="py-2.5 px-3 w-36 border-r border-white/10 text-right">State</th>
@@ -288,7 +288,10 @@ export const WorkOrdersView: React.FC = () => {
                       #{t.ticket_number}
                     </td>
                     <td className="py-2 px-3 font-mono text-neutral-300 border-r border-white/10">
-                      {t.node_code || 'Campus General'}
+                      <span className="font-semibold text-white">{t.room_code || t.node_code || 'Campus General'}</span>
+                      {t.floor_number !== undefined && t.floor_number !== null && (
+                        <span className="text-[10px] text-neutral-400 ml-1.5 font-sans">Fl {t.floor_number}</span>
+                      )}
                     </td>
                     <td className="py-2 px-3 font-ndot text-neutral-300 text-[11px] border-r border-white/10">
                       {t.category || 'PENDING_TRIAGE'}
@@ -365,9 +368,19 @@ export const WorkOrdersView: React.FC = () => {
                     </span>
                   </div>
                   <div className="text-xs font-semibold text-neutral-300 mt-1">
-                    {selectedTicket.node_name
-                      ? `${selectedTicket.node_name} (${selectedTicket.node_code})`
-                      : 'Campus General Infrastructure'}
+                    {selectedTicket.room_code || selectedTicket.node_code ? (
+                      <div>
+                        <span className="text-white font-mono font-bold text-sm">{selectedTicket.room_code || selectedTicket.node_code}</span>
+                        {selectedTicket.floor_number !== undefined && selectedTicket.floor_number !== null && (
+                          <span className="text-neutral-400 ml-2 font-sans font-normal">(Floor {selectedTicket.floor_number})</span>
+                        )}
+                        {selectedTicket.node_name && (
+                          <div className="text-neutral-400 text-[11px] font-sans font-normal mt-0.5">{selectedTicket.node_name}</div>
+                        )}
+                      </div>
+                    ) : (
+                      'Campus General Infrastructure'
+                    )}
                   </div>
                 </div>
 

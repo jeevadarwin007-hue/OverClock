@@ -39,6 +39,9 @@ class WorkOrderOut(BaseModel):
     target_node_id: Optional[UUID] = None
     node_code: Optional[str] = None
     node_name: Optional[str] = None
+    room_code: Optional[str] = None
+    floor_number: Optional[int] = None
+    building_code: Optional[str] = None
     parent_master_wo_id: Optional[UUID] = None
     category: Optional[str] = None
     reporter_urgency: str

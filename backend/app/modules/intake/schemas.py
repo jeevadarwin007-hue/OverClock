@@ -34,6 +34,12 @@ class IntakeResponse(BaseModel):
     category: Optional[str] = None
     target_node_code: Optional[str] = None
     target_node_name: Optional[str] = None
+    room_code: Optional[str] = None
+    floor_number: Optional[int] = None
+    assigned_tech_name: Optional[str] = None
+    assigned_tech_email: Optional[str] = None
+    assigned_tech_role: Optional[str] = None
+    email_dispatched: Optional[bool] = None
     clarification_needed: bool = False
     clarification_question: Optional[str] = None
     partial_slots: Dict[str, Any] = {}
