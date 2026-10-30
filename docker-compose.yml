@@ -43,6 +43,9 @@ services:
       CAMPUSOPS_STUDENT_PASSWORD: ${CAMPUSOPS_STUDENT_PASSWORD:-}
       CAMPUSOPS_OTHER_DEMO_PASSWORD: ${CAMPUSOPS_OTHER_DEMO_PASSWORD:-}
       CAMPUSOPS_ALLOW_ANY_PASSWORD: ${CAMPUSOPS_ALLOW_ANY_PASSWORD:-false}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-qwen/qwen3.8-27b}
+      GROQ_API_URL: ${GROQ_API_URL:-https://api.groq.com/openai/v1/chat/completions}
       CAMPUS_NAME: "SRM Easwari Engineering College"
       CAMPUS_LAT: 13.0324
       CAMPUS_LON: 80.1810
@@ -59,7 +62,7 @@ services:
     ports:
       - "5173:5173"
     environment:
-      VITE_API_BASE_URL: http://localhost:8000
+      API_PROXY_TARGET: http://backend:8000
       VITE_CAMPUS_NAME: "SRM Easwari Engineering College"
       VITE_CAMPUS_LAT: 13.0324
       VITE_CAMPUS_LON: 80.1810

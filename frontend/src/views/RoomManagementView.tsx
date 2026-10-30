@@ -305,7 +305,7 @@ export const RoomManagementView: React.FC = () => {
   const activeClassesCount = bookings.filter((b) => b.booking_type === 'CLASS').length;
 
   return (
-    <div className="h-full flex flex-col bg-transparent text-white overflow-y-auto p-4 space-y-4 font-sans">
+    <div className="swiss-page-content h-full flex flex-col bg-transparent text-white overflow-y-auto p-4 space-y-4 font-sans">
       {/* Top Controls Strip */}
       <div className="nothing-widget rounded-3xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-lg">
         <div className="flex items-center space-x-3">
@@ -325,6 +325,7 @@ export const RoomManagementView: React.FC = () => {
         <div className="flex items-center space-x-2 shrink-0">
           <button
             onClick={fetchData}
+            aria-label="Refresh rooms and schedules"
             className="p-2 bg-[#121215] hover:bg-white/10 text-white rounded-full border border-white/15 text-xs transition spring-interactive"
             title="Refresh"
           >
@@ -374,7 +375,7 @@ export const RoomManagementView: React.FC = () => {
             )}
             <span>{actionMessage.text}</span>
           </div>
-          <button onClick={() => setActionMessage(null)} className="text-neutral-400 hover:text-white">
+          <button onClick={() => setActionMessage(null)} aria-label="Dismiss room management message" className="text-neutral-400 hover:text-white">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -561,6 +562,7 @@ export const RoomManagementView: React.FC = () => {
                           <div className="flex items-center justify-end space-x-1">
                             <button
                               onClick={() => handleOpenScheduleForRoom(room)}
+                              aria-label={`Schedule work or class for ${room.node_code}`}
                               className="p-1 hover:bg-white/10 text-neutral-300 rounded-full transition spring-interactive"
                               title="Schedule Work / Class"
                             >
@@ -568,6 +570,7 @@ export const RoomManagementView: React.FC = () => {
                             </button>
                             <button
                               onClick={() => handleDeleteRoom(room)}
+                              aria-label={`Delete room ${room.node_code}`}
                               className="p-1 hover:bg-nothing-red/20 text-neutral-400 hover:text-nothing-red rounded-full transition spring-interactive"
                               title="Delete Room"
                             >
@@ -683,6 +686,7 @@ export const RoomManagementView: React.FC = () => {
               </div>
               <button
                 onClick={() => setIsScheduleModalOpen(false)}
+                aria-label="Close schedule dialog"
                 className="text-neutral-400 hover:text-white p-1.5 rounded-full hover:bg-white/10 spring-interactive"
               >
                 <X className="w-5 h-5" />
@@ -856,6 +860,7 @@ export const RoomManagementView: React.FC = () => {
               </div>
               <button
                 onClick={() => setIsRoomModalOpen(false)}
+                aria-label="Close room form"
                 className="text-neutral-400 hover:text-white p-1.5 rounded-full hover:bg-white/10 spring-interactive"
               >
                 <X className="w-5 h-5" />

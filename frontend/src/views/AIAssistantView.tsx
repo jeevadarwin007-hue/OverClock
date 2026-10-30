@@ -1,339 +1,435 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
+import { Clock, Cpu, History as HistoryIcon, Plus, Sparkles, X } from 'lucide-react';
 import MorphOrb from '../components/ui/ai-thiking-orb-and-input';
-import {
-  ThoughtChain,
-  ThoughtChainStep,
-  ThoughtChainTrigger,
-  ThoughtChainContent,
-  ThoughtChainItem,
-} from '../components/ui/components-ai-thought-chain';
 import { api } from '../api/client';
-import {
-  Sparkles,
-  Zap,
-  Droplets,
-  Wind,
-  ShieldCheck,
-  Cpu,
-  Clock,
-  HelpCircle,
-} from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
 
-interface QuickPrompt {
-  label: string;
-  query: string;
-  icon: React.ComponentType<{ className?: string }>;
-  accent: string;
+interface AskAIResponse {
+  answer: string;
+  model?: string;
 }
 
-const QUICK_PROMPTS: QuickPrompt[] = [
-  {
-    label: 'Electrical Shift Roster',
-    query: 'Who is on shift for electrical maintenance?',
-    icon: Zap,
-    accent: 'text-amber-400',
-  },
-  {
-    label: 'Incident: RM-ACAD-204 Sparks',
-    query: 'URGENT: Electrical short circuit sparks near switchboard in RM-ACAD-204!',
-    icon: Zap,
-    accent: 'text-nothing-red',
-  },
-  {
-    label: 'Incident: RM-MAIN-101 Water Leak',
-    query: 'Water pipe leaking heavily and flooding corridor in RM-MAIN-101',
-    icon: Droplets,
-    accent: 'text-cyan-400',
-  },
-  {
-    label: 'Auditorium HVAC Fault',
-    query: 'Central Air Handling Unit AHU-AUD-MAIN blowing hot air in RM-AUD-MAIN',
-    icon: Wind,
-    accent: 'text-sky-400',
-  },
-  {
-    label: 'Verify Invariant Proofs',
-    query: 'What are the core mathematical invariants of CampusOps?',
-    icon: ShieldCheck,
-    accent: 'text-emerald-400',
-  },
-];
+interface AIHealthResponse {
+  connections?: {
+    groq?: { connected?: boolean };
+    database?: { connected?: boolean };
+  };
+}
 
-type StepStatus = 'pending' | 'active' | 'done';
+interface IntakeResponse {
+  is_ticket_created: boolean;
+  decision: string;
+  reply_message?: string | null;
+  work_order_id?: string | null;
+  ticket_number?: number | null;
+  state?: string | null;
+  needs_admin_approval?: boolean;
+  requires_admin_approval?: boolean;
+  reporter_urgency?: string | null;
+  category?: string | null;
+  target_node_code?: string | null;
+  recommended_tech_name?: string | null;
+  recommended_tech_role?: string | null;
+  assigned_tech_name?: string | null;
+  assigned_tech_role?: string | null;
+  email_dispatched?: boolean | null;
+  clarification_needed?: boolean;
+  clarification_question?: string | null;
+  correlation_action?: string;
+  partial_slots?: { dispatch_status?: string };
+  emergency_instructions?: {
+    headline?: string;
+    immediate_actions?: string[];
+    evacuation_route?: string;
+    assembly_point?: string;
+  } | null;
+}
 
-interface ThoughtStep {
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  text: string;
+  time: string;
+}
+
+interface SavedChat {
   id: string;
   title: string;
-  items: string[];
-  status: StepStatus;
+  updatedAt: string;
+  messages: ChatMessage[];
+  pendingIncident: string[];
 }
 
-const INITIAL_STEPS: ThoughtStep[] = [
-  {
-    id: 'validate',
-    title: 'Input Validation',
-    items: ['Sanitizing query text', 'Token budget check', 'Profanity & injection guard'],
-    status: 'pending',
-  },
-  {
-    id: 'dag',
-    title: 'Campus DAG Resolution',
-    items: ['Room node lookup in topology graph', 'Trade registry scan', 'Building DAG traversal', 'Floor hierarchy resolution'],
-    status: 'pending',
-  },
-  {
-    id: 'groq',
-    title: 'Groq AI Processing',
-    items: ['Campus system prompt injected', 'Streaming qwen/qwen3.8-27b response', 'Multi-agent context loaded', 'Facility knowledge base active'],
-    status: 'pending',
-  },
-  {
-    id: 'invariant',
-    title: 'Invariant Verification',
-    items: ['FSM state guard check', 'Double-entry ledger balance', 'SoD actor isolation audit', 'No-overlap GiST constraint'],
-    status: 'pending',
-  },
-  {
-    id: 'response',
-    title: 'Response Ready',
-    items: ['Answer formatted for display', 'Telemetry logged to ledger', 'Delivered to UI'],
-    status: 'pending',
-  },
-];
+const CHAT_HISTORY_KEY = 'campusops_ai_chat_history';
+
+const loadSavedChats = (): SavedChat[] => {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(CHAT_HISTORY_KEY) || '[]');
+    return Array.isArray(parsed) ? parsed.filter((item) => item?.id && Array.isArray(item.messages)) : [];
+  } catch {
+    return [];
+  }
+};
+
+const createChatId = () => globalThis.crypto?.randomUUID?.() || `chat-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+
+const apiFailureText = (error: unknown) => {
+  const failure = error as { status?: number; message?: string };
+  if (failure?.status === 401 || failure?.status === 403) {
+    return 'Your session is no longer authorized. Sign in again and retry.';
+  }
+  if (failure?.status && failure.status >= 500) {
+    return `The CampusOps API returned an error (${failure.status}). Check that the backend and database are running, then retry.`;
+  }
+  return 'The CampusOps API is not reachable. Start or reconnect the backend service, then retry.';
+};
+
+const timestamp = () => new Date().toLocaleTimeString('en-US', {
+  hour12: false,
+  hour: '2-digit',
+  minute: '2-digit',
+});
 
 export const AIAssistantView: React.FC = () => {
-  const [selectedPrompt, setSelectedPrompt] = useState<string | null>(null);
-  const [history, setHistory] = useState<Array<{ prompt: string; answer: string; time: string }>>([]);
-  const [lastModel, setLastModel] = useState<string>('qwen/qwen3.8-27b');
-  const [steps, setSteps] = useState<ThoughtStep[]>(INITIAL_STEPS);
-  const [showChain, setShowChain] = useState(false);
+  const { theme } = useTheme();
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [savedChats, setSavedChats] = useState<SavedChat[]>(loadSavedChats);
+  const savedChatsRef = useRef(savedChats);
+  const [chatId, setChatId] = useState<string>(createChatId);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [thinking, setThinking] = useState(false);
+  const [hasAnimated, setHasAnimated] = useState(false);
+  const [animating, setAnimating] = useState(false);
+  const [lastModel, setLastModel] = useState('qwen/qwen3.8-27b');
+  const [connectionLabel, setConnectionLabel] = useState('CHECKING API');
+  const [connectionTone, setConnectionTone] = useState<'online' | 'fallback' | 'offline'>('fallback');
+  const conversation = useRef<ChatMessage[]>([]);
+  const pendingIncident = useRef<string[]>([]);
+  const promptUsesAnimation = useRef(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
-  const setStepStatus = (id: string, status: StepStatus) =>
-    setSteps((prev) => prev.map((s) => (s.id === id ? { ...s, status } : s)));
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [messages, thinking]);
 
-  const handleAskAI = async (text: string): Promise<string> => {
-    // Show chain and reset
-    setShowChain(true);
-    setSteps(INITIAL_STEPS.map((s) => ({ ...s, status: 'pending' })));
+  useEffect(() => {
+    let active = true;
+    const checkApi = async () => {
+      try {
+        const health = await api.get<AIHealthResponse>('/health');
+        if (!active) return;
+        const groqConfigured = health.connections?.groq?.connected === true;
+        const databaseConnected = health.connections?.database?.connected !== false;
+        setConnectionLabel(!databaseConnected ? (groqConfigured ? 'DB OFFLINE · AI MAY WORK' : 'DB OFFLINE') : groqConfigured ? 'GROQ CONFIGURED' : 'RULE FALLBACK');
+        setConnectionTone(databaseConnected && groqConfigured ? 'online' : 'fallback');
+      } catch {
+        if (!active) return;
+        setConnectionLabel('API OFFLINE');
+        setConnectionTone('offline');
+      }
+    };
+    checkApi();
+    const interval = window.setInterval(checkApi, 30000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, []);
 
-    // Step 1: validate
-    setStepStatus('validate', 'active');
-    await delay(380);
-    setStepStatus('validate', 'done');
-
-    // Step 2: DAG
-    setStepStatus('dag', 'active');
-    await delay(520);
-    setStepStatus('dag', 'done');
-
-    // Step 3: Groq (actual API call)
-    setStepStatus('groq', 'active');
-    let answer: string;
+  useEffect(() => {
+    if (!messages.length) return;
+    const firstPrompt = messages.find((message) => message.role === 'user')?.text || 'AI chat';
+    const session: SavedChat = {
+      id: chatId,
+      title: firstPrompt.length > 58 ? `${firstPrompt.slice(0, 55)}…` : firstPrompt,
+      updatedAt: new Date().toISOString(),
+      messages,
+      pendingIncident: pendingIncident.current,
+    };
+    const next = [session, ...savedChatsRef.current.filter((chat) => chat.id !== chatId)].slice(0, 30);
+    savedChatsRef.current = next;
+    setSavedChats(next);
     try {
-      const res: any = await api.post('/ai/ask', { prompt: text });
-      answer = res.answer || 'Campus intelligence processed. Response completed.';
-      if (res.model) setLastModel(res.model);
-    } catch (_err) {
-      answer = `CampusOps AI: Query received for '${text}'. Operational parameters verified across SRM Easwari campus.`;
+      localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(next));
+    } catch {
+      // Keep the current conversation usable if local storage is unavailable.
     }
-    setStepStatus('groq', 'done');
+  }, [messages, chatId]);
 
-    // Step 4: invariant
-    setStepStatus('invariant', 'active');
-    await delay(400);
-    setStepStatus('invariant', 'done');
+  const handlePrompt = (text: string) => {
+    promptUsesAnimation.current = !hasAnimated;
+    setAnimating(promptUsesAnimation.current);
+    const message: ChatMessage = { role: 'user', text, time: timestamp() };
+    conversation.current = [...conversation.current, message];
+    setMessages((current) => [...current, message]);
+    setThinking(true);
+  };
 
-    // Step 5: response
-    setStepStatus('response', 'active');
-    await delay(280);
-    setStepStatus('response', 'done');
+  const askCampusAI = async (prompt: string): Promise<string> => {
+    const history = conversation.current.slice(-12).map(({ role, text }) => ({ role, content: text }));
+    const incidentText = [...pendingIncident.current, prompt].join('\n');
+    const reportIntent = /\b(no power|power outage|not working|broken|leak|flood|fire|smoke|spark|fault|damaged|repair|maintenance issue|equipment issue)\b/i.test(incidentText);
+    let intake: IntakeResponse;
+    try {
+      intake = await api.post<IntakeResponse>('/intake/chat', {
+        text: incidentText,
+        channel: 'CHAT',
+      });
+    } catch {
+      pendingIncident.current = [];
+      try {
+        const response = await api.post<AskAIResponse>('/ai/ask', { prompt, history });
+        if (response.model) {
+          setLastModel(response.model);
+          const isFallback = response.model === 'CampusOps-RuleBased-Core';
+          setConnectionLabel(isFallback ? 'RULE FALLBACK' : 'GROQ ACTIVE');
+          setConnectionTone(isFallback ? 'fallback' : 'online');
+        }
+        const fallbackAnswer = response.answer || 'I need a little more detail to answer reliably. What campus system or room are you asking about?';
+        return reportIntent
+          ? `I couldn't file a work order because incident intake is unavailable, so no ticket was created. ${fallbackAnswer}`
+          : fallbackAnswer;
+      } catch (aiError) {
+        setConnectionLabel('API OFFLINE');
+        setConnectionTone('offline');
+        return `${apiFailureText(aiError)}${reportIntent ? ' No incident report was submitted.' : ''}`;
+      }
+    }
 
-    // Add to history
-    const timeStr = new Date().toLocaleTimeString('en-US', {
-      hour12: false,
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
-    setHistory((prev) => [{ prompt: text, answer, time: timeStr }, ...prev.slice(0, 5)]);
+    if (intake.is_ticket_created) {
+        pendingIncident.current = [];
+        if (intake.correlation_action === 'MERGED_DUPLICATE') {
+          return `This report matches an existing incident. It has been linked to the existing work order on the dashboard.`;
+        }
+        const ticket = `Work order #${intake.ticket_number} for ${intake.target_node_code || 'the reported location'} has been added to the Admin dashboard.`;
+        if (intake.requires_admin_approval) {
+          const safety = intake.emergency_instructions;
+          const safetyMessage = safety
+            ? ` ${safety.headline || 'Follow the emergency instructions.'}${safety.immediate_actions?.length ? ` ${safety.immediate_actions.join(' ')}` : ''}${safety.evacuation_route ? ` Route: ${safety.evacuation_route}` : ''}${safety.assembly_point ? ` Assembly point: ${safety.assembly_point}.` : ''}`
+            : '';
+          return `Critical ${intake.reporter_urgency || 'P0'} incident reported to Admin. ${ticket} Admin approval is required before dispatch.${safetyMessage}`;
+        }
+        if (intake.assigned_tech_name) {
+          const dispatch = intake.email_dispatched ? 'The worker was notified by email.' : 'The assignment is recorded on the dashboard.';
+          return `${ticket} Assigned ${intake.assigned_tech_role || intake.category || 'technician'}: ${intake.assigned_tech_name}. ${dispatch}`;
+        }
+        if (intake.partial_slots?.dispatch_status) {
+          return `${ticket} ${intake.partial_slots.dispatch_status} The ticket is flagged for Admin attention.`;
+        }
+        if (!intake.recommended_tech_name) {
+          return `${ticket} No eligible ${intake.category || 'trade'} worker is available. The ticket is flagged for Admin staffing.`;
+        }
+        return `${ticket} Recommended ${intake.recommended_tech_role || intake.category || 'technician'}: ${intake.recommended_tech_name}.`;
+      }
 
-    return answer;
+    if (intake.clarification_needed && intake.category) {
+        pendingIncident.current = [...pendingIncident.current, prompt];
+        return intake.clarification_question || intake.reply_message || 'Please provide the exact room and describe the issue.';
+      }
+
+    pendingIncident.current = [];
+
+    try {
+      const response = await api.post<AskAIResponse>('/ai/ask', { prompt, history });
+      if (response.model) {
+        setLastModel(response.model);
+        const isFallback = response.model === 'CampusOps-RuleBased-Core';
+        setConnectionLabel(isFallback ? 'RULE FALLBACK' : 'GROQ ACTIVE');
+        setConnectionTone(isFallback ? 'fallback' : 'online');
+      }
+      return response.answer || 'I need a little more detail to answer reliably. What campus system or room are you asking about?';
+    } catch (error) {
+      setConnectionLabel('API OFFLINE');
+      setConnectionTone('offline');
+      return apiFailureText(error);
+    }
+  };
+
+  const handleAnswer = (text: string) => {
+    const message: ChatMessage = { role: 'assistant', text, time: timestamp() };
+    conversation.current = [...conversation.current, message];
+    setMessages((current) => [...current, message]);
+    setThinking(false);
+    if (promptUsesAnimation.current) setHasAnimated(true);
+    setAnimating(false);
+    promptUsesAnimation.current = false;
+  };
+
+  const startNewChat = () => {
+    if (thinking) return;
+    setChatId(createChatId());
+    conversation.current = [];
+    pendingIncident.current = [];
+    promptUsesAnimation.current = false;
+    setMessages([]);
+    setHasAnimated(false);
+    setAnimating(false);
+    setHistoryOpen(false);
+  };
+
+  const openSavedChat = (chat: SavedChat) => {
+    if (thinking) return;
+    setChatId(chat.id);
+    conversation.current = chat.messages;
+    pendingIncident.current = chat.pendingIncident || [];
+    setMessages(chat.messages);
+    setHasAnimated(true);
+    setAnimating(false);
+    setHistoryOpen(false);
   };
 
   return (
-    <div className="flex-1 w-full flex flex-col bg-black text-white overflow-hidden relative select-none" style={{ height: '100%' }}>
-      {/* Background dots */}
-      <div className="absolute inset-0 bg-[radial-gradient(#ffffff0a_1px,transparent_1px)] [background-size:20px_20px] pointer-events-none opacity-40" />
-      <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[700px] h-[300px] bg-nothing-red/5 blur-[120px] pointer-events-none rounded-full" />
-
-      {/* Top Telemetry Header */}
-      <div className="h-14 border-b border-white/10 px-6 flex items-center justify-between shrink-0 bg-black/60 backdrop-blur-xl z-20">
+    <div className={`ai-view flex-1 w-full flex flex-col bg-[#111114] text-white overflow-hidden relative ${theme === 'brutalism' ? 'ai-view-brutalism' : theme === 'swiss' ? 'ai-view-swiss' : ''}`}>
+      <div className="ai-view-background absolute inset-0 bg-[radial-gradient(#ffffff08_1px,transparent_1px)] [background-size:20px_20px] pointer-events-none opacity-40" />
+      <div className={`ai-chat-header h-14 border-b px-5 flex items-center justify-between shrink-0 z-20 ${theme === 'brutalism' ? 'border-black bg-[#2b2b2b]' : 'border-white/10 bg-black/60 backdrop-blur-xl'}`}>
         <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 rounded-xl bg-nothing-red/10 border border-nothing-red/40 flex items-center justify-center text-nothing-red shadow-[0_0_15px_rgba(215,56,50,0.3)]">
-            <Sparkles className="w-4 h-4 animate-pulse" />
+          <div className={`w-8 h-8 flex items-center justify-center ${theme === 'brutalism' ? 'rounded-none border-2 border-black bg-[#e9ef49] text-black' : 'rounded-xl bg-violet-600/20 border border-violet-500/40 text-violet-300'}`}>
+            <Sparkles className="w-4 h-4" />
           </div>
           <div>
-            <div className="flex items-center space-x-2">
-              <span className="font-ndot55 text-sm uppercase tracking-wider text-white font-bold">
-                CAMPUS INTELLIGENCE &amp; DISPATCH AI
-              </span>
-              <span className="text-[10px] font-ndot bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-2 py-0.5 rounded-full flex items-center space-x-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                <span>ONLINE</span>
-              </span>
-            </div>
-            <p className="text-[10px] text-neutral-400 font-sans">
-              SRM Easwari Engineering College • Real-Time Multi-Agent Facility Operations
+            <div className="font-ndot55 text-sm uppercase tracking-wider">CAMPUS AI INTELLIGENCE</div>
+            <p className="ai-view-subtitle text-[10px] text-neutral-500 font-mono">
+              <span className={`mr-1 md:hidden ${connectionTone === 'offline' ? 'text-red-500' : connectionTone === 'online' ? 'text-emerald-500' : 'text-amber-500'}`}>{connectionLabel} ·</span>
+              Ask a question or add details in a follow-up message.
             </p>
           </div>
         </div>
-
-        {/* Telemetry Chips */}
-        <div className="hidden md:flex items-center space-x-3 text-[11px] font-ndot">
-          <div className="flex items-center space-x-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-neutral-300">
-            <Cpu className="w-3.5 h-3.5 text-neutral-400" />
-            <span className="text-white uppercase">{lastModel}</span>
+        <div className="hidden md:flex items-center gap-2 text-[11px] font-mono">
+          <div className={`px-2 py-1 flex items-center gap-1.5 ${theme === 'brutalism' ? 'rounded-none border border-black bg-white text-black' : 'rounded-full bg-white/5 border border-white/10 text-neutral-400'}`}>
+            <Cpu className="w-3 h-3" /><span className={theme === 'brutalism' ? 'text-black' : 'text-white'}>{lastModel}</span>
           </div>
-          <div className="flex items-center space-x-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-neutral-300">
-            <Clock className="w-3.5 h-3.5 text-emerald-400" />
-            <span>&lt;240ms LATENCY</span>
+          <div className={`ai-connection-status px-2 py-1 flex items-center gap-1.5 ${theme === 'brutalism' ? 'rounded-none border border-black bg-white text-black' : 'rounded-full bg-white/5 border border-white/10 text-neutral-400'}`}>
+            <Clock className={`w-3 h-3 ${connectionTone === 'offline' ? 'text-red-500' : connectionTone === 'online' ? 'text-emerald-400' : 'text-amber-400'}`} /><span>{connectionLabel}</span>
           </div>
-          <div className="flex items-center space-x-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-neutral-300">
-            <ShieldCheck className="w-3.5 h-3.5 text-sky-400" />
-            <span>INVARIANTS 100%</span>
-          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setHistoryOpen((open) => !open)}
+            disabled={thinking}
+            aria-expanded={historyOpen}
+            className={`ai-toolbar-button flex items-center gap-1.5 px-3 py-1.5 text-xs transition disabled:opacity-40 ${theme === 'brutalism' ? 'rounded-none border-2 border-black bg-white text-black hover:bg-[#e9ef49]' : 'rounded-full border border-white/15 bg-white/5 text-neutral-300 hover:bg-white/10 hover:text-white'}`}
+          >
+            <HistoryIcon className="h-3.5 w-3.5" /> History{savedChats.length ? ` (${savedChats.length})` : ''}
+          </button>
+          <button
+            type="button"
+            onClick={startNewChat}
+            disabled={thinking}
+            className={`ai-toolbar-button flex items-center gap-1.5 px-3 py-1.5 text-xs transition disabled:opacity-40 ${theme === 'brutalism' ? 'rounded-none border-2 border-black bg-[#e9ef49] text-black hover:bg-white' : 'rounded-full border border-white/15 bg-white/5 text-neutral-300 hover:bg-white/10 hover:text-white'}`}
+          >
+            <Plus className="h-3.5 w-3.5" /> New chat
+          </button>
         </div>
       </div>
 
-      {/* Main Area — Two-column on md+ */}
-      <div className="flex-1 w-full overflow-hidden flex flex-col md:flex-row relative z-10">
-
-        {/* LEFT: Orb column — NO overflow-y-auto, so the pill captures pointer events */}
-        <div className="flex-1 flex flex-col items-center overflow-hidden px-4 pt-3">
-
-          {/* Quick Prompts — shrink-0 so they don't push orb out */}
-          <div className="w-full max-w-3xl flex flex-wrap items-center justify-center gap-2 pt-2 pb-1 shrink-0">
-            <span className="text-[10px] font-ndot text-neutral-500 uppercase tracking-widest mr-1 flex items-center gap-1">
-              <HelpCircle className="w-3 h-3 text-neutral-500" />
-              Quick Prompts:
-            </span>
-            {QUICK_PROMPTS.map((p, idx) => {
-              const Icon = p.icon;
-              return (
-                <motion.button
-                  key={idx}
+      <div className="ai-chat-stage relative z-10 flex-1 min-h-0 overflow-hidden">
+        {historyOpen && (
+          <div role="dialog" aria-label="AI chat history" className={`ai-history-panel absolute right-4 top-4 bottom-4 z-30 flex w-[min(360px,calc(100%-2rem))] flex-col border p-3 ${theme === 'brutalism' ? 'rounded-none border-[3px] border-black bg-[#d4d4d4] text-black shadow-[7px_7px_0_#e9ef49]' : 'rounded-2xl border-white/15 bg-[#101014]/95 text-white shadow-2xl backdrop-blur-xl'}`}>
+            <div className="mb-3 flex items-center justify-between border-b border-current/20 pb-3">
+              <div>
+                <h2 className="text-sm font-semibold">AI chat history</h2>
+                <p className="mt-0.5 text-[10px] opacity-65">Saved on this device</p>
+              </div>
+              <button type="button" onClick={() => setHistoryOpen(false)} aria-label="Close chat history" className="p-1 opacity-70 hover:opacity-100">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto">
+              {savedChats.length === 0 ? (
+                <p className="p-3 text-xs opacity-65">Past chats will appear here.</p>
+              ) : savedChats.map((chat) => (
+                <button
+                  key={chat.id}
                   type="button"
-                  whileHover={{ scale: 1.04, y: -1 }}
-                  whileTap={{ scale: 0.96 }}
-                  onClick={() => {
-                    setSelectedPrompt(p.query);
-                    navigator.clipboard?.writeText(p.query);
-                  }}
-                  className="px-2.5 py-1 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] font-mono text-neutral-300 hover:text-white transition flex items-center space-x-1.5 shadow-sm"
+                  onClick={() => openSavedChat(chat)}
+                  className={`ai-history-item block w-full border p-3 text-left ${theme === 'brutalism' ? 'rounded-none border-black/30 bg-white text-black hover:bg-[#e9ef49]' : 'rounded-xl border-white/10 bg-white/5 text-white hover:bg-white/10'}`}
                 >
-                  <Icon className={`w-3 h-3 ${p.accent}`} />
-                  <span>{p.label}</span>
-                </motion.button>
-              );
-            })}
-          </div>
-
-          {/* Selected prompt hint */}
-          <AnimatePresence>
-            {selectedPrompt && (
-              <motion.div
-                initial={{ opacity: 0, y: -5 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -5 }}
-                className="text-[11px] font-mono text-neutral-400 bg-white/5 border border-white/10 px-3 py-1 rounded-xl flex items-center space-x-2 mt-1 shrink-0"
-              >
-                <span className="text-nothing-red font-bold font-ndot">PROMPT COPIED:</span>
-                <span className="text-white truncate max-w-xs">{selectedPrompt}</span>
-                <span className="text-[10px] text-neutral-500 hidden md:inline">(Paste into orb or Ctrl+V)</span>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* MorphOrb — flex-1 fills all remaining space, overflow:hidden keeps it contained */}
-          <div className="w-full flex-1 relative overflow-hidden">
-            <MorphOrb onSubmit={handleAskAI} minThinkMs={1200} speed={1} />
-          </div>
-
-          {/* Bottom feature strip */}
-          <div className="w-full max-w-4xl border-t border-white/10 pt-2 pb-2 flex flex-col md:flex-row items-center justify-between text-[11px] text-neutral-500 font-ndot gap-2 shrink-0">
-            <div className="flex items-center space-x-2">
-              <span className="w-2 h-2 rounded-full bg-nothing-red animate-pulse" />
-              <span>NOTHING OS OLED INTERFACE • 3D DOTTED VECTOR VOLUMETRIC ENGINE</span>
-            </div>
-            <div className="flex items-center space-x-4 font-mono text-[10px] text-neutral-400">
-              <span>Room Resolution: DAG Topological</span>
-              <span>•</span>
-              <span>Autonomous Resend Mail: Enabled</span>
-              <span>•</span>
-              <span>Cryptographic Ledger: Active</span>
+                  <span className="block truncate text-xs font-semibold">{chat.title}</span>
+                  <span className="mt-1 block text-[10px] opacity-60">
+                    {new Date(chat.updatedAt).toLocaleString()} · {chat.messages.length} messages
+                  </span>
+                </button>
+              ))}
             </div>
           </div>
+        )}
+        <div className="ai-orb-stage absolute inset-0 z-0">
+          <MorphOrb
+            onPrompt={handlePrompt}
+            onSubmit={askCampusAI}
+            onAnswer={handleAnswer}
+            chatMode
+            animate={!hasAnimated}
+            minThinkMs={900}
+            speed={1}
+          />
         </div>
 
-        {/* RIGHT: ThoughtChain panel */}
-        <AnimatePresence>
-          {showChain && (
-            <motion.div
-              initial={{ opacity: 0, x: 32 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 32 }}
-              transition={{ type: 'spring', stiffness: 320, damping: 28 }}
-              className="w-full md:w-[340px] lg:w-[380px] shrink-0 border-t md:border-t-0 md:border-l border-white/10 bg-black/80 backdrop-blur-xl flex flex-col overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden p-5"
-            >
-              {/* Panel header */}
-              <div className="flex items-center justify-between mb-5 shrink-0">
-                <div className="flex items-center space-x-2">
-                  <span className="w-2 h-2 rounded-full bg-nothing-red animate-pulse" />
-                  <span className="text-[11px] font-ndot uppercase tracking-widest text-neutral-300">
-                    AI THOUGHT CHAIN
-                  </span>
-                </div>
-                <span className="text-[10px] font-mono text-neutral-600">
-                  {steps.filter((s) => s.status === 'done').length}/{steps.length} steps
-                </span>
+        <div className={`ai-chat-transcript absolute inset-x-0 top-0 bottom-[170px] z-10 flex flex-col ${animating ? 'hidden' : ''}`}>
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 py-6 sm:px-8 space-y-5">
+          {messages.length === 0 && (
+            <div className="flex items-start gap-3">
+              <div className={`mt-1 flex h-8 w-8 shrink-0 items-center justify-center ${theme === 'brutalism' ? 'rounded-none border-2 border-black bg-[#e9ef49] text-black' : 'rounded-full bg-violet-600 text-white'}`}>
+                <Sparkles className="h-4 w-4" />
               </div>
-
-              {/* Steps */}
-              <ThoughtChain className="flex-1">
-                {steps.map((step) => (
-                  <ThoughtChainStep key={step.id} status={step.status}>
-                    <ThoughtChainTrigger>{step.title}</ThoughtChainTrigger>
-                    <ThoughtChainContent>
-                      {step.items.map((item, i) => (
-                        <ThoughtChainItem key={i}>{item}</ThoughtChainItem>
-                      ))}
-                    </ThoughtChainContent>
-                  </ThoughtChainStep>
-                ))}
-              </ThoughtChain>
-
-              {/* History (last query) */}
-              {history.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-white/10 shrink-0">
-                  <p className="text-[10px] font-ndot text-neutral-600 uppercase tracking-widest mb-2">
-                    LAST RESPONSE
-                  </p>
-                  <p className="text-[11px] font-mono text-neutral-400 leading-relaxed line-clamp-4">
-                    {history[0].answer}
-                  </p>
-                  <p className="text-[10px] text-neutral-700 mt-1 font-mono">{history[0].time}</p>
-                </div>
-              )}
-            </motion.div>
+              <div className={`ai-message-assistant max-w-[min(80%,720px)] px-4 py-3 text-sm leading-relaxed ${theme === 'brutalism' ? 'rounded-none border-2 border-black bg-white text-black shadow-[4px_4px_0_#111]' : 'rounded-2xl rounded-tl-md border border-white/10 bg-[#242428] text-neutral-100 shadow-lg'}`}>
+                Hi! I’m your CampusOps AI assistant. How can I help with campus operations today?
+              </div>
+            </div>
           )}
-        </AnimatePresence>
+
+          {messages.map((message, index) => message.role === 'user' ? (
+            <motion.div
+              key={`${message.time}-${index}`}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex justify-end"
+            >
+              <div className={`ai-message-user max-w-[min(82%,760px)] px-4 py-3 text-sm leading-relaxed ${theme === 'brutalism' ? 'rounded-none border-2 border-black bg-[#e9ef49] text-black shadow-[4px_4px_0_#111]' : 'rounded-2xl rounded-br-md bg-violet-600 text-white shadow-[0_8px_24px_rgba(109,40,217,0.25)]'}`}>
+                <p className="whitespace-pre-wrap break-words">{message.text}</p>
+                <p className={`mt-1 text-right text-[10px] ${theme === 'brutalism' ? 'text-black/60' : 'text-violet-200/70'}`}>{message.time}</p>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key={`${message.time}-${index}`}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-start gap-3"
+            >
+              <div className={`mt-1 flex h-8 w-8 shrink-0 items-center justify-center ${theme === 'brutalism' ? 'rounded-none border-2 border-black bg-[#e9ef49] text-black' : 'rounded-full bg-violet-600 text-white'}`}>
+                <Sparkles className="h-4 w-4" />
+              </div>
+              <div className={`ai-message-assistant max-w-[min(82%,760px)] px-4 py-3 text-sm leading-relaxed ${theme === 'brutalism' ? 'rounded-none border-2 border-black bg-white text-black shadow-[4px_4px_0_#111]' : 'rounded-2xl rounded-tl-md border border-white/10 bg-[#242428] text-neutral-100 shadow-lg'}`}>
+                <p className="whitespace-pre-wrap break-words">{message.text.replace(/\*\*/g, '')}</p>
+                <p className="mt-1 text-right text-[10px] text-neutral-500">{message.time}</p>
+              </div>
+            </motion.div>
+          ))}
+
+          {thinking && !animating && (
+            <div className="flex items-start gap-3" role="status" aria-label="Campus AI is responding">
+              <div className={`mt-1 flex h-8 w-8 shrink-0 items-center justify-center ${theme === 'brutalism' ? 'rounded-none border-2 border-black bg-[#e9ef49] text-black' : 'rounded-full bg-violet-600 text-white'}`}>
+                <Sparkles className="h-4 w-4" />
+              </div>
+              <div className={`flex items-center gap-1 px-4 py-4 ${theme === 'brutalism' ? 'rounded-none border-2 border-black bg-white' : 'rounded-2xl rounded-tl-md border border-white/10 bg-[#242428]'}`}>
+                {[0, 1, 2].map((dot) => (
+                  <motion.span
+                    key={dot}
+                    className="h-1.5 w-1.5 rounded-full bg-neutral-400"
+                    animate={{ opacity: [0.3, 1, 0.3] }}
+                    transition={{ duration: 0.9, repeat: Infinity, delay: dot * 0.18 }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div ref={bottomRef} />
+        </div>
+        </div>
       </div>
     </div>
   );
 };
-
-// Utility
-function delay(ms: number) {
-  return new Promise<void>((resolve) => setTimeout(resolve, ms));
-}

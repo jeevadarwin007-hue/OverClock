@@ -93,7 +93,8 @@ class StaffingService:
         worker_name: Optional[str] = None,
         worker_email: Optional[str] = None,
         worker_role: Optional[str] = None,
-        actor_id: Optional[UUID] = None
+        actor_id: Optional[UUID] = None,
+        send_worker_email: bool = True,
     ) -> AssignTechnicianResponse:
         """
         Assigns or reassigns a technician/worker to a work order.
@@ -349,38 +350,43 @@ class StaffingService:
         email_id = None
         email_subject = None
 
-        if selected_tech.get("email"):
+        if selected_tech.get("email") and send_worker_email:
             target_worker_email = selected_tech["email"]
             target_worker_name = selected_tech["full_name"]
             target_worker_role = selected_tech.get("role") or category or "TECHNICIAN"
+            try:
+                dispatch_draft = await WorkerDispatchAgent.generate_dispatch_email(
+                    ticket_number=wo["ticket_number"] if wo["ticket_number"] else 0,
+                    category=category or "GENERAL_MAINTENANCE",
+                    raw_description=wo["raw_description"] or "Assigned campus maintenance ticket",
+                    location_hint=wo["node_code"] if wo["node_code"] else None,
+                    room_code=wo["effective_room"],
+                    floor_number=wo["effective_floor"],
+                    building_name=wo["building_code"] or wo["node_name"],
+                    worker_name=target_worker_name,
+                    worker_role=target_worker_role,
+                    urgency=wo["calculated_priority"] if wo["calculated_priority"] else "P2_MEDIUM"
+                )
+                resend_result = await ResendEmailService.send_email(
+                    to_email=target_worker_email,
+                    subject=dispatch_draft.subject,
+                    html_body=dispatch_draft.html_body,
+                    text_body=dispatch_draft.text_body
+                )
+                email_dispatched = resend_result.get("success", False)
+                email_id = resend_result.get("id")
+                email_subject = dispatch_draft.subject
+                notification_body = dispatch_draft.html_body
+            except Exception as e:
+                import logging
+                logging.getLogger("staffing").exception("Worker dispatch email failed: %s", e)
+                email_subject = f"CampusOps work order #{wo['ticket_number']} assigned"
+                notification_body = (
+                    f"Work order #{wo['ticket_number']} ({category}) assigned to {target_worker_name} "
+                    f"for {wo['effective_room'] or wo['node_code'] or 'the reported location'}."
+                )
 
-            # Agent 1: Generate tailored dispatch email via Groq with full problem details
-            dispatch_draft = await WorkerDispatchAgent.generate_dispatch_email(
-                ticket_number=wo["ticket_number"] if wo["ticket_number"] else 0,
-                category=category or "GENERAL_MAINTENANCE",
-                raw_description=wo["raw_description"] or "Assigned campus maintenance ticket",
-                location_hint=wo["node_code"] if wo["node_code"] else None,
-                room_code=wo["effective_room"],
-                floor_number=wo["effective_floor"],
-                building_name=wo["building_code"] or wo["node_name"],
-                worker_name=target_worker_name,
-                worker_role=target_worker_role,
-                urgency=wo["calculated_priority"] if wo["calculated_priority"] else "P2_MEDIUM"
-            )
-
-            # Send via Resend API
-            resend_result = await ResendEmailService.send_email(
-                to_email=target_worker_email,
-                subject=dispatch_draft.subject,
-                html_body=dispatch_draft.html_body,
-                text_body=dispatch_draft.text_body
-            )
-
-            email_dispatched = resend_result.get("success", False)
-            email_id = resend_result.get("id")
-            email_subject = dispatch_draft.subject
-
-            # Record in outbound_notifications table
+            # Keep a durable notification record even if the AI email draft/provider is down.
             delivery_status = "DELIVERED" if email_dispatched else "PENDING"
             await conn.execute(
                 """
@@ -389,8 +395,8 @@ class StaffingService:
                 """,
                 new_tech_id,
                 target_worker_email,
-                dispatch_draft.subject,
-                dispatch_draft.html_body,
+                email_subject,
+                notification_body,
                 work_order_id,
                 delivery_status
             )

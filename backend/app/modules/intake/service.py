@@ -385,24 +385,22 @@ class IntakeService:
         if correlation_action == "MERGED_DUPLICATE":
             wo_state = "MERGED_DUPLICATE"
 
-        # Pre-score eligible technician for Admin review & approval
-        # Incident remains in TRIAGED state pending Admin approval before proceeding to worker assignment
+        # Recommend only a worker with the matching trade skill and an active shift.
         recommended_worker = None
+        assigned_worker_res = None
+        requires_admin_approval = urgency in ("P0_CRITICAL", "P1_HIGH")
+        dispatch_note = None
+        worker_candidates = []
+        worker_lookup_failed = False
         if wo_state != "MERGED_DUPLICATE":
             try:
-                candidates = await StaffingService.score_eligible_technicians(
+                worker_candidates = await StaffingService.score_eligible_technicians(
                     conn,
                     category=category,
                     target_building=node["building_code"]
                 )
-                chosen_tech_id = candidates[0].technician_id if candidates else None
-
-                if not chosen_tech_id:
-                    chosen_tech_id = await conn.fetchval(
-                        "SELECT id FROM users WHERE role = 'TECHNICIAN' AND is_available = TRUE LIMIT 1;"
-                    )
-
-                if chosen_tech_id:
+                if worker_candidates:
+                    chosen_tech_id = worker_candidates[0].technician_id
                     tech_row = await conn.fetchrow(
                         """
                         SELECT u.full_name, u.email, sk.skill::text AS role
@@ -423,24 +421,123 @@ class IntakeService:
             except Exception as e:
                 import logging
                 logging.getLogger("intake").error(f"Worker pre-scoring error: {e}")
+                worker_lookup_failed = True
+
+        if wo_state != "MERGED_DUPLICATE" and not requires_admin_approval and worker_candidates:
+            automation_actor_id = await conn.fetchval(
+                "SELECT id FROM users WHERE email = 'campusops-automation@internal.local' AND role = 'AI_AUTOMATION';"
+            )
+            if automation_actor_id:
+                reporter_department_id = await conn.fetchval(
+                    "SELECT department_id FROM users WHERE id = $1;",
+                    reporter_id,
+                )
+                try:
+                    async with conn.transaction():
+                        await conn.execute(
+                            "SELECT set_secure_context($1::uuid, 'AI_AUTOMATION'::user_role, NULL);",
+                            automation_actor_id,
+                        )
+                        assigned_worker_res = await StaffingService.assign_technician(
+                            conn,
+                            work_order_id=wo_id,
+                            actor_id=automation_actor_id,
+                            send_worker_email=False,
+                        )
+                    wo_state = assigned_worker_res.work_order_state
+                    partial_slots["assigned_technician"] = {
+                        "id": str(assigned_worker_res.assigned_tech_id),
+                        "name": assigned_worker_res.assigned_tech_name,
+                        "email": assigned_worker_res.assigned_tech_email,
+                        "role": assigned_worker_res.assigned_tech_role,
+                    }
+                except Exception as e:
+                    import logging
+                    logging.getLogger("intake").exception("Automatic noncritical dispatch failed: %s", e)
+                    dispatch_note = "Automatic dispatch could not be completed; Admin dispatch required."
+                finally:
+                    await conn.execute(
+                        "SELECT set_secure_context($1::uuid, $2::user_role, $3::uuid);",
+                        reporter_id,
+                        actor_role,
+                        reporter_department_id,
+                    )
+            else:
+                dispatch_note = "Automation identity is unavailable; Admin dispatch required."
+
+        no_eligible_worker = wo_state != "MERGED_DUPLICATE" and not worker_candidates and not worker_lookup_failed
+        if worker_lookup_failed:
+            dispatch_note = "Worker availability could not be verified; Admin dispatch required."
+            partial_slots["dispatch_status"] = dispatch_note
+        elif no_eligible_worker:
+            dispatch_note = f"No available on-shift {category} worker; Admin dispatch required."
+            partial_slots["dispatch_status"] = dispatch_note
+        elif dispatch_note:
+            partial_slots["dispatch_status"] = dispatch_note
+
+        needs_admin_attention = requires_admin_approval or no_eligible_worker or bool(dispatch_note)
+
+        await conn.execute(
+            """
+            UPDATE work_orders
+            SET partial_slots = $2::jsonb,
+                blocked_reason = CASE WHEN $3::text IS NOT NULL THEN $3 ELSE blocked_reason END
+            WHERE id = $1;
+            """,
+            wo_id,
+            json.dumps(partial_slots),
+            dispatch_note if no_eligible_worker or dispatch_note else None,
+        )
+
+        # Put the incident in the Admin work queue. P0/P1 reports explicitly request approval;
+        # noncritical reports are also visible for oversight and staffing exceptions.
+        admin_recipients = await conn.fetch(
+            "SELECT id, email FROM users WHERE role IN ('SYS_ADMIN', 'FACILITIES_ADMIN', 'DEPT_MANAGER');"
+        )
+        notification_subject = (
+            f"APPROVAL REQUIRED: P0/P1 incident #{ticket_num}"
+            if requires_admin_approval
+            else f"Campus incident reported: #{ticket_num}"
+        )
+        notification_body = (
+            f"{extraction.concise_summary} Location: {node['node_code']}. Priority: {urgency}. "
+            + (f"Assigned worker: {assigned_worker_res.assigned_tech_name} ({category}). " if assigned_worker_res else "")
+            + (f"Recommended worker for Admin review: {recommended_worker['name']} ({category}). " if recommended_worker and not assigned_worker_res else "")
+            + (f"{dispatch_note} " if dispatch_note else "")
+            + ("Admin approval is required before dispatch." if requires_admin_approval else "Review the report on the work orders dashboard.")
+        )
+        for recipient in admin_recipients:
+            await conn.execute(
+                """
+                INSERT INTO outbound_notifications (recipient_user_id, recipient_email, subject, body, work_order_id)
+                VALUES ($1, $2, $3, $4, $5);
+                """,
+                recipient["id"],
+                recipient["email"],
+                notification_subject,
+                notification_body,
+                wo_id,
+            )
 
         response_payload = {
             "work_order_id": str(wo_id),
             "ticket_number": ticket_num,
             "conversation_thread_id": thread_id,
             "state": wo_state,
-            "needs_admin_approval": True,
+            "needs_admin_approval": needs_admin_attention,
+            "requires_admin_approval": requires_admin_approval,
+            "reporter_urgency": urgency,
             "category": category,
             "target_node_code": node["node_code"],
             "target_node_name": node["name"],
             "room_code": node["node_code"],
             "floor_number": node["floor_number"],
-            "assigned_tech_name": None,
-            "assigned_tech_email": None,
-            "assigned_tech_role": None,
+            "assigned_tech_name": assigned_worker_res.assigned_tech_name if assigned_worker_res else None,
+            "assigned_tech_email": assigned_worker_res.assigned_tech_email if assigned_worker_res else None,
+            "assigned_tech_role": assigned_worker_res.assigned_tech_role if assigned_worker_res else None,
             "recommended_tech_name": recommended_worker["name"] if recommended_worker else None,
             "recommended_tech_role": recommended_worker["role"] if recommended_worker else None,
-            "email_dispatched": False,
+            "email_dispatched": assigned_worker_res.email_dispatched if assigned_worker_res else False,
             "clarification_needed": False,
             "clarification_question": None,
             "partial_slots": partial_slots,
@@ -469,6 +566,9 @@ class IntakeService:
             ticket_number=ticket_num,
             conversation_thread_id=thread_id,
             state=wo_state,
+            needs_admin_approval=needs_admin_attention,
+            requires_admin_approval=requires_admin_approval,
+            reporter_urgency=urgency,
             category=category,
             target_node_code=node["node_code"],
             target_node_name=node["name"],

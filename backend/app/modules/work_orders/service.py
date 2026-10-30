@@ -347,45 +347,34 @@ class WorkOrderService:
                 )
 
         # 3. Execute the state change (The PostgreSQL DB trigger trg_work_order_fsm_enforcement enforces allowed_roles)
+        assigned_during_transition = False
+        if target_state == "ASSIGNED" and not wo["assigned_tech_id"]:
+            # Assignment itself selects only a matching eligible technician and performs
+            # the guarded state transition atomically. If nobody is eligible, it raises
+            # before changing the work order instead of assigning an arbitrary worker.
+            from app.modules.staffing.service import StaffingService
+            assignment_result = await StaffingService.assign_technician(
+                conn,
+                work_order_id=work_order_id,
+                actor_id=actor_id,
+            )
+            assigned_during_transition = assignment_result.work_order_state == target_state
+
         resolved_sql = ", resolved_at = NOW()" if target_state == "RESOLVED" else ""
-        await conn.execute(
-            f"""
-            UPDATE work_orders
-            SET state = $2::wo_state,
-                updated_at = NOW()
-                {resolved_sql}
-            WHERE id = $1;
-            """,
-            work_order_id,
-            target_state
-        )
+        if not assigned_during_transition:
+            await conn.execute(
+                f"""
+                UPDATE work_orders
+                SET state = $2::wo_state,
+                    updated_at = NOW()
+                    {resolved_sql}
+                WHERE id = $1;
+                """,
+                work_order_id,
+                target_state
+            )
 
         now = datetime.now(timezone.utc)
-
-        # 4. If transitioned to ASSIGNED and unassigned, auto-assign best technician and notify via Groq email
-        if target_state == "ASSIGNED" and not wo["assigned_tech_id"]:
-            try:
-                from app.modules.staffing.service import StaffingService
-                cat = await conn.fetchval("SELECT category FROM work_orders WHERE id = $1;", work_order_id)
-                node_bldg = await conn.fetchval(
-                    "SELECT cn.building_code FROM work_orders wo JOIN campus_nodes cn ON wo.target_node_id = cn.id WHERE wo.id = $1;",
-                    work_order_id
-                )
-                candidates = await StaffingService.score_eligible_technicians(
-                    conn, category=cat or "ELECTRICAL", target_building=node_bldg
-                )
-                chosen_tech_id = candidates[0].technician_id if candidates else None
-                if not chosen_tech_id:
-                    chosen_tech_id = await conn.fetchval(
-                        "SELECT id FROM users WHERE role = 'TECHNICIAN' AND is_available = TRUE LIMIT 1;"
-                    )
-                if chosen_tech_id:
-                    await StaffingService.assign_technician(
-                        conn, work_order_id=work_order_id, technician_id=chosen_tech_id, actor_id=actor_id
-                    )
-            except Exception as e:
-                import logging
-                logging.getLogger("work_orders").warning(f"Could not auto-assign on approval: {e}")
 
         # 5. Record in audit_logs
         audit_details = {

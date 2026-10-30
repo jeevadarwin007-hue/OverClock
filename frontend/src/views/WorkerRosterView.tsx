@@ -126,7 +126,7 @@ export const WorkerRosterView: React.FC = () => {
   const fleetUtilization = totalCapacity > 0 ? Math.round((activeWorkload / totalCapacity) * 100) : 0;
 
   return (
-    <div className="h-full flex flex-col bg-transparent text-white overflow-hidden">
+    <div className="swiss-page-content h-full flex flex-col bg-transparent text-white overflow-hidden">
       {/* Top Action Bar */}
       <div className="h-[50px] border-b border-white/10 bg-black/80 backdrop-blur-xl px-4 flex items-center justify-between shrink-0 shadow-sm">
         <div className="flex items-center space-x-3">
@@ -161,6 +161,7 @@ export const WorkerRosterView: React.FC = () => {
 
           <button
             onClick={fetchWorkers}
+            aria-label="Refresh worker roster"
             className="p-1.5 bg-[#121215] hover:bg-white/10 text-white rounded-full border border-white/15 text-xs transition spring-interactive shadow-sm"
             title="Refresh Roster"
           >
@@ -186,7 +187,7 @@ export const WorkerRosterView: React.FC = () => {
             )}
             <span>{statusMessage.text}</span>
           </div>
-          <button onClick={() => setStatusMessage(null)} className="text-neutral-400 hover:text-white spring-interactive">
+          <button onClick={() => setStatusMessage(null)} aria-label="Dismiss roster message" className="text-neutral-400 hover:text-white spring-interactive">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -265,6 +266,7 @@ export const WorkerRosterView: React.FC = () => {
                       <td className="py-2 px-3 text-right">
                         <button
                           onClick={() => handleDeleteWorker(w.id, w.full_name)}
+                          aria-label={`Deregister ${w.full_name}`}
                           className="p-1.5 hover:bg-nothing-red/20 text-neutral-400 hover:text-nothing-red rounded-full transition spring-interactive"
                           title="Deregister worker"
                         >

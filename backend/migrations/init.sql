@@ -17,6 +17,7 @@ CREATE TYPE user_role AS ENUM (
     'DEPT_MANAGER',
     'FACILITIES_ADMIN',
     'PROCUREMENT_APPROVER',
+    'AI_AUTOMATION',
     'SYS_ADMIN'
 );
 
@@ -127,6 +128,9 @@ CREATE TABLE users (
     max_concurrent_workload INT NOT NULL DEFAULT 4,
     base_building_code VARCHAR(32)
 );
+
+INSERT INTO users (email, full_name, role, password_hash, is_available, max_concurrent_workload, active_workload_count)
+VALUES ('campusops-automation@internal.local', 'CampusOps Automation', 'AI_AUTOMATION', NULL, FALSE, 0, 0);
 
 CREATE TABLE staff_shifts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -336,7 +340,7 @@ INSERT INTO fsm_state_transitions (from_state, to_state, allowed_roles) VALUES
 ('TRIAGED', 'MERGED_DUPLICATE', ARRAY['SYS_ADMIN'::user_role, 'FACILITIES_ADMIN'::user_role, 'STUDENT_FACULTY'::user_role]),
 ('AWAITING_CLARIFICATION', 'TRIAGED', ARRAY['SYS_ADMIN'::user_role, 'FACILITIES_ADMIN'::user_role, 'STUDENT_FACULTY'::user_role]),
 ('AWAITING_CLARIFICATION', 'ASSIGNED', ARRAY['SYS_ADMIN'::user_role, 'FACILITIES_ADMIN'::user_role, 'DEPT_MANAGER'::user_role]),
-('TRIAGED', 'ASSIGNED', ARRAY['SYS_ADMIN'::user_role, 'FACILITIES_ADMIN'::user_role, 'DEPT_MANAGER'::user_role]),
+('TRIAGED', 'ASSIGNED', ARRAY['SYS_ADMIN'::user_role, 'FACILITIES_ADMIN'::user_role, 'DEPT_MANAGER'::user_role, 'AI_AUTOMATION'::user_role]),
 ('TRIAGED', 'BLOCKED_PARTS', ARRAY['TECHNICIAN'::user_role, 'SYS_ADMIN'::user_role, 'FACILITIES_ADMIN'::user_role]),
 ('ASSIGNED', 'TRIAGED', ARRAY['SYS_ADMIN'::user_role, 'FACILITIES_ADMIN'::user_role, 'DEPT_MANAGER'::user_role]),
 ('ASSIGNED', 'IN_PROGRESS', ARRAY['TECHNICIAN'::user_role, 'SYS_ADMIN'::user_role]),
@@ -392,6 +396,50 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER trg_work_order_fsm_enforcement
 BEFORE UPDATE OF state ON work_orders
 FOR EACH ROW EXECUTE FUNCTION trg_fn_enforce_wo_fsm();
+
+CREATE OR REPLACE FUNCTION trg_fn_scope_ai_automation_assignment()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_role user_role;
+BEGIN
+    SELECT actor_role INTO v_role
+    FROM security_context_session
+    WHERE backend_pid = pg_backend_pid();
+
+    IF v_role IS DISTINCT FROM 'AI_AUTOMATION'::user_role THEN
+        RETURN NEW;
+    END IF;
+
+    IF OLD.state <> 'TRIAGED'::wo_state
+       OR NEW.state <> 'ASSIGNED'::wo_state
+       OR NEW.reporter_urgency IS NULL
+       OR NEW.reporter_urgency NOT IN ('P2_MEDIUM'::priority_level, 'P3_LOW'::priority_level)
+       OR NEW.calculated_priority IS NULL
+       OR NEW.calculated_priority NOT IN ('P2_MEDIUM'::priority_level, 'P3_LOW'::priority_level)
+       OR NEW.assigned_tech_id IS NULL
+       OR NOT EXISTS (
+           SELECT 1
+           FROM users u
+           JOIN staff_skills sk ON sk.user_id = u.id AND sk.skill = NEW.category
+           WHERE u.id = NEW.assigned_tech_id
+             AND u.role = 'TECHNICIAN'::user_role
+             AND u.is_available = TRUE
+             AND u.active_workload_count <= u.max_concurrent_workload
+             AND EXISTS (
+                 SELECT 1 FROM staff_shifts ss
+                 WHERE ss.user_id = u.id AND ss.shift_window @> NOW()
+             )
+       ) THEN
+        RAISE EXCEPTION 'AI_AUTOMATION may only assign eligible on-shift technicians to noncritical work orders';
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_work_order_ai_automation_scope
+BEFORE UPDATE ON work_orders
+FOR EACH ROW EXECUTE FUNCTION trg_fn_scope_ai_automation_assignment();
 
 -- ------------------------------------------------------------------------------
 -- 8. APPROVALS & SNAPSHOT HASHING

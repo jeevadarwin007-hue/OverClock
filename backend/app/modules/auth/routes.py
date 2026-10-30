@@ -34,7 +34,7 @@ async def login(request: LoginRequest):
             """,
             request.email
         )
-        if not user or (
+        if not user or user["role"] == "AI_AUTOMATION" or (
             not settings.CAMPUSOPS_ALLOW_ANY_PASSWORD
             and (not user["password_hash"] or not verify_password(request.password, user["password_hash"]))
         ):

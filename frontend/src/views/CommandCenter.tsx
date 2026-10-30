@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { Variants } from 'framer-motion';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import {
   Activity,
   AlertTriangle,
@@ -121,6 +122,7 @@ function GlowCard({
 }) {
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const [active, setActive] = useState(false);
+  const { theme } = useTheme();
   const rgb = ACCENTS[accent] || '215, 56, 50';
 
   const moveTo = (clientX: number, clientY: number, el: HTMLElement) => {
@@ -143,7 +145,7 @@ function GlowCard({
   return (
     <motion.div
       variants={cardItemVariants}
-      whileHover={{ y: -2 }}
+      whileHover={theme === 'swiss' ? undefined : { y: -2 }}
       transition={{ type: 'spring', stiffness: 400, damping: 25 }}
       onMouseMove={handleMouseMove}
       onMouseEnter={() => setActive(true)}
@@ -155,7 +157,12 @@ function GlowCard({
       onBlur={(e) => {
         if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setActive(false);
       }}
-      className={cx('relative rounded-3xl overflow-hidden', className)}
+      className={cx(
+        'relative rounded-3xl overflow-hidden',
+        theme === 'brutalism' && 'brutal-glow-card',
+        theme === 'swiss' && 'swiss-grid-card',
+        className
+      )}
     >
       {/* Edge layer 1: dim border */}
       <div aria-hidden="true" className="absolute inset-0 rounded-3xl bg-white/10" />
@@ -212,10 +219,10 @@ function CardTitle({ children, right }: { children: ReactNode; right?: ReactNode
   );
 }
 
-function LiveBadge({ label = 'LIVE' }: { label?: string }) {
+function LiveBadge({ label = 'LIVE', risk = false }: { label?: string; risk?: boolean }) {
   return (
-    <span className="flex items-center space-x-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-ndot text-emerald-400 font-bold">
-      <span className="tb-pulse w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
+    <span className={`flex items-center space-x-1.5 px-2 py-0.5 rounded-full ${risk ? 'bg-nothing-red/10 border-nothing-red/30 text-nothing-red' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'} border text-[10px] font-ndot font-bold`}>
+      <span className={`tb-pulse w-1.5 h-1.5 rounded-full ${risk ? 'bg-nothing-red' : 'bg-emerald-400'} shadow-[0_0_8px_#34d399]`} />
       <span>{label}</span>
     </span>
   );
@@ -397,6 +404,7 @@ const TRADES_STACK: TradeItem[] = [
 
 export const CommandCenter: React.FC = () => {
   const { currentUser } = useAuth();
+  const { theme } = useTheme();
   const [pulse, setPulse] = useState<any>(null);
   const [summary, setSummary] = useState<any>(null);
   const [activeTickets, setActiveTickets] = useState<any[]>([]);
@@ -667,9 +675,9 @@ export const CommandCenter: React.FC = () => {
   };
 
   return (
-    <div className="h-full flex flex-col bg-transparent text-white overflow-y-auto p-4 space-y-4">
+    <div className={`swiss-dashboard-canvas h-full flex flex-col overflow-y-auto p-4 space-y-4 ${theme === 'brutalism' ? 'bg-white text-black' : 'bg-transparent text-white'}`}>
       {/* Top Identity & Status Ribbon */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+      <div className="swiss-dashboard-header flex flex-wrap items-center justify-between gap-3 px-1">
         <div className="flex items-center space-x-3">
           <span className="w-2.5 h-2.5 rounded-full bg-nothing-red nothing-glyph-red animate-pulse" />
           <div>
@@ -689,6 +697,7 @@ export const CommandCenter: React.FC = () => {
             whileTap={{ rotate: 180, scale: 0.9 }}
             transition={{ type: 'spring', stiffness: 400, damping: 25 }}
             onClick={fetchData}
+            aria-label="Refresh command center"
             className="p-1.5 rounded-full border border-white/15 bg-black/60 hover:bg-white/10 text-neutral-300 hover:text-white transition"
             title="Refresh Command Center"
           >
@@ -704,12 +713,12 @@ export const CommandCenter: React.FC = () => {
         animate="visible"
         className="grid grid-cols-2 lg:grid-cols-4 gap-3 shrink-0"
       >
-        <GlowCard accent="red" className="p-4 flex flex-col justify-between">
+        <GlowCard accent="red" className={`p-4 flex flex-col justify-between ${theme === 'swiss' ? 'swiss-dark-card' : ''}`}>
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-ndot text-neutral-400 uppercase tracking-widest">
               Campus Status
             </span>
-            <LiveBadge label={campusStatusPercent === 100 ? 'NOMINAL' : 'ATTENTION'} />
+            <LiveBadge label={campusStatusPercent === 100 ? 'NOMINAL' : 'ATTENTION'} risk={campusStatusPercent < 100} />
           </div>
           <div className="my-2">
             <div className="text-2xl font-bold font-ndot55 tracking-wide text-white">
@@ -719,8 +728,8 @@ export const CommandCenter: React.FC = () => {
               {synchronizedBlockCount}/{campusBlockCount || 5} Campus Blocks Synchronized
             </div>
           </div>
-          <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
-            <div className="h-full bg-emerald-400 rounded-full transition-[width] duration-500" style={{ width: `${campusStatusPercent}%` }} />
+          <div className={`h-1 w-full rounded-full overflow-hidden ${theme === 'brutalism' ? 'brutal-progress-track' : theme === 'swiss' ? 'swiss-progress-track' : 'bg-white/10'}`}>
+            <div className={`h-full bg-emerald-400 rounded-full transition-[width] duration-500 ${theme === 'swiss' ? 'swiss-progress-fill' : ''}`} style={{ width: `${campusStatusPercent}%` }} />
           </div>
         </GlowCard>
 
@@ -743,12 +752,12 @@ export const CommandCenter: React.FC = () => {
               Open work orders awaiting resolution
             </div>
           </div>
-          <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
-            <div className="h-full bg-nothing-red rounded-full transition-[width] duration-500" style={{ width: `${problemsToSolvePercent}%` }} />
+          <div className={`h-1 w-full rounded-full overflow-hidden ${theme === 'brutalism' ? 'brutal-progress-track' : theme === 'swiss' ? 'swiss-progress-track' : 'bg-white/10'}`}>
+            <div className={`h-full bg-nothing-red rounded-full transition-[width] duration-500 ${theme === 'swiss' ? 'swiss-progress-fill' : ''}`} style={{ width: `${problemsToSolvePercent}%` }} />
           </div>
         </GlowCard>
 
-        <GlowCard accent="emerald" className="p-4 flex flex-col justify-between">
+        <GlowCard accent="emerald" className={`p-4 flex flex-col justify-between ${theme === 'swiss' ? 'swiss-dark-card' : ''}`}>
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-ndot text-neutral-400 uppercase tracking-widest">
               Invariant Proofs
@@ -766,8 +775,8 @@ export const CommandCenter: React.FC = () => {
               Zero budget / FSM violations
             </div>
           </div>
-          <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
-            <div className="h-full bg-emerald-400 rounded-full transition-[width] duration-500" style={{ width: `${invariantPercent}%` }} />
+          <div className={`h-1 w-full rounded-full overflow-hidden ${theme === 'brutalism' ? 'brutal-progress-track' : theme === 'swiss' ? 'swiss-progress-track' : 'bg-white/10'}`}>
+            <div className={`h-full bg-emerald-400 rounded-full transition-[width] duration-500 ${theme === 'swiss' ? 'swiss-progress-fill' : ''}`} style={{ width: `${invariantPercent}%` }} />
           </div>
         </GlowCard>
 
@@ -789,8 +798,8 @@ export const CommandCenter: React.FC = () => {
               Currently assigned to active work orders
             </div>
           </div>
-          <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
-            <div className="h-full bg-cyan-400 rounded-full transition-[width] duration-500" style={{ width: `${rosterPercent}%` }} />
+          <div className={`h-1 w-full rounded-full overflow-hidden ${theme === 'brutalism' ? 'brutal-progress-track' : theme === 'swiss' ? 'swiss-progress-track' : 'bg-white/10'}`}>
+            <div className={`h-full bg-cyan-400 rounded-full transition-[width] duration-500 ${theme === 'swiss' ? 'swiss-progress-fill' : ''}`} style={{ width: `${rosterPercent}%` }} />
           </div>
         </GlowCard>
       </motion.div>
@@ -868,8 +877,8 @@ export const CommandCenter: React.FC = () => {
             >
               <defs>
                 <linearGradient id="reports-days-fill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#d73832" stopOpacity="0.45" />
-                  <stop offset="100%" stopColor="#d73832" stopOpacity="0.0" />
+                  <stop offset="0%" stopColor={theme === 'brutalism' ? '#e9ef49' : theme === 'swiss' ? '#C4C4C4' : '#d73832'} stopOpacity={theme === 'swiss' ? '0' : '0.45'} />
+                  <stop offset="100%" stopColor={theme === 'brutalism' ? '#e9ef49' : theme === 'swiss' ? '#C4C4C4' : '#d73832'} stopOpacity="0.0" />
                 </linearGradient>
               </defs>
 
@@ -881,22 +890,22 @@ export const CommandCenter: React.FC = () => {
                   x2="100"
                   y1={y}
                   y2={y}
-                  stroke="rgba(255,255,255,0.06)"
+                  stroke={theme === 'brutalism' ? 'rgba(0,0,0,0.15)' : theme === 'swiss' ? 'rgba(196,196,196,0.18)' : 'rgba(255,255,255,0.06)'}
                   strokeDasharray="3 4"
                   vectorEffect="non-scaling-stroke"
                 />
               ))}
 
               {/* Area & Stroke Paths */}
-              <path d={areaPath} fill="url(#reports-days-fill)" />
+              <path d={areaPath} fill={theme === 'swiss' ? 'none' : 'url(#reports-days-fill)'} />
               <path
                 d={linePath}
                 fill="none"
-                stroke="#ff4a42"
+                stroke={theme === 'brutalism' ? '#e9ef49' : theme === 'swiss' ? '#C4C4C4' : '#ff4a42'}
                 strokeWidth="2.4"
                 strokeLinecap="round"
                 vectorEffect="non-scaling-stroke"
-                style={{ filter: 'drop-shadow(0 0 8px rgba(215,56,50,0.8))' }}
+                style={{ filter: theme === 'brutalism' || theme === 'swiss' ? 'none' : 'drop-shadow(0 0 8px rgba(215,56,50,0.8))' }}
               />
 
               {/* Data points along curve */}
@@ -906,8 +915,8 @@ export const CommandCenter: React.FC = () => {
                   cx={pt.x}
                   cy={pt.y}
                   r="2"
-                  fill="#ffffff"
-                  stroke="#d73832"
+                  fill={theme === 'swiss' ? '#C4C4C4' : '#ffffff'}
+                  stroke={theme === 'brutalism' ? '#e9ef49' : theme === 'swiss' ? '#2B2B2B' : '#d73832'}
                   strokeWidth="1.5"
                   vectorEffect="non-scaling-stroke"
                 />
@@ -920,7 +929,7 @@ export const CommandCenter: React.FC = () => {
                   x2={activePoint.x}
                   y1="0"
                   y2="100"
-                  stroke="rgba(255,255,255,0.4)"
+                  stroke={theme === 'brutalism' ? 'rgba(0,0,0,0.4)' : theme === 'swiss' ? 'rgba(196,196,196,0.5)' : 'rgba(255,255,255,0.4)'}
                   strokeDasharray="3 3"
                   vectorEffect="non-scaling-stroke"
                 />
@@ -1001,11 +1010,21 @@ export const CommandCenter: React.FC = () => {
                   transition={{ type: 'spring', stiffness: 450, damping: 28 }}
                   className={cx(
                     'flex flex-col items-center justify-between p-2 rounded-xl border text-center transition-colors',
-                    isSelected
-                      ? 'bg-nothing-red/15 border-nothing-red/60 text-white shadow-[0_0_12px_rgba(215,56,50,0.3)]'
-                      : isToday
-                      ? 'bg-white/5 border-white/20 text-white'
-                      : 'bg-black/40 border-white/5 text-neutral-400 hover:text-white hover:bg-white/[0.04]'
+                    theme === 'brutalism'
+                      ? isSelected
+                        ? 'bg-[#e9ef49] border-black text-black'
+                        : 'bg-white border-black text-black hover:bg-[#e9ef49]'
+                      : theme === 'swiss'
+                        ? isSelected
+                          ? 'swiss-selected-day'
+                          : isToday
+                          ? 'bg-[#B3B3B3] border-[#2B2B2B] text-black hover:bg-[#FFFFFF]'
+                            : 'bg-[#D4D4D4] border-[#B3B3B3] text-[#2B2B2B] hover:bg-[#FFFFFF]'
+                      : isSelected
+                        ? 'bg-nothing-red/15 border-nothing-red/60 text-white shadow-[0_0_12px_rgba(215,56,50,0.3)]'
+                        : isToday
+                          ? 'bg-white/5 border-white/20 text-white'
+                          : 'bg-black/40 border-white/5 text-neutral-400 hover:text-white hover:bg-white/[0.04]'
                   )}
                 >
                   <span className="text-[10px] font-ndot uppercase tracking-wider">
@@ -1028,7 +1047,7 @@ export const CommandCenter: React.FC = () => {
         </GlowCard>
 
         {/* Bento Card 2: Recent Activity (Real Incident Reports) (Span 1 Col x 2 Rows) */}
-        <GlowCard accent="red" className="lg:row-span-2 min-h-[420px] flex flex-col justify-between">
+        <GlowCard accent="red" className={`lg:row-span-2 min-h-[420px] flex flex-col justify-between ${theme === 'swiss' ? 'swiss-dark-card' : ''}`}>
           <CardTitle
             right={
               <span className="flex items-center space-x-1.5 px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-[10px] font-ndot text-neutral-300">
@@ -1056,9 +1075,9 @@ export const CommandCenter: React.FC = () => {
                     initial={{ opacity: 0, x: -8 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, scale: 0.95 }}
-                    whileHover={{ x: 3, backgroundColor: 'rgba(255,255,255,0.06)' }}
+                    whileHover={{ x: 3, backgroundColor: theme === 'brutalism' ? '#e9ef49' : 'rgba(255,255,255,0.06)' }}
                     transition={{ type: 'spring', stiffness: 450, damping: 28 }}
-                    className="p-3 rounded-2xl border border-white/10 bg-black/60 space-y-1.5 transition-colors cursor-pointer group"
+                    className={`p-3 border space-y-1.5 transition-colors cursor-pointer group ${theme === 'brutalism' ? 'border-black bg-white text-black rounded-none' : 'rounded-2xl border-white/10 bg-black/60'}`}
                   >
                     {/* Header: Ticket #, Priority, and Relative Time */}
                     <div className="flex items-center justify-between text-xs">
@@ -1117,7 +1136,7 @@ export const CommandCenter: React.FC = () => {
             </AnimatePresence>
 
             {activeTickets.length === 0 && (
-              <div className="h-full min-h-[220px] flex flex-col items-center justify-center p-6 text-center text-neutral-500 space-y-2 border border-white/5 rounded-2xl bg-black/40">
+              <div className={`h-full min-h-[220px] flex flex-col items-center justify-center p-6 text-center space-y-2 border ${theme === 'brutalism' ? 'text-black border-black bg-white rounded-none' : theme === 'swiss' ? 'swiss-dark-inset rounded-2xl' : 'text-neutral-500 border-white/5 rounded-2xl bg-black/40'}`}>
                 <FileText className="w-6 h-6 text-neutral-600" />
                 <div className="text-xs font-mono">No recent reports logged</div>
                 <div className="text-[10px] font-sans text-neutral-600">
@@ -1180,7 +1199,7 @@ export const CommandCenter: React.FC = () => {
                   const radius = 18;
                   const circumference = 2 * Math.PI * radius;
                   const isConn = item.connected;
-                  const ringColor = isConn ? '#2fbf91' : '#c84343';
+                  const ringColor = theme === 'brutalism' ? '#e9ef49' : theme === 'swiss' ? isConn ? '#287A4B' : '#B34444' : isConn ? '#2fbf91' : '#c84343';
 
                   return (
                     <div
@@ -1189,14 +1208,14 @@ export const CommandCenter: React.FC = () => {
                       title={`${item.label} (${item.sub}): ${isConn ? 'Connected / Healthy' : 'Disconnected / Offline'}`}
                     >
                       {/* Service name sits inside a restrained connection ring. */}
-                      <div className="relative h-14 w-14 rounded-full bg-[#0b0d15]">
+                      <div className={`relative h-14 w-14 ${theme === 'brutalism' ? 'rounded-none bg-white' : theme === 'swiss' ? 'rounded-full bg-[#2B2B2B]' : 'rounded-full bg-[#0b0d15]'}`}>
                         <svg viewBox="0 0 46 46" className="h-full w-full -rotate-90" aria-hidden="true">
                           <circle
                             cx="23"
                             cy="23"
                             r={radius}
-                            fill="#0b0d15"
-                            stroke="rgba(255,255,255,0.10)"
+                            fill={theme === 'brutalism' ? '#D4D4D4' : theme === 'swiss' ? '#2B2B2B' : '#0b0d15'}
+                            stroke={theme === 'brutalism' ? '#B3B3B3' : theme === 'swiss' ? '#595959' : 'rgba(255,255,255,0.10)'}
                             strokeWidth="2.5"
                           />
                           <circle
@@ -1212,7 +1231,7 @@ export const CommandCenter: React.FC = () => {
                             className="transition-colors duration-300"
                           />
                         </svg>
-                        <span className="absolute inset-0 flex items-center justify-center px-1 text-center text-[8px] leading-tight font-bold font-ndot text-neutral-200">
+                        <span className="swiss-health-label absolute inset-0 flex items-center justify-center whitespace-nowrap text-center text-[9px] leading-tight font-bold font-ndot text-neutral-200">
                           {item.label}
                         </span>
                       </div>
@@ -1302,13 +1321,17 @@ export const CommandCenter: React.FC = () => {
                       transition={{ type: 'spring', stiffness: 280, damping: 24 }}
                       className={cx(
                         'w-full rounded-sm transition-all',
-                        count > 0
-                          ? isToday
-                            ? 'bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.8)]'
-                            : 'bg-emerald-500/80 hover:bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.4)]'
-                          : isToday
-                          ? 'bg-white/20 hover:bg-white/30'
-                          : 'bg-white/10 hover:bg-white/20'
+                        theme === 'swiss'
+                          ? 'swiss-solved-bar'
+                          : theme === 'brutalism'
+                            ? 'brutal-solved-bar'
+                            : count > 0
+                            ? isToday
+                              ? 'bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.8)]'
+                              : 'bg-emerald-500/80 hover:bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.4)]'
+                            : isToday
+                              ? 'bg-white/20 hover:bg-white/30'
+                              : 'bg-white/10 hover:bg-white/20'
                       )}
                     />
                   </div>
@@ -1361,13 +1384,21 @@ export const CommandCenter: React.FC = () => {
                     aria-label={`${trade.name}: ${availStaff} available of ${totalStaff} staff`}
                     className="flex w-full flex-col items-center gap-1 rounded-2xl border px-2.5 py-3 transition-colors duration-200 focus-visible:outline-none"
                     style={{
-                      color: on ? `rgb(${trade.rgb})` : '#a3a3a3',
-                      borderColor: on ? `rgba(${trade.rgb}, 0.6)` : 'rgba(255,255,255,0.08)',
-                      background: on ? `rgba(${trade.rgb}, 0.12)` : 'rgba(255,255,255,0.02)',
-                      boxShadow: on ? `0 8px 24px -6px rgba(${trade.rgb}, 0.5)` : 'none',
+                      color: theme === 'brutalism' ? '#2B2B2B' : theme === 'swiss' ? '#C4C4C4' : on ? `rgb(${trade.rgb})` : '#a3a3a3',
+                      borderColor: theme === 'brutalism'
+                        ? on ? '#e9ef49' : '#000000'
+                        : theme === 'swiss'
+                          ? '#595959'
+                          : on ? `rgba(${trade.rgb}, 0.6)` : 'rgba(255,255,255,0.08)',
+                      background: theme === 'swiss'
+                        ? '#2B2B2B'
+                        : theme === 'brutalism'
+                          ? '#ffffff'
+                        : on ? `rgba(${trade.rgb}, 0.12)` : 'rgba(255,255,255,0.02)',
+                      boxShadow: theme === 'brutalism' || theme === 'swiss' ? 'none' : on ? `0 8px 24px -6px rgba(${trade.rgb}, 0.5)` : 'none',
                     }}
                   >
-                    <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-current/20 bg-black/20">
+                    <span className={`flex h-7 w-7 items-center justify-center border border-current/20 ${theme === 'brutalism' ? 'rounded-none bg-white' : theme === 'swiss' ? 'rounded-xl bg-[#B3B3B3]' : 'rounded-lg bg-black/20'}`}>
                       <TradeIcon className="h-4 w-4" strokeWidth={1.8} />
                     </span>
                     <span className={cx('text-xs font-semibold tracking-wide font-ndot transition-colors duration-200 text-center leading-tight', on ? 'text-white' : 'text-neutral-300')}>
@@ -1501,6 +1532,7 @@ export const CommandCenter: React.FC = () => {
                 whileTap={{ rotate: 180, scale: 0.9 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                 onClick={fetchData}
+                aria-label="Refresh incident ledger"
                 className="text-neutral-400 hover:text-white p-1 rounded-full border border-white/15 hover:border-white/40 transition"
                 title="Refresh"
               >

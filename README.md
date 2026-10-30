@@ -8,7 +8,7 @@
 CampusOps operates on a strict neuro-symbolic divide and transactional operational loop:
 $$\text{Simulate (Read-Only)} \longrightarrow \text{Approve (Separation of Duties)} \longrightarrow \text{Execute (Revalidated Atomic Tx)} \longrightarrow \text{Prove (Live DB Invariants)}$$
 
-* **Neuro-Symbolic Isolation:** AI is bounded to unstructured text extraction, stateful conversational slot clarification, duplicate semantic hints, and grounded natural-language briefing phrasing. AI never makes decisions regarding RBAC permissions, scheduling, room allocations, inventory reservations, approvals, or state transitions.
+* **Neuro-Symbolic Isolation:** AI is bounded to unstructured text extraction, stateful conversational slot clarification, duplicate semantic hints, and grounded natural-language briefing phrasing. Critical incidents remain in Admin review. A separate deterministic staffing rule may assign eligible technicians to noncritical P2/P3 work orders; a database guard limits that actor to matching skills, active shifts, availability, and workload checks.
 * **Zero External I/O in DB Transactions:** LLM API queries, SMTP/webhook notifications, and external HTTP calls execute strictly outside operational database transaction boundaries.
 
 ---
@@ -62,6 +62,20 @@ Docker Compose defaults this setting to `false` when it is not configured.
 ```bash
 docker compose up -d postgres
 ```
+
+### Existing Database: Scoped Noncritical Dispatch
+Fresh databases receive the automation role and assignment guard from `backend/migrations/init.sql`.
+For an existing database, apply the enum migration separately and commit it before the second file:
+
+```bash
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f backend/migrations/20261031_01_add_ai_automation_role.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f backend/migrations/20261031_02_scoped_auto_assignment.sql
+```
+
+The automation identity has no password and cannot sign in. Its database guard only permits
+`TRIAGED` to `ASSIGNED` for P2/P3 tickets when the assigned technician has the matching skill,
+is available, is on shift, and remains within workload limits. P0/P1 work orders stay in Admin
+review; tickets without a matching worker stay unassigned and notify Admin.
 
 ### Seeding Campus Data
 ```bash

@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 
-export type ThemeMode = 'oled';
+export type ThemeMode = 'oled' | 'brutalism' | 'swiss';
 
 interface ThemeContextType {
   theme: ThemeMode;
@@ -11,24 +11,32 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const theme: ThemeMode = 'oled';
+  const [theme, setTheme] = useState<ThemeMode>(() => {
+    try {
+      const savedTheme = localStorage.getItem('campusops_theme');
+      return savedTheme === 'brutalism' || savedTheme === 'swiss' ? savedTheme : 'oled';
+    } catch {
+      return 'oled';
+    }
+  });
 
   useEffect(() => {
     const root = document.documentElement;
-    root.setAttribute('data-theme', 'oled');
-    root.classList.remove('theme-mocha', 'theme-monochrome');
-    root.classList.add('theme-oled', 'dark');
+    root.setAttribute('data-theme', theme);
+    root.classList.remove('theme-mocha', 'theme-monochrome', 'theme-oled', 'theme-brutalism', 'theme-swiss');
+    root.classList.add(`theme-${theme}`);
+    root.classList.toggle('dark', theme !== 'swiss');
     try {
-      localStorage.setItem('campusops_theme', 'oled');
+      localStorage.setItem('campusops_theme', theme);
     } catch {
       // noop
     }
-  }, []);
+  }, [theme]);
 
-  const noop = () => {};
+  const toggleTheme = () => setTheme((current) => current === 'oled' ? 'brutalism' : current === 'brutalism' ? 'swiss' : 'oled');
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme: noop, toggleTheme: noop }}>
+    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme }}>
       {children}
     </ThemeContext.Provider>
   );

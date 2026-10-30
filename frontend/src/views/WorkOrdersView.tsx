@@ -195,7 +195,7 @@ export const WorkOrdersView: React.FC = () => {
   };
 
   return (
-    <div className="h-full flex flex-col bg-transparent text-white overflow-hidden">
+    <div className="swiss-page-content h-full flex flex-col bg-transparent text-white overflow-hidden">
       {/* Top Ledger Utility Bar */}
       <div className="h-[50px] border-b border-white/10 bg-black/80 backdrop-blur-xl px-4 flex items-center justify-between shrink-0">
         <div className="flex items-center space-x-3">
@@ -240,6 +240,7 @@ export const WorkOrdersView: React.FC = () => {
 
           <button
             onClick={fetchWorkOrders}
+            aria-label="Refresh work orders"
             className="p-1.5 bg-[#121215] hover:bg-white/10 text-white rounded-full border border-white/15 text-xs transition spring-interactive shadow-sm"
             title="Refresh Ledger"
           >
@@ -328,7 +329,7 @@ export const WorkOrdersView: React.FC = () => {
                         </div>
                       ) : (
                         <span className="text-neutral-500 italic text-[11px] font-sans">
-                          Unassigned
+                          {t.blocked_reason ? 'Unassigned · Admin attention' : 'Unassigned'}
                         </span>
                       )}
                     </td>
@@ -397,6 +398,15 @@ export const WorkOrdersView: React.FC = () => {
               {transitionStatus && (
                 <div className="p-3 bg-white/10 border border-white/20 rounded-2xl text-xs text-white font-mono shadow-sm">
                   {transitionStatus}
+                </div>
+              )}
+
+              {selectedTicket.blocked_reason && (
+                <div className="p-3 bg-amber-500/10 border border-amber-400/30 rounded-2xl text-xs text-amber-100 shadow-sm">
+                  <div className="flex items-center gap-2 font-semibold">
+                    <AlertTriangle className="h-3.5 w-3.5" /> Admin attention needed
+                  </div>
+                  <p className="mt-1.5 text-amber-100/80">{selectedTicket.blocked_reason}</p>
                 </div>
               )}
 

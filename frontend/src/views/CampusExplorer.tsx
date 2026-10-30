@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import { api } from '../api/client';
+import { useTheme } from '../context/ThemeContext';
 import {
   Layers,
   Eye,
@@ -14,6 +15,7 @@ import {
 } from 'lucide-react';
 
 export const CampusExplorer: React.FC = () => {
+  const { theme } = useTheme();
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
 
@@ -39,9 +41,9 @@ export const CampusExplorer: React.FC = () => {
 
     const matchExpression: any[] = ['match', ['get', 'building_code']];
     data.blocks.forEach((b: any) => {
-      matchExpression.push(b.building_code, b.color);
+      matchExpression.push(b.building_code, theme === 'brutalism' ? '#e9ef49' : theme === 'swiss' ? '#2B2B2B' : b.color);
     });
-    matchExpression.push('#3b82f6'); // fallback blue
+    matchExpression.push(theme === 'brutalism' ? '#e9ef49' : theme === 'swiss' ? '#2B2B2B' : '#3b82f6');
 
     mapRef.current.setPaintProperty('buildings-extrusion', 'fill-extrusion-color', matchExpression);
   };
@@ -51,7 +53,9 @@ export const CampusExplorer: React.FC = () => {
 
     const map = new maplibregl.Map({
       container: mapContainer.current,
-      style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+      style: theme !== 'oled'
+        ? 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'
+        : 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
       center: [80.1810, 13.0324],
       zoom: 17.2,
       pitch: 58,
@@ -77,12 +81,12 @@ export const CampusExplorer: React.FC = () => {
           'fill-extrusion-color': [
             'match',
             ['get', 'building_code'],
-            'EEC-ACAD', '#ef4444',
-            'EEC-MAIN', '#3b82f6',
-            'EEC-MECH-PG', '#3b82f6',
-            'EEC-ROBOTICS', '#3b82f6',
-            'EEC-AUD-FC', '#3b82f6',
-            '#3b82f6'
+            'EEC-ACAD', theme === 'brutalism' ? '#e9ef49' : theme === 'swiss' ? '#2B2B2B' : '#ef4444',
+            'EEC-MAIN', theme === 'brutalism' ? '#e9ef49' : theme === 'swiss' ? '#2B2B2B' : '#3b82f6',
+            'EEC-MECH-PG', theme === 'brutalism' ? '#e9ef49' : theme === 'swiss' ? '#2B2B2B' : '#3b82f6',
+            'EEC-ROBOTICS', theme === 'brutalism' ? '#e9ef49' : theme === 'swiss' ? '#2B2B2B' : '#3b82f6',
+            'EEC-AUD-FC', theme === 'brutalism' ? '#e9ef49' : theme === 'swiss' ? '#2B2B2B' : '#3b82f6',
+            theme === 'brutalism' ? '#e9ef49' : theme === 'swiss' ? '#2B2B2B' : '#3b82f6'
           ],
           'fill-extrusion-height': ['get', 'height_m'],
           'fill-extrusion-base': 0,
@@ -96,7 +100,7 @@ export const CampusExplorer: React.FC = () => {
         type: 'line',
         source: 'easwari-buildings',
         paint: {
-          'line-color': '#ffffff',
+          'line-color': theme === 'brutalism' || theme === 'swiss' ? '#2B2B2B' : '#ffffff',
           'line-width': 1.5,
           'line-opacity': 0.4,
         },
@@ -133,7 +137,7 @@ export const CampusExplorer: React.FC = () => {
     return () => {
       map.remove();
     };
-  }, []);
+  }, [theme]);
 
   const togglePitch = () => {
     if (!mapRef.current) return;
@@ -147,7 +151,7 @@ export const CampusExplorer: React.FC = () => {
   };
 
   return (
-    <div className="relative w-full h-full bg-black overflow-hidden select-none">
+    <div className={`swiss-map-canvas relative w-full h-full overflow-hidden select-none ${theme === 'brutalism' ? 'bg-white' : 'bg-black'}`}>
       {/* Map Container */}
       <div ref={mapContainer} className="w-full h-full" />
 
@@ -196,6 +200,7 @@ export const CampusExplorer: React.FC = () => {
                 </div>
                 <button
                   onClick={() => setSelectedBlock(null)}
+                  aria-label="Close building details"
                   className="p-1 rounded-full text-neutral-400 hover:text-white hover:bg-white/10 spring-interactive"
                 >
                   <X className="w-4 h-4" />

@@ -17,16 +17,20 @@ type Phase = "idle" | "launch" | "assemble" | "think" | "resolve" | "condense" |
 
 export interface MorphOrbProps {
   onSubmit?: (text: string) => Promise<string> | string;
+  onPrompt?: (text: string) => void;
+  onAnswer?: (answer: string) => void;
+  chatMode?: boolean;
+  animate?: boolean;
   minThinkMs?: number;
   speed?: number;
 }
 
 /* ─────────────────────────── geometry ─────────────────────────── */
 const PILL_H = 60, BALL_SMALL = 60, ORB_D = 132, ORB_R = 66, CANVAS = 220;
-const CARD_H = 120;
+const CARD_H = 260;
 const FLY_D = 138;
 const pillW = () => Math.min(560, window.innerWidth - 32);
-const cardW = () => Math.min(420, window.innerWidth - 32);
+const cardW = () => Math.min(720, window.innerWidth - 32);
 // Use the container's clientHeight so the pill stays visible inside the embedded container
 let _containerH = 0;
 const homeDy = () => {
@@ -432,7 +436,12 @@ interface Env {
   getBody: () => HTMLElement | null;
   ui: UI; getSpeed: () => number; isReduced: () => boolean;
 }
-interface RunCfg { onSubmit: (text: string) => Promise<string> | string; minThink: number }
+interface RunCfg {
+  onSubmit: (text: string) => Promise<string> | string;
+  onAnswer?: (answer: string) => void;
+  chatMode?: boolean;
+  minThink: number;
+}
 interface Runtime {
   start(text: string, cfg: RunCfg): boolean;
   escape(): void;
@@ -685,7 +694,14 @@ function createRuntime(env: Env): Runtime {
 
       env.ui.setPhase("answered");
       env.ui.live("Answer ready: " + body);
-      env.ui.focusAnswer();
+      if (cfg.chatMode) {
+        await sleep(700 / env.getSpeed(), sig);
+        if (sig.aborted) throw ABORT;
+        await toIdle("reset");
+        cfg.onAnswer?.(body);
+      } else {
+        env.ui.focusAnswer();
+      }
     } catch (e) {
       if (e === ABORT) return;
       hard();
@@ -826,6 +842,7 @@ export default function MorphOrb(props: MorphOrbProps) {
   const rtRef = useRef<Runtime | null>(null);
   const lastTextRef = useRef("");
   const timers = useRef<{ typing?: number; shake?: number; flash?: number }>({});
+  const fastSubmitPending = useRef(false);
 
   useIsoLayoutEffect(() => {
     const root = rootRef.current, mover = moverRef.current, actor = actorRef.current, canvas = canvasRef.current;
@@ -896,6 +913,8 @@ export default function MorphOrb(props: MorphOrbProps) {
     });
   const makeCfg = (): RunCfg => ({
     onSubmit: propsRef.current.onSubmit ?? defaultSubmit,
+    onAnswer: propsRef.current.onAnswer,
+    chatMode: propsRef.current.chatMode,
     minThink: propsRef.current.minThinkMs ?? 3450,
   });
 
@@ -928,11 +947,32 @@ export default function MorphOrb(props: MorphOrbProps) {
   const onFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const rt = rtRef.current;
-    if (!rt || rt.busy() || phaseRef.current !== "idle") return;
+    if (!rt || fastSubmitPending.current || rt.busy() || phaseRef.current !== "idle") return;
     const text = value.trim();
     if (!text) { shake(); return; }
     lastTextRef.current = text;
-    rt.start(text, makeCfg());
+
+    if (propsRef.current.animate === false) {
+      const props = propsRef.current;
+      fastSubmitPending.current = true;
+      formRef.current?.toggleAttribute("inert", true);
+      setValue("");
+      props.onPrompt?.(text);
+      void Promise.resolve()
+        .then(() => props.onSubmit ? props.onSubmit(text) : defaultSubmit())
+        .then(
+          (answer) => props.onAnswer?.(answer?.trim() || COPY.answerBody),
+          () => props.onAnswer?.(COPY.answerBody),
+        )
+        .finally(() => {
+          fastSubmitPending.current = false;
+          formRef.current?.removeAttribute("inert");
+          inputRef.current?.focus({ preventScroll: true });
+        });
+      return;
+    }
+
+    if (rt.start(text, makeCfg())) propsRef.current.onPrompt?.(text);
   };
 
   const onReset = () => {
@@ -950,7 +990,7 @@ export default function MorphOrb(props: MorphOrbProps) {
   };
 
   const ready = value.trim().length > 0;
-  const words = answer.split(/\s+/).filter(Boolean);
+  const answerTokens = answer.replace(/\*\*/g, '').split(/(\s+)/).filter(Boolean);
 
   const labelInner = (name: string) =>
     name === COPY.done ? (
@@ -1017,10 +1057,10 @@ export default function MorphOrb(props: MorphOrbProps) {
               <span>{COPY.answerTitle}</span>
             </div>
             <p className="mo-a-body" ref={bodyRef}>
-              {words.map((w, i) => (
-                <React.Fragment key={i}>
-                  <span className="mo-w">{w}</span>{" "}
-                </React.Fragment>
+              {answerTokens.map((token, i) => (
+                /\s+/.test(token)
+                  ? <React.Fragment key={i}>{token}</React.Fragment>
+                  : <span className="mo-w" key={i}>{token}</span>
               ))}
             </p>
           </div>

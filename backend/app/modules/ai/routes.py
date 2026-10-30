@@ -1,8 +1,9 @@
 import asyncio
 import json
 import logging
+import re
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Literal, Sequence
 from fastapi import APIRouter, status, HTTPException
 from pydantic import BaseModel, Field
 import httpx
@@ -14,9 +15,15 @@ logger = logging.getLogger("ai_assistant_router")
 router = APIRouter(prefix="/ai", tags=["AI Assistant"])
 
 
+class ConversationMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(..., min_length=1, max_length=2000)
+
+
 class AskAIRequest(BaseModel):
     prompt: str = Field(..., min_length=1, max_length=2000, description="User prompt or maintenance query")
     context: Optional[str] = None
+    history: list[ConversationMessage] = Field(default_factory=list, max_length=12)
 
 
 class AskAIResponse(BaseModel):
@@ -50,17 +57,40 @@ Campus Knowledge Base:
   * Inv 2: Double-Entry Cryptographic Inventory Ledger with zero-sum material balance
   * Inv 3: Strict Separation of Duties (Self-approval impossible; admin approval required for execution)
 - Incident Reporting:
-  * If the user reports a breakdown, leak, sparks, or fire, provide immediate safety advice, verify the room, and state that dispatch telemetry has been initialized.
+  * For a breakdown, leak, sparks, or fire, give appropriate immediate safety advice and ask for missing location or severity details. Never claim that dispatch has been initialized unless confirmed by the application.
 
 Response Style:
 - Professional, technical, concise, and structured.
 - Use bullet points for multi-part answers.
 - Limit response to 2 to 4 concise paragraphs or lists so it displays cleanly in the UI.
+- Do not guess missing facts or make a recommendation/decision when essential details are missing. Ask one focused follow-up question first (for example, ask which room/building is affected or what symptom is occurring).
+- For immediate hazards, give brief, broadly safe precautions first, then ask for the missing critical detail. Do not claim that a team was dispatched or telemetry was initialized unless the system confirms it.
+- Distinguish known campus reference information from live status. If live information is unavailable, say so and ask what specific system or location the user wants checked.
 """
 
 
-def _generate_deterministic_campus_reply(prompt: str) -> str:
-    p_lower = prompt.lower()
+def _generate_deterministic_campus_reply(prompt: str, history: Sequence[ConversationMessage] = ()) -> str:
+    previous_assistant_question = next(
+        (message.content for message in reversed(history[:-1]) if message.role == "assistant" and "?" in message.content),
+        "",
+    )
+    if previous_assistant_question:
+        user_context = " ".join(message.content for message in history if message.role == "user")
+        context_prompt = user_context if user_context.strip() else prompt
+    else:
+        context_prompt = prompt
+
+    p_lower = context_prompt.lower()
+    latest_lower = prompt.lower()
+    incident_terms = ("leak", "broken", "breakdown", "failure", "spark", "short circuit", "fire", "smoke", "flood", "not working", "stopped", "damaged", "fault", "emergency")
+    location = re.search(r"\b(?:RM|LAB|AHU|SUBSTATION|PANEL|SW)-[A-Z0-9-]+\b", prompt, re.IGNORECASE)
+
+    if any(term in p_lower for term in incident_terms) and not location:
+        if any(term in p_lower for term in ("fire", "smoke", "spark", "short circuit", "electrical")):
+            return "For immediate safety, keep clear of the affected equipment and evacuate the area if there is fire, smoke, or active sparking. Which building and room is affected? I need the location before I can give a specific response."
+        if any(term in p_lower for term in ("water", "leak", "flood", "pipe")):
+            return "Keep people away from standing water near electrical equipment. Which building and room is affected, and is water still flowing? I need those details before recommending a specific response."
+        return "What building and room is affected, and what are you observing? I need those details before recommending a specific response."
 
     if any(k in p_lower for k in ["worker", "staff", "technician", "shift", "people", "available"]):
         return (
@@ -75,28 +105,31 @@ def _generate_deterministic_campus_reply(prompt: str) -> str:
         )
 
     if any(k in p_lower for k in ["short circuit", "spark", "fire", "electrical", "power"]):
+        if previous_assistant_question and any(term in latest_lower for term in ("yes", "still", "smoke", "sparks", "no")):
+            return (
+                f"Thanks for clarifying the hazard at {location.group(0)}. Keep everyone clear of the equipment; "
+                "if there is active smoke or sparking, evacuate the area and contact campus emergency staff. "
+                "Is anyone injured or unable to leave safely?"
+            )
         return (
-            "CRITICAL HAZARD DETECTED:\n"
-            "• Safety Priority: P0 Critical Electrical Hazard.\n"
-            "• Immediate Action: Do not touch electrical switchboards or circuit breakers. Isolation protocols advised.\n"
-            "• Dispatch: Electrical Grid Team (Rajesh Kumar & 4 on shift) alerted.\n"
-            "• Invariant Check: Incident queued under strict FSM state INGESTED -> TRIAGED."
+            f"Possible electrical hazard at {location.group(0)}. Keep clear of the equipment and do not touch switches or breakers. "
+            "Are sparks or smoke still present, and is anyone in immediate danger? I need that before recommending next steps."
         )
 
     if any(k in p_lower for k in ["water", "leak", "pipe", "flood", "plumbing"]):
+        if previous_assistant_question and any(term in latest_lower for term in ("still flowing", "stopped", "stopped flowing", "yes", "no")):
+            return (
+                f"Thanks for the update about {location.group(0)}. Keep people clear of standing water, especially near electrical equipment. "
+                "Is water reaching electrical equipment or an occupied area?"
+            )
         return (
-            "FACILITY INCIDENT DETECTED:\n"
-            "• Hazard: Hydro-Pneumatic pipe leakage or drainage failure.\n"
-            "• Immediate Action: Main shutoff valve isolation in progress.\n"
-            "• Dispatch: Hydro-Pneumatics Trade (3 technicians on shift) notified for immediate on-site response."
+            f"A water issue was reported at {location.group(0)}. Keep clear of standing water near electrical equipment. "
+            "Is water still flowing, and is the area flooded? I need that before recommending a specific response."
         )
 
     if any(k in p_lower for k in ["ac", "air condition", "hvac", "hot air", "temperature", "chiller"]):
         return (
-            "HVAC SYSTEM DIAGNOSTIC:\n"
-            "• System: Central Chilled Water & Air Handling Units (AHU).\n"
-            "• Status: Inspection queued for compressor pressure and duct filters.\n"
-            "• Dispatch: HVAC Trade (3 technicians on shift) assigned."
+            f"An HVAC issue was reported at {location.group(0)}. What symptom are you seeing (for example, no airflow, warm air, or unusual noise), and when did it start?"
         )
 
     if any(k in p_lower for k in ["invariant", "proof", "fsm", "ledger", "math", "safety"]):
@@ -107,11 +140,7 @@ def _generate_deterministic_campus_reply(prompt: str) -> str:
             "• Inv 3 (Separation of Duties): Strict cryptographic actor isolation enforced on all approvals."
         )
 
-    return (
-        f"CampusOps AI Operations Core received query: '{prompt}'.\n"
-        "• Campus Nodes: SRM Easwari Engineering College, Ramapuram (Main Admin, Academic Block, Auditorium).\n"
-        "• Health Status: All subsystems operational. Workforce, DAG topological rooms, and invariant engines are synchronized."
-    )
+    return "I don’t have enough specific information to answer that reliably. Which campus system or room are you asking about, and what would you like to know?"
 
 
 @router.post("/ask", response_model=AskAIResponse)
@@ -138,11 +167,15 @@ async def ask_campus_ai(request: AskAIRequest):
                     "Authorization": f"Bearer {settings.GROQ_API_KEY}",
                     "Content-Type": "application/json",
                 }
+                conversation = [{"role": item.role, "content": item.content} for item in request.history[-12:]]
+                if not conversation or conversation[-1]["role"] != "user" or conversation[-1]["content"].strip() != prompt:
+                    conversation.append({"role": "user", "content": prompt})
+
                 payload = {
                     "model": model_candidate,
                     "messages": [
                         {"role": "system", "content": CAMPUS_OPS_AI_SYSTEM_PROMPT},
-                        {"role": "user", "content": prompt},
+                        *conversation,
                     ],
                     "temperature": 0.3,
                     "max_tokens": 512,
@@ -166,7 +199,7 @@ async def ask_campus_ai(request: AskAIRequest):
                 logger.warning(f"Groq AI ({model_candidate}) call failed ({e}).")
 
     # 2. Fallback response
-    fallback_text = _generate_deterministic_campus_reply(prompt)
+    fallback_text = _generate_deterministic_campus_reply(prompt, request.history)
     return AskAIResponse(
         answer=fallback_text,
         model="CampusOps-RuleBased-Core",

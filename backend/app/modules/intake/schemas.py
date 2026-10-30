@@ -32,6 +32,8 @@ class IntakeResponse(BaseModel):
     conversation_thread_id: Optional[str] = None
     state: Optional[str] = None
     needs_admin_approval: bool = False
+    requires_admin_approval: bool = False
+    reporter_urgency: Optional[str] = None
     category: Optional[str] = None
     target_node_code: Optional[str] = None
     target_node_name: Optional[str] = None

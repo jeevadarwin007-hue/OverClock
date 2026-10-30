@@ -167,7 +167,7 @@ export const InventoryApprovalsView: React.FC = () => {
   });
 
   return (
-    <div className="h-full flex flex-col bg-transparent text-white overflow-hidden">
+    <div className="swiss-page-content h-full flex flex-col bg-transparent text-white overflow-hidden">
       {/* Top Ledger Strip */}
       <div className="h-[50px] border-b border-white/10 bg-black/80 backdrop-blur-xl px-4 flex items-center justify-between shrink-0 shadow-sm">
         <div className="flex items-center space-x-3">
@@ -199,6 +199,7 @@ export const InventoryApprovalsView: React.FC = () => {
 
           <button
             onClick={fetchData}
+            aria-label="Refresh inventory"
             className="p-1.5 bg-[#121215] hover:bg-white/10 text-white rounded-full border border-white/15 text-xs transition spring-interactive shadow-sm"
             title="Refresh Inventory"
           >
@@ -234,7 +235,7 @@ export const InventoryApprovalsView: React.FC = () => {
             )}
             <span>{actionMessage.text}</span>
           </div>
-          <button onClick={() => setActionMessage(null)} className="text-neutral-400 hover:text-white spring-interactive">
+          <button onClick={() => setActionMessage(null)} aria-label="Dismiss inventory message" className="text-neutral-400 hover:text-white spring-interactive">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -310,6 +311,7 @@ export const InventoryApprovalsView: React.FC = () => {
                       <td className="py-2 px-3 text-right">
                         <button
                           onClick={() => handleDeletePart(p)}
+                          aria-label={`Delete part ${p.sku}`}
                           className="p-1 hover:bg-nothing-red/20 text-neutral-400 hover:text-nothing-red rounded-full transition spring-interactive"
                           title="Delete part"
                         >
@@ -444,6 +446,7 @@ export const InventoryApprovalsView: React.FC = () => {
                 </div>
                 <button
                   onClick={() => setIsAddDrawerOpen(false)}
+                  aria-label="Close inventory part form"
                   className="text-neutral-400 hover:text-white spring-interactive"
                 >
                   <X className="w-4 h-4" />

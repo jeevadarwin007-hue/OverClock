@@ -60,8 +60,8 @@ export const AppContent: React.FC = () => {
 
   return (
     <div
-      data-theme="oled"
-      className="h-screen w-screen overflow-hidden flex flex-col font-sans select-none bg-black text-white selection:bg-white selection:text-black"
+      data-theme={theme}
+      className={`h-screen w-screen overflow-hidden flex flex-col font-sans select-none ${theme === 'swiss' ? 'swiss-app-shell bg-white text-black' : theme === 'brutalism' ? 'bg-white text-black selection:bg-[#e9ef49] selection:text-black' : 'bg-black text-white selection:bg-white selection:text-black'}`}
     >
       {/* Zone 1: Top Utility & Context Strip */}
       <Header
@@ -72,7 +72,7 @@ export const AppContent: React.FC = () => {
       />
 
       {/* Zone 2: Primary Workspace Canvas (100% Height & Available Width, Edge-to-Edge) */}
-      <main className="flex-1 w-full overflow-hidden flex flex-col bg-transparent relative">
+      <main className={`flex-1 w-full overflow-hidden flex flex-col bg-transparent relative ${theme === 'swiss' ? 'swiss-workspace bg-white' : ''}`}>
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
@@ -96,7 +96,7 @@ export const AppContent: React.FC = () => {
       </main>
 
       {/* Zone 4: Persistent Invariant & Telemetry Footer (Fixed 28px, Nothing OS OLED Bar) */}
-      <footer className="h-[28px] border-t border-white/10 bg-black/90 backdrop-blur-xl px-4 flex items-center justify-between text-[11px] font-ndot text-neutral-400 shrink-0 z-50">
+      <footer className={`h-[28px] border-t px-4 flex items-center justify-between text-[11px] font-ndot shrink-0 z-50 ${theme === 'swiss' ? 'swiss-footer border-[#CBD5E1] bg-white text-black' : theme === 'brutalism' ? 'border-[#e9ef49] bg-white text-black' : 'border-white/10 bg-black/90 backdrop-blur-xl text-neutral-400'}`}>
         <div className="flex items-center space-x-4">
           {/* Live DB Connectivity */}
           <div className="flex items-center space-x-1.5 text-white">
