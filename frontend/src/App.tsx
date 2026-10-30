@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { Header, TabType } from './components/Header';
@@ -55,14 +56,25 @@ export const AppContent: React.FC = () => {
       />
 
       {/* Zone 2: Primary Workspace Canvas (100% Height & Available Width, Edge-to-Edge) */}
-      <main className="flex-1 w-full overflow-hidden flex flex-col bg-transparent">
-        {activeTab === 'command-center' && <CommandCenter />}
-        {activeTab === 'campus-explorer' && <CampusExplorer />}
-        {activeTab === 'room-management' && <RoomManagementView />}
-        {activeTab === 'work-orders' && <WorkOrdersView />}
-        {activeTab === 'inventory-approvals' && <InventoryApprovalsView />}
-        {activeTab === 'worker-roster' && <WorkerRosterView />}
-        {activeTab === 'invariants' && <InvariantProofPanel />}
+      <main className="flex-1 w-full overflow-hidden flex flex-col bg-transparent relative">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ type: 'spring', stiffness: 350, damping: 28 }}
+            className="w-full h-full flex flex-col overflow-hidden"
+          >
+            {activeTab === 'command-center' && <CommandCenter />}
+            {activeTab === 'campus-explorer' && <CampusExplorer />}
+            {activeTab === 'room-management' && <RoomManagementView />}
+            {activeTab === 'work-orders' && <WorkOrdersView />}
+            {activeTab === 'inventory-approvals' && <InventoryApprovalsView />}
+            {activeTab === 'worker-roster' && <WorkerRosterView />}
+            {activeTab === 'invariants' && <InvariantProofPanel />}
+          </motion.div>
+        </AnimatePresence>
       </main>
 
       {/* Zone 4: Persistent Invariant & Telemetry Footer (Fixed 28px, Nothing OS OLED Bar) */}

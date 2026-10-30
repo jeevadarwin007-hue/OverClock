@@ -4,3 +4,4 @@ import TechStackBento from "@/components/ui/interactive-tech-stack-bento-grid-wi
 export default function DemoOne() {
   return <TechStackBento />;
 }
+

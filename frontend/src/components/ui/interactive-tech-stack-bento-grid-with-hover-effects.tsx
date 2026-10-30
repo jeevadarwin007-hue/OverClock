@@ -3,6 +3,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, MouseEvent, ReactNode, TouchEvent } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 /* ==========================================================================
    Types
@@ -336,7 +337,9 @@ export function GlowCard({
   const gridMask = `radial-gradient(220px circle at ${pos.x}px ${pos.y}px, black, transparent 75%)`;
 
   return (
-    <div
+    <motion.div
+      whileHover={{ y: -2 }}
+      transition={{ type: "spring", stiffness: 400, damping: 25 }}
       onMouseMove={handleMouseMove}
       onMouseEnter={() => setActive(true)}
       onMouseLeave={() => setActive(false)}
@@ -382,7 +385,7 @@ export function GlowCard({
 
       {/* Content */}
       <div className="relative z-10 flex h-full flex-col p-5 sm:p-6">{children}</div>
-    </div>
+    </motion.div>
   );
 }
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth, SEEDED_USERS } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import {
@@ -78,10 +79,15 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Zone 1 Left: Brand & Hierarchical Topological Breadcrumb */}
       <div className="flex items-center space-x-3.5 shrink-0">
         <div className="flex items-center space-x-2.5">
-          <div className="h-8 w-8 rounded-2xl bg-[#141417] border border-white/20 flex items-center justify-center font-ndot font-bold text-white text-xs shadow-[0_0_15px_rgba(255,255,255,0.15)] spring-interactive relative group">
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+            className="h-8 w-8 rounded-2xl bg-[#141417] border border-white/20 flex items-center justify-center font-ndot font-bold text-white text-xs shadow-[0_0_15px_rgba(255,255,255,0.15)] relative cursor-pointer"
+          >
             <span>CO</span>
             <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-nothing-red nothing-red-dot" />
-          </div>
+          </motion.div>
           <div className="flex flex-col">
             <span className="font-ndot55 text-sm tracking-widest text-white uppercase font-bold leading-none">
               CAMPUS<span className="text-nothing-red">OPS</span>
@@ -96,60 +102,78 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Monospace Topological Breadcrumb Path */}
         <nav className="flex items-center space-x-1.5 font-ndot text-xs text-neutral-400">
-          <button
+          <motion.button
+            whileHover={{ scale: 1.05, color: '#ffffff' }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => onBreadcrumbClick?.('CAMPUS')}
-            className="hover:text-white transition spring-interactive"
+            className="hover:text-white transition"
           >
             SRM-EEC
-          </button>
+          </motion.button>
           <span className="text-neutral-600 font-sans">/</span>
-          <button
+          <motion.button
+            whileHover={{ scale: 1.05, color: '#ffffff' }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => onBreadcrumbClick?.('BLOCK')}
-            className="hover:text-white transition spring-interactive"
+            className="hover:text-white transition"
           >
             EEC-ACAD
-          </button>
+          </motion.button>
           <span className="text-neutral-600 font-sans">/</span>
-          <button
+          <motion.button
+            whileHover={{ scale: 1.05, color: '#ffffff' }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => onBreadcrumbClick?.('FLOOR')}
-            className="hover:text-white transition spring-interactive"
+            className="hover:text-white transition"
           >
             FL-02
-          </button>
+          </motion.button>
           <span className="text-neutral-600 font-sans">/</span>
-          <button
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => onBreadcrumbClick?.('ROOM')}
-            className="text-white font-bold hover:text-nothing-red transition spring-interactive flex items-center space-x-1"
+            className="text-white font-bold hover:text-nothing-red transition flex items-center space-x-1"
           >
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-nothing-red" />
             <span>{selectedBreadcrumbNode}</span>
-          </button>
+          </motion.button>
         </nav>
       </div>
 
-      {/* Zone 1 Center: Nothing OS Segmented Pill Control Strip */}
-      <div className="flex items-center bg-[#121215] border border-white/15 rounded-full p-1 space-x-1 shadow-inner">
+      {/* Zone 1 Center: Nothing OS Segmented Pill Control Strip with Framer Motion LayoutId */}
+      <div className="flex items-center bg-[#121215] border border-white/15 rounded-full p-1 space-x-1 shadow-inner relative">
         {navItems
           .filter((item) => !item.adminOnly || isAdmin)
           .map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
             return (
-              <button
+              <motion.button
                 key={item.id}
                 onClick={() => onTabChange(item.id)}
-                className={`flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-sans transition-all duration-200 spring-interactive ${
-                  isActive
-                    ? 'bg-white text-black font-semibold shadow-[0_2px_12px_rgba(255,255,255,0.35)]'
-                    : 'text-neutral-400 hover:text-white hover:bg-white/[0.06]'
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.96 }}
+                transition={{ type: 'spring', stiffness: 450, damping: 30 }}
+                className={`relative flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-sans transition-colors duration-150 ${
+                  isActive ? 'text-black font-semibold' : 'text-neutral-400 hover:text-white'
                 }`}
               >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-black' : 'text-neutral-400'}`} />
-                <span>{item.label}</span>
                 {isActive && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-nothing-red" />
+                  <motion.div
+                    layoutId="headerActiveTab"
+                    className="absolute inset-0 bg-white rounded-full shadow-[0_2px_12px_rgba(255,255,255,0.35)]"
+                    transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                  />
                 )}
-              </button>
+                <span className="relative z-10 flex items-center space-x-1.5">
+                  <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-black' : 'text-neutral-400'}`} />
+                  <span>{item.label}</span>
+                  {isActive && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-nothing-red" />
+                  )}
+                </span>
+              </motion.button>
             );
           })}
       </div>
@@ -157,83 +181,121 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Zone 1 Right: Live NDot Clock, Theme Switcher & Strict 2-Role Persona Switcher */}
       <div className="flex items-center space-x-2.5 shrink-0">
         {/* Live Nothing OS Clock */}
-        <div className="hidden xl:flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-[#121215] border border-white/15 text-white font-ndot text-xs">
+        <motion.div
+          animate={{ opacity: [0.9, 1, 0.9] }}
+          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+          className="hidden xl:flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-[#121215] border border-white/15 text-white font-ndot text-xs"
+        >
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399] animate-pulse" />
           <span>{currentTime || '00:00:00'}</span>
-        </div>
+        </motion.div>
 
         {/* Command Search Trigger */}
-        <button
+        <motion.button
+          whileHover={{ scale: 1.04, borderColor: 'rgba(255,255,255,0.3)' }}
+          whileTap={{ scale: 0.95 }}
           onClick={() => {
             const input = document.querySelector('input[placeholder*="Search"]') as HTMLInputElement;
             if (input) input.focus();
           }}
-          className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-[#121215] border border-white/15 text-neutral-400 hover:text-white hover:border-white/30 text-xs font-mono transition spring-interactive"
+          className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-[#121215] border border-white/15 text-neutral-400 hover:text-white text-xs font-mono transition"
         >
           <Search className="w-3 h-3 text-neutral-400" />
           <span className="text-[11px]">Jump</span>
           <span className="px-1.5 py-0.2 rounded bg-white/10 text-[10px] text-white font-ndot">
             ⌘K
           </span>
-        </button>
+        </motion.button>
 
         <div className="h-4 w-px bg-white/15" />
 
-        {/* Theme Toggle (Nothing OLED vs Monochrome vs Mocha) */}
-        <div className="flex items-center bg-[#121215] p-0.5 rounded-full border border-white/15">
-          <button
+        {/* Theme Toggle (Nothing OLED vs Monochrome vs Mocha) with Framer Motion LayoutId */}
+        <div className="flex items-center bg-[#121215] p-0.5 rounded-full border border-white/15 relative">
+          <motion.button
+            whileTap={{ scale: 0.95 }}
             onClick={() => setTheme('monochrome')}
-            className={`flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-ndot transition duration-200 spring-interactive ${
-              theme === 'monochrome'
-                ? 'bg-white text-black font-bold shadow-[0_2px_8px_rgba(255,255,255,0.4)]'
-                : 'text-neutral-400 hover:text-white'
+            className={`relative flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-ndot transition-colors duration-150 ${
+              theme === 'monochrome' ? 'text-black font-bold' : 'text-neutral-400 hover:text-white'
             }`}
             title="Switch to OLED Nothing OS Monochrome theme"
           >
-            <span className="text-[10px] font-bold">OLED</span>
-          </button>
-          <button
+            {theme === 'monochrome' && (
+              <motion.div
+                layoutId="headerThemePill"
+                className="absolute inset-0 bg-white rounded-full shadow-[0_2px_8px_rgba(255,255,255,0.4)]"
+                transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+              />
+            )}
+            <span className="relative z-10 text-[10px] font-bold">OLED</span>
+          </motion.button>
+          <motion.button
+            whileTap={{ scale: 0.95 }}
             onClick={() => setTheme('mocha')}
-            className={`flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-ndot transition duration-200 spring-interactive ${
-              theme === 'mocha'
-                ? 'bg-[#ec9665] text-[#180f0a] font-bold shadow-[0_2px_8px_rgba(236,150,101,0.4)]'
-                : 'text-neutral-400 hover:text-white'
+            className={`relative flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-ndot transition-colors duration-150 ${
+              theme === 'mocha' ? 'text-[#180f0a] font-bold' : 'text-neutral-400 hover:text-white'
             }`}
             title="Switch to warm Mocha theme"
           >
-            <span className="text-[10px] font-bold">MOCHA</span>
-          </button>
+            {theme === 'mocha' && (
+              <motion.div
+                layoutId="headerThemePill"
+                className="absolute inset-0 bg-[#ec9665] rounded-full shadow-[0_2px_8px_rgba(236,150,101,0.4)]"
+                transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+              />
+            )}
+            <span className="relative z-10 text-[10px] font-bold">MOCHA</span>
+          </motion.button>
         </div>
 
         <div className="h-4 w-px bg-white/15" />
 
-        {/* Persona Switcher */}
-        <div className="flex items-center bg-[#121215] p-0.5 rounded-full border border-white/15">
-          <button
+        {/* Persona Switcher with Framer Motion LayoutId */}
+        <div className="flex items-center bg-[#121215] p-0.5 rounded-full border border-white/15 relative">
+          <motion.button
+            whileTap={{ scale: 0.95 }}
             onClick={() => switchUser(SEEDED_USERS[0])}
-            className={`flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-sans transition duration-200 spring-interactive ${
+            className={`relative flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-sans transition-colors duration-150 ${
               currentUser.role === 'SYS_ADMIN'
-                ? 'bg-white text-black font-bold shadow-[0_2px_10px_rgba(255,255,255,0.35)]'
+                ? 'text-black font-bold'
                 : 'text-neutral-400 hover:text-white'
             }`}
             title="Administrator role: approvals, scheduling, and staff dispatch"
           >
-            <Shield className="w-3 h-3" />
-            <span>Admin</span>
-          </button>
+            {currentUser.role === 'SYS_ADMIN' && (
+              <motion.div
+                layoutId="headerRolePill"
+                className="absolute inset-0 bg-white rounded-full shadow-[0_2px_10px_rgba(255,255,255,0.35)]"
+                transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+              />
+            )}
+            <span className="relative z-10 flex items-center space-x-1">
+              <Shield className="w-3 h-3" />
+              <span>Admin</span>
+            </span>
+          </motion.button>
 
-          <button
+          <motion.button
+            whileTap={{ scale: 0.95 }}
             onClick={() => switchUser(SEEDED_USERS[1])}
-            className={`flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-sans transition duration-200 spring-interactive ${
+            className={`relative flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-sans transition-colors duration-150 ${
               currentUser.role === 'STUDENT_FACULTY'
-                ? 'bg-white text-black font-bold shadow-[0_2px_10px_rgba(255,255,255,0.35)]'
+                ? 'text-black font-bold'
                 : 'text-neutral-400 hover:text-white'
             }`}
             title="Student / Staff role: report facility incidents and track status"
           >
-            <GraduationCap className="w-3 h-3" />
-            <span>Student / Staff</span>
-          </button>
+            {currentUser.role === 'STUDENT_FACULTY' && (
+              <motion.div
+                layoutId="headerRolePill"
+                className="absolute inset-0 bg-white rounded-full shadow-[0_2px_10px_rgba(255,255,255,0.35)]"
+                transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+              />
+            )}
+            <span className="relative z-10 flex items-center space-x-1">
+              <GraduationCap className="w-3 h-3" />
+              <span>Student / Staff</span>
+            </span>
+          </motion.button>
         </div>
       </div>
     </header>

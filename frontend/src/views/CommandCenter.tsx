@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { CSSProperties, MouseEvent, ReactNode, TouchEvent } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import type { Variants } from 'framer-motion';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -85,8 +87,28 @@ function useAnimatedNumber(target: number, duration = 600): number {
 }
 
 /* ==========================================================================
-   Interactive GlowCard with Cursor-Follow Spotlight & Faint Grid
+   Framer Motion Spring Variants & GlowCard
    ========================================================================== */
+
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.05,
+      delayChildren: 0.02,
+    },
+  },
+};
+
+const cardItemVariants: Variants = {
+  hidden: { opacity: 0, y: 10 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { type: 'spring', stiffness: 350, damping: 26 },
+  },
+};
 
 function GlowCard({
   accent,
@@ -119,7 +141,10 @@ function GlowCard({
   const gridMask = `radial-gradient(220px circle at ${pos.x}px ${pos.y}px, black, transparent 75%)`;
 
   return (
-    <div
+    <motion.div
+      variants={cardItemVariants}
+      whileHover={{ y: -2 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
       onMouseMove={handleMouseMove}
       onMouseEnter={() => setActive(true)}
       onMouseLeave={() => setActive(false)}
@@ -174,7 +199,7 @@ function GlowCard({
 
       {/* Content */}
       <div className="relative z-10 flex h-full flex-col p-5 sm:p-6">{children}</div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -481,18 +506,26 @@ export const CommandCenter: React.FC = () => {
 
         <div className="flex items-center space-x-2">
           <LiveBadge label="OPERATIONAL" />
-          <button
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ rotate: 180, scale: 0.9 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 25 }}
             onClick={fetchData}
-            className="p-1.5 rounded-full border border-white/15 bg-black/60 hover:bg-white/10 text-neutral-300 hover:text-white transition spring-interactive"
+            className="p-1.5 rounded-full border border-white/15 bg-black/60 hover:bg-white/10 text-neutral-300 hover:text-white transition"
             title="Refresh Command Center"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          </button>
+          </motion.button>
         </div>
       </div>
 
       {/* Top 4 Modular Squircle KPI GlowCards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 shrink-0">
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="grid grid-cols-2 lg:grid-cols-4 gap-3 shrink-0"
+      >
         <GlowCard accent="red" className="p-4 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-ndot text-neutral-400 uppercase tracking-widest">
@@ -582,10 +615,15 @@ export const CommandCenter: React.FC = () => {
             <div className="h-full bg-cyan-400 rounded-full w-3/4" />
           </div>
         </GlowCard>
-      </div>
+      </motion.div>
 
       {/* Interactive Bento Grid Layout (Bento Cards with Hover Effects) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 auto-rows-[220px]">
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 auto-rows-[220px]"
+      >
         {/* Bento Card 1: Server Latency & Campus Block Response (Span 2 Cols x 2 Rows) */}
         <GlowCard accent="red" className="md:col-span-2 lg:row-span-2 min-h-[420px] flex flex-col">
           <CardTitle right={<LiveBadge label="LIVE GRID" />}>
@@ -676,21 +714,27 @@ export const CommandCenter: React.FC = () => {
                 top: `${points[shownIdx].y}%`,
               }}
             />
-            {hoverLatency !== null && (
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-lg border border-white/15 bg-black/95 px-2.5 py-1 text-xs font-mono shadow-2xl backdrop-blur-md"
-                style={{
-                  left: `clamp(48px, ${points[hoverLatency].x}%, calc(100% - 48px))`,
-                  top: `calc(${points[hoverLatency].y}% - 12px)`,
-                }}
-              >
-                <div className="text-neutral-400 text-[10px]">
-                  {Math.round(((series.length - 1 - hoverLatency) * TICK_INTERVAL) / 1000)}s ago
-                </div>
-                <div className="font-bold text-white">{Math.round(series[hoverLatency])} ms</div>
-              </div>
-            )}
+            <AnimatePresence>
+              {hoverLatency !== null && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.92, y: 4 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.92, y: 4 }}
+                  transition={{ duration: 0.15 }}
+                  aria-hidden="true"
+                  className="pointer-events-none absolute -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-lg border border-white/15 bg-black/95 px-2.5 py-1 text-xs font-mono shadow-2xl backdrop-blur-md z-20"
+                  style={{
+                    left: `clamp(48px, ${points[hoverLatency].x}%, calc(100% - 48px))`,
+                    top: `calc(${points[hoverLatency].y}% - 12px)`,
+                  }}
+                >
+                  <div className="text-neutral-400 text-[10px]">
+                    {Math.round(((series.length - 1 - hoverLatency) * TICK_INTERVAL) / 1000)}s ago
+                  </div>
+                  <div className="font-bold text-white">{Math.round(series[hoverLatency])} ms</div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           <div className="mt-1 flex justify-between text-[10px] font-mono text-neutral-500">
@@ -703,8 +747,10 @@ export const CommandCenter: React.FC = () => {
             {CAMPUS_BLOCKS.map((block, i) => {
               const status = statusOfMs(pings[i]);
               return (
-                <li
+                <motion.li
                   key={block.name}
+                  whileHover={{ x: 3 }}
+                  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                   className="flex items-center gap-2 rounded-lg px-2 py-1 text-xs transition-colors duration-200 hover:bg-white/[0.05]"
                 >
                   <span className={cx('h-1.5 w-1.5 shrink-0 rounded-full', status.dot)} />
@@ -712,7 +758,7 @@ export const CommandCenter: React.FC = () => {
                   <span className={cx('text-[11px] font-mono [font-variant-numeric:tabular-nums]', status.text)}>
                     {pings[i]} ms
                   </span>
-                </li>
+                </motion.li>
               );
             })}
           </ul>
@@ -737,21 +783,29 @@ export const CommandCenter: React.FC = () => {
             aria-label="Autonomous Dispatch Log"
             role="log"
           >
-            {visibleLines.map((line, i) => {
-              const style = LINE_STYLES[line.type];
-              const isLast = firstLine + i === printedLines - 1;
-              return (
-                <div key={firstLine + i} className="tb-slide flex gap-2 text-[11px]">
-                  <span className={cx('w-3 shrink-0 text-center', style.markClass)}>{style.mark}</span>
-                  <span className={cx('min-w-0 break-words', style.textClass)}>
-                    {line.text}
-                    {isLast && printedLines < SCRIPT_LOGS.length && (
-                      <span className="tb-blink ml-1 inline-block h-3 w-1.5 translate-y-0.5 bg-nothing-red" />
-                    )}
-                  </span>
-                </div>
-              );
-            })}
+            <AnimatePresence initial={false}>
+              {visibleLines.map((line, i) => {
+                const style = LINE_STYLES[line.type];
+                const isLast = firstLine + i === printedLines - 1;
+                return (
+                  <motion.div
+                    key={`${firstLine + i}-${line.text}`}
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                    className="flex gap-2 text-[11px]"
+                  >
+                    <span className={cx('w-3 shrink-0 text-center', style.markClass)}>{style.mark}</span>
+                    <span className={cx('min-w-0 break-words', style.textClass)}>
+                      {line.text}
+                      {isLast && printedLines < SCRIPT_LOGS.length && (
+                        <span className="tb-blink ml-1 inline-block h-3 w-1.5 translate-y-0.5 bg-nothing-red" />
+                      )}
+                    </span>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
           </div>
 
           <div className="mt-2.5 flex items-center justify-between text-[10px] font-mono text-neutral-500 px-1">
@@ -828,15 +882,16 @@ export const CommandCenter: React.FC = () => {
 
           <div className="mt-auto flex h-14 items-end gap-1" aria-hidden="true">
             {throughputBars.map((v, i) => (
-              <span
+              <motion.span
                 key={i}
+                animate={{ height: `${Math.max((v / maxThroughput) * 100, 10)}%` }}
+                transition={{ type: 'spring', stiffness: 260, damping: 22 }}
                 className={cx(
-                  'flex-1 rounded-sm transition-all duration-700 ease-out',
+                  'flex-1 rounded-sm',
                   i === throughputBars.length - 1
                     ? 'bg-cyan-300 shadow-[0_0_10px_rgba(103,232,249,0.8)]'
                     : 'bg-cyan-400/25'
                 )}
-                style={{ height: `${Math.max((v / maxThroughput) * 100, 10)}%` }}
               />
             ))}
           </div>
@@ -853,14 +908,17 @@ export const CommandCenter: React.FC = () => {
               const on = trade.id === activeTradeId;
               return (
                 <li key={trade.id}>
-                  <button
+                  <motion.button
                     type="button"
+                    whileHover={{ scale: 1.03, y: -2 }}
+                    whileTap={{ scale: 0.96 }}
+                    transition={{ type: 'spring', stiffness: 450, damping: 28 }}
                     onMouseEnter={() => setActiveTradeId(trade.id)}
                     onMouseLeave={() => setActiveTradeId(null)}
                     onFocus={() => setActiveTradeId(trade.id)}
                     onBlur={() => setActiveTradeId(null)}
                     aria-label={`${trade.name}`}
-                    className="flex w-full flex-col items-center gap-1 rounded-2xl border px-2.5 py-3 transition-all duration-300 focus-visible:outline-none"
+                    className="flex w-full flex-col items-center gap-1 rounded-2xl border px-2.5 py-3 transition-colors duration-200 focus-visible:outline-none"
                     style={{
                       color: on ? `rgb(${trade.rgb})` : '#a3a3a3',
                       borderColor: on ? `rgba(${trade.rgb}, 0.6)` : 'rgba(255,255,255,0.08)',
@@ -869,27 +927,44 @@ export const CommandCenter: React.FC = () => {
                     }}
                   >
                     <span className="text-xl">{trade.icon}</span>
-                    <span className={cx('text-xs font-semibold tracking-wide font-ndot transition-colors duration-300', on ? 'text-white' : 'text-neutral-300')}>
+                    <span className={cx('text-xs font-semibold tracking-wide font-ndot transition-colors duration-200', on ? 'text-white' : 'text-neutral-300')}>
                       {trade.name}
                     </span>
                     <span className="text-[10px] font-mono text-neutral-400">{trade.staff} on shift</span>
-                  </button>
+                  </motion.button>
                 </li>
               );
             })}
           </ul>
 
-          <p className="mt-3 min-h-[22px] text-xs font-mono text-neutral-400 border-t border-white/10 pt-2" aria-live="polite">
-            {activeTrade ? (
-              <span key={activeTrade.id} className="tb-fade text-white font-sans">
-                <strong className="text-amber-400 font-ndot uppercase tracking-wider">{activeTrade.code}:</strong> {activeTrade.desc}
-              </span>
-            ) : (
-              'Hover over any maintenance trade to inspect coverage, equipment domains, and on-duty workers.'
-            )}
-          </p>
+          <div className="mt-3 min-h-[22px] text-xs font-mono text-neutral-400 border-t border-white/10 pt-2" aria-live="polite">
+            <AnimatePresence mode="wait">
+              {activeTrade ? (
+                <motion.p
+                  key={activeTrade.id}
+                  initial={{ opacity: 0, y: 2 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -2 }}
+                  transition={{ duration: 0.15 }}
+                  className="text-white font-sans"
+                >
+                  <strong className="text-amber-400 font-ndot uppercase tracking-wider">{activeTrade.code}:</strong> {activeTrade.desc}
+                </motion.p>
+              ) : (
+                <motion.p
+                  key="empty"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                >
+                  Hover over any maintenance trade to inspect coverage, equipment domains, and on-duty workers.
+                </motion.p>
+              )}
+            </AnimatePresence>
+          </div>
         </GlowCard>
-      </div>
+      </motion.div>
 
       {/* Operations & Rapid Intake Split Section */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 pt-2">
@@ -903,13 +978,16 @@ export const CommandCenter: React.FC = () => {
                   Live Incident Ledger ({activeTickets.length} Active)
                 </h2>
               </div>
-              <button
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ rotate: 180, scale: 0.9 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                 onClick={fetchData}
-                className="text-neutral-400 hover:text-white p-1 rounded-full border border-white/15 hover:border-white/40 transition spring-interactive"
+                className="text-neutral-400 hover:text-white p-1 rounded-full border border-white/15 hover:border-white/40 transition"
                 title="Refresh"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-              </button>
+              </motion.button>
             </div>
 
             <div className="overflow-auto flex-1 mt-3">
@@ -925,44 +1003,50 @@ export const CommandCenter: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 font-sans">
-                  {activeTickets.map((t) => (
-                    <tr
-                      key={t.id}
-                      className="hover:bg-white/[0.04] transition h-9 spring-row"
-                    >
-                      <td className="py-1.5 px-3 font-ndot font-bold text-white border-r border-white/10">
-                        #{t.ticket_number}
-                      </td>
-                      <td className="py-1.5 px-3 font-mono text-neutral-300 border-r border-white/10 truncate">
-                        <span className="font-semibold text-white">{t.room_code || t.node_code || 'Campus General'}</span>
-                        {t.floor_number !== undefined && t.floor_number !== null && (
-                          <span className="text-[10px] text-neutral-400 ml-1.5 font-sans">Fl {t.floor_number}</span>
-                        )}
-                      </td>
-                      <td className="py-1.5 px-3 font-ndot text-neutral-400 text-[11px] border-r border-white/10">
-                        {t.category || 'TBD'}
-                      </td>
-                      <td className="py-1.5 px-3 font-ndot text-right border-r border-white/10">
-                        <span
-                          className={`text-[9px] px-2 py-0.5 rounded-full font-ndot border ${
-                            t.calculated_priority === 'P0_CRITICAL'
-                              ? 'bg-nothing-red/20 text-nothing-red border-nothing-red/50 font-bold'
-                              : 'bg-white/10 text-white border-white/20'
-                          }`}
-                        >
-                          {t.calculated_priority || 'P2'}
-                        </span>
-                      </td>
-                      <td className="py-1.5 px-3 font-mono text-right border-r border-white/10">
-                        <span className="text-[10px] text-neutral-300 font-semibold">{t.state}</span>
-                      </td>
-                      <td className="py-1.5 px-3 text-right font-sans text-neutral-200 truncate">
-                        {t.assigned_tech_name || (
-                          <span className="text-neutral-500 italic text-[11px]">Unassigned</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                  <AnimatePresence initial={false}>
+                    {activeTickets.map((t) => (
+                      <motion.tr
+                        key={t.id}
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+                        className="hover:bg-white/[0.04] transition-colors h-9"
+                      >
+                        <td className="py-1.5 px-3 font-ndot font-bold text-white border-r border-white/10">
+                          #{t.ticket_number}
+                        </td>
+                        <td className="py-1.5 px-3 font-mono text-neutral-300 border-r border-white/10 truncate">
+                          <span className="font-semibold text-white">{t.room_code || t.node_code || 'Campus General'}</span>
+                          {t.floor_number !== undefined && t.floor_number !== null && (
+                            <span className="text-[10px] text-neutral-400 ml-1.5 font-sans">Fl {t.floor_number}</span>
+                          )}
+                        </td>
+                        <td className="py-1.5 px-3 font-ndot text-neutral-400 text-[11px] border-r border-white/10">
+                          {t.category || 'TBD'}
+                        </td>
+                        <td className="py-1.5 px-3 font-ndot text-right border-r border-white/10">
+                          <span
+                            className={`text-[9px] px-2 py-0.5 rounded-full font-ndot border ${
+                              t.calculated_priority === 'P0_CRITICAL'
+                                ? 'bg-nothing-red/20 text-nothing-red border-nothing-red/50 font-bold'
+                                : 'bg-white/10 text-white border-white/20'
+                            }`}
+                          >
+                            {t.calculated_priority || 'P2'}
+                          </span>
+                        </td>
+                        <td className="py-1.5 px-3 font-mono text-right border-r border-white/10">
+                          <span className="text-[10px] text-neutral-300 font-semibold">{t.state}</span>
+                        </td>
+                        <td className="py-1.5 px-3 text-right font-sans text-neutral-200 truncate">
+                          {t.assigned_tech_name || (
+                            <span className="text-neutral-500 italic text-[11px]">Unassigned</span>
+                          )}
+                        </td>
+                      </motion.tr>
+                    ))}
+                  </AnimatePresence>
                   {activeTickets.length === 0 && (
                     <tr>
                       <td colSpan={6} className="py-8 px-4 text-center text-xs font-mono">
@@ -998,48 +1082,60 @@ export const CommandCenter: React.FC = () => {
               validate room & floor, auto-assign workers, and notify them via Resend.
             </p>
 
-            {/* Quick Templates */}
+            {/* Quick Templates with Framer Motion spring click/hover */}
             <div className="grid grid-cols-2 gap-2 text-left pt-1">
-              <button
+              <motion.button
                 type="button"
+                whileHover={{ scale: 1.025, y: -1 }}
+                whileTap={{ scale: 0.96 }}
+                transition={{ type: 'spring', stiffness: 450, damping: 25 }}
                 onClick={() =>
                   setIntakeText('URGENT: Electrical short circuit sparks near switchboard in RM-ACAD-204!')
                 }
-                className="p-2 bg-black/60 hover:bg-white/10 border border-white/15 rounded-xl text-[10px] text-white transition spring-interactive flex items-center space-x-1.5"
+                className="p-2 bg-black/60 hover:bg-white/10 border border-white/15 rounded-xl text-[10px] text-white transition flex items-center space-x-1.5"
               >
                 <Zap className="w-3 h-3 text-nothing-red shrink-0" />
                 <span className="truncate">Short circuit RM-ACAD-204</span>
-              </button>
-              <button
+              </motion.button>
+              <motion.button
                 type="button"
+                whileHover={{ scale: 1.025, y: -1 }}
+                whileTap={{ scale: 0.96 }}
+                transition={{ type: 'spring', stiffness: 450, damping: 25 }}
                 onClick={() =>
                   setIntakeText('Water pipe leaking heavily and flooding corridor in RM-MAIN-101')
                 }
-                className="p-2 bg-black/60 hover:bg-white/10 border border-white/15 rounded-xl text-[10px] text-white transition spring-interactive flex items-center space-x-1.5"
+                className="p-2 bg-black/60 hover:bg-white/10 border border-white/15 rounded-xl text-[10px] text-white transition flex items-center space-x-1.5"
               >
                 <Droplets className="w-3 h-3 text-cyan-400 shrink-0" />
                 <span className="truncate">Pipe leak in RM-MAIN-101</span>
-              </button>
-              <button
+              </motion.button>
+              <motion.button
                 type="button"
+                whileHover={{ scale: 1.025, y: -1 }}
+                whileTap={{ scale: 0.96 }}
+                transition={{ type: 'spring', stiffness: 450, damping: 25 }}
                 onClick={() =>
                   setIntakeText('Central Air Handling Unit AHU-AUD-MAIN blowing hot air in RM-AUD-MAIN')
                 }
-                className="p-2 bg-black/60 hover:bg-white/10 border border-white/15 rounded-xl text-[10px] text-white transition spring-interactive flex items-center space-x-1.5"
+                className="p-2 bg-black/60 hover:bg-white/10 border border-white/15 rounded-xl text-[10px] text-white transition flex items-center space-x-1.5"
               >
                 <Wind className="w-3 h-3 text-sky-400 shrink-0" />
                 <span className="truncate">AC down in Auditorium</span>
-              </button>
-              <button
+              </motion.button>
+              <motion.button
                 type="button"
+                whileHover={{ scale: 1.025, y: -1 }}
+                whileTap={{ scale: 0.96 }}
+                transition={{ type: 'spring', stiffness: 450, damping: 25 }}
                 onClick={() =>
                   setIntakeText('EMERGENCY: Fire catching fast in Academic Tech Block near RM-ACAD-204!')
                 }
-                className="p-2 bg-nothing-red/20 hover:bg-nothing-red/30 border border-nothing-red/40 rounded-xl text-[10px] text-white transition spring-interactive flex items-center space-x-1.5"
+                className="p-2 bg-nothing-red/20 hover:bg-nothing-red/30 border border-nothing-red/40 rounded-xl text-[10px] text-white transition flex items-center space-x-1.5"
               >
                 <Flame className="w-3 h-3 text-nothing-red shrink-0" />
                 <span className="truncate">Fire hazard near RM-ACAD-204</span>
-              </button>
+              </motion.button>
             </div>
 
             <form onSubmit={handleIntakeSubmit} className="space-y-3 pt-1">
@@ -1051,71 +1147,84 @@ export const CommandCenter: React.FC = () => {
                 className="w-full bg-black/80 border border-white/15 rounded-2xl p-3 text-xs text-white font-mono focus:outline-none focus:border-white transition resize-none shadow-inner"
               />
 
-              <button
+              <motion.button
                 type="submit"
+                whileHover={{ scale: 1.015 }}
+                whileTap={{ scale: 0.975 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                 disabled={isSubmitting || !intakeText.trim()}
-                className="w-full py-2.5 nothing-btn-primary hover:brightness-110 text-black text-xs font-bold transition spring-interactive flex items-center justify-center space-x-2 shadow-[0_4px_20px_rgba(255,255,255,0.25)]"
+                className="w-full py-2.5 nothing-btn-primary hover:brightness-110 text-black text-xs font-bold transition flex items-center justify-center space-x-2 shadow-[0_4px_20px_rgba(255,255,255,0.25)]"
               >
                 <Send className="w-3.5 h-3.5" />
                 <span>{isSubmitting ? 'Triage Agents Dispatched...' : 'Submit Incident Report'}</span>
-              </button>
+              </motion.button>
             </form>
           </GlowCard>
 
-          {/* Groq AI Decision Output */}
-          {intakeResult && (
-            intakeResult.decision === 'REPLY_QUESTION' || !intakeResult.is_ticket_created ? (
-              <GlowCard accent="cyan" className="p-4 space-y-2.5 shadow-lg border border-sky-400/40">
-                <div className="flex items-center space-x-2 text-sky-300 font-bold font-ndot tracking-wide text-xs">
-                  <span className="w-2 h-2 rounded-full bg-sky-400 shadow-[0_0_8px_#38bdf8]" />
-                  <span>AI ASSISTANT CLARIFICATION</span>
-                </div>
-                <div className="p-3 bg-black/60 border border-white/10 rounded-2xl text-xs text-neutral-200 leading-relaxed font-sans shadow-inner">
-                  {intakeResult.reply_message ||
-                    'Hello! What campus maintenance or equipment issue can we help you resolve? Please specify the problem and room location.'}
-                </div>
-                <div className="text-[10px] text-neutral-400 font-ndot uppercase tracking-widest flex items-center justify-between">
-                  <span>DECISION: QUESTION RETURNED</span>
-                  <span className="text-emerald-400">LEDGER UNTOUCHED</span>
-                </div>
-              </GlowCard>
-            ) : (
-              <GlowCard accent="red" className="p-4 space-y-2.5 shadow-lg border border-nothing-red/40">
-                {intakeResult.emergency_instructions && (
-                  <div className="p-3.5 bg-nothing-red/15 border border-nothing-red/60 rounded-2xl space-y-2 text-xs">
-                    <div className="flex items-center space-x-2 text-white font-bold font-ndot tracking-wide">
-                      <AlertTriangle className="w-4 h-4 text-nothing-red shrink-0" />
-                      <span>{intakeResult.emergency_instructions.headline}</span>
+          {/* Groq AI Decision Output with Framer Motion AnimatePresence */}
+          <AnimatePresence mode="wait">
+            {intakeResult && (
+              <motion.div
+                key={intakeResult.ticket_number || intakeResult.reply_message || 'result'}
+                initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -10, scale: 0.98 }}
+                transition={{ type: 'spring', stiffness: 380, damping: 28 }}
+              >
+                {intakeResult.decision === 'REPLY_QUESTION' || !intakeResult.is_ticket_created ? (
+                  <GlowCard accent="cyan" className="p-4 space-y-2.5 shadow-lg border border-sky-400/40">
+                    <div className="flex items-center space-x-2 text-sky-300 font-bold font-ndot tracking-wide text-xs">
+                      <span className="w-2 h-2 rounded-full bg-sky-400 shadow-[0_0_8px_#38bdf8]" />
+                      <span>AI ASSISTANT CLARIFICATION</span>
                     </div>
-                    <div className="p-2 bg-black/60 rounded-xl border border-white/10 text-[10px] text-neutral-200 font-mono space-y-0.5">
-                      <div>📍 Evacuation: <span className="text-white font-semibold">{intakeResult.emergency_instructions.evacuation_route}</span></div>
-                      <div>🛡️ Assembly: <span className="text-white font-semibold">{intakeResult.emergency_instructions.assembly_point}</span></div>
+                    <div className="p-3 bg-black/60 border border-white/10 rounded-2xl text-xs text-neutral-200 leading-relaxed font-sans shadow-inner">
+                      {intakeResult.reply_message ||
+                        'Hello! What campus maintenance or equipment issue can we help you resolve? Please specify the problem and room location.'}
                     </div>
-                  </div>
-                )}
+                    <div className="text-[10px] text-neutral-400 font-ndot uppercase tracking-widest flex items-center justify-between">
+                      <span>DECISION: QUESTION RETURNED</span>
+                      <span className="text-emerald-400">LEDGER UNTOUCHED</span>
+                    </div>
+                  </GlowCard>
+                ) : (
+                  <GlowCard accent="red" className="p-4 space-y-2.5 shadow-lg border border-nothing-red/40">
+                    {intakeResult.emergency_instructions && (
+                      <div className="p-3.5 bg-nothing-red/15 border border-nothing-red/60 rounded-2xl space-y-2 text-xs">
+                        <div className="flex items-center space-x-2 text-white font-bold font-ndot tracking-wide">
+                          <AlertTriangle className="w-4 h-4 text-nothing-red shrink-0" />
+                          <span>{intakeResult.emergency_instructions.headline}</span>
+                        </div>
+                        <div className="p-2 bg-black/60 rounded-xl border border-white/10 text-[10px] text-neutral-200 font-mono space-y-0.5">
+                          <div>📍 Evacuation: <span className="text-white font-semibold">{intakeResult.emergency_instructions.evacuation_route}</span></div>
+                          <div>🛡️ Assembly: <span className="text-white font-semibold">{intakeResult.emergency_instructions.assembly_point}</span></div>
+                        </div>
+                      </div>
+                    )}
 
-                <div className="p-3 bg-black/60 border border-white/10 rounded-2xl text-xs font-mono space-y-1.5 shadow-inner">
-                  <div className="flex items-center justify-between text-white font-bold font-ndot">
-                    <span>TICKET #{intakeResult.ticket_number} REGISTERED</span>
-                    <span className="text-emerald-400 font-sans">{intakeResult.state}</span>
-                  </div>
-                  <div className="text-neutral-300 text-[11px] flex justify-between">
-                    <span>Category: <strong className="text-white font-ndot">{intakeResult.category || 'TBD'}</strong></span>
-                    <span>Room: <strong className="text-white font-mono">{intakeResult.room_code || intakeResult.target_node_code} (Floor {intakeResult.floor_number ?? '1'})</strong></span>
-                  </div>
-                  <div className="text-neutral-400 text-[10px]">
-                    Summary: {intakeResult.concise_summary}
-                  </div>
-                  {intakeResult.assigned_tech_name && (
-                    <div className="text-[11px] text-emerald-400 flex items-center justify-between pt-1 border-t border-white/10 font-sans">
-                      <span>Worker: <strong className="text-white">{intakeResult.assigned_tech_name}</strong> ({intakeResult.assigned_tech_role || 'Technician'})</span>
-                      <span className="text-[10px] bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full text-emerald-400">✓ Notified via Email</span>
+                    <div className="p-3 bg-black/60 border border-white/10 rounded-2xl text-xs font-mono space-y-1.5 shadow-inner">
+                      <div className="flex items-center justify-between text-white font-bold font-ndot">
+                        <span>TICKET #{intakeResult.ticket_number} REGISTERED</span>
+                        <span className="text-emerald-400 font-sans">{intakeResult.state}</span>
+                      </div>
+                      <div className="text-neutral-300 text-[11px] flex justify-between">
+                        <span>Category: <strong className="text-white font-ndot">{intakeResult.category || 'TBD'}</strong></span>
+                        <span>Room: <strong className="text-white font-mono">{intakeResult.room_code || intakeResult.target_node_code} (Floor {intakeResult.floor_number ?? '1'})</strong></span>
+                      </div>
+                      <div className="text-neutral-400 text-[10px]">
+                        Summary: {intakeResult.concise_summary}
+                      </div>
+                      {intakeResult.assigned_tech_name && (
+                        <div className="text-[11px] text-emerald-400 flex items-center justify-between pt-1 border-t border-white/10 font-sans">
+                          <span>Worker: <strong className="text-white">{intakeResult.assigned_tech_name}</strong> ({intakeResult.assigned_tech_role || 'Technician'})</span>
+                          <span className="text-[10px] bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full text-emerald-400">✓ Notified via Email</span>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              </GlowCard>
-            )
-          )}
+                  </GlowCard>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </div>
