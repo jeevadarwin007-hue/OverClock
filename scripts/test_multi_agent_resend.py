@@ -7,6 +7,9 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
 import httpx
+from dotenv import load_dotenv
+
+load_dotenv()
 
 async def test_multi_agent_resend():
     print("=" * 80)
@@ -100,7 +103,7 @@ async def test_multi_agent_resend():
         # A. Login
         login_res = await client.post(
             "/api/v1/auth/login",
-            json={"email": "sys_admin_1@easwari.edu", "password": "password123"}
+            json={"email": "sys_admin_1@easwari.edu", "password": os.getenv("CAMPUSOPS_ADMIN_PASSWORD", "")}
         )
         headers = {"Authorization": f"Bearer {login_res.json()['access_token']}"}
 

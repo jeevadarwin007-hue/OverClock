@@ -5,6 +5,9 @@ import json
 from uuid import UUID, uuid4
 from datetime import datetime, timezone, timedelta
 from httpx import AsyncClient, ASGITransport
+from dotenv import load_dotenv
+
+load_dotenv()
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
 
@@ -257,13 +260,13 @@ async def main():
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://testserver") as client:
             # Login users
-            admin_res = await client.post("/api/v1/auth/login", json={"email": "sys_admin_1@easwari.edu"})
+            admin_res = await client.post("/api/v1/auth/login", json={"email": "sys_admin_1@easwari.edu", "password": os.getenv("CAMPUSOPS_ADMIN_PASSWORD", "")})
             admin_token = admin_res.json()["access_token"]
 
-            tech_res = await client.post("/api/v1/auth/login", json={"email": "tech_elec_1@easwari.edu"})
+            tech_res = await client.post("/api/v1/auth/login", json={"email": "tech_elec_1@easwari.edu", "password": os.getenv("CAMPUSOPS_OTHER_DEMO_PASSWORD", "")})
             tech_token = tech_res.json()["access_token"]
 
-            student_res = await client.post("/api/v1/auth/login", json={"email": "student_1@easwari.edu"})
+            student_res = await client.post("/api/v1/auth/login", json={"email": "student_1@easwari.edu", "password": os.getenv("CAMPUSOPS_STUDENT_PASSWORD", "")})
             student_token = student_res.json()["access_token"]
 
             # Run Scenario 1

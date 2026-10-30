@@ -416,6 +416,8 @@ export const CommandCenter: React.FC = () => {
   // Selected trade state
   const [activeTradeId, setActiveTradeId] = useState<string | null>(null);
   const [tradesData, setTradesData] = useState<Record<string, TradeAvailabilityData>>({});
+  const [campusBlocks, setCampusBlocks] = useState<any[]>([]);
+  const [invariantData, setInvariantData] = useState<any>(null);
 
   // Operational connectivity states: Database, Network, Groq, Uptime
   const [connHealth, setConnHealth] = useState({
@@ -428,17 +430,21 @@ export const CommandCenter: React.FC = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [pulseData, summaryData, ticketsData, dailyData, tradesAvail, healthData] = await Promise.all([
+      const [pulseData, summaryData, ticketsData, dailyData, tradesAvail, healthData, mapStatus, invariants] = await Promise.all([
         api.get<any>('/pulse').catch(() => null),
         api.get<any>('/analytics/summary').catch(() => null),
         api.get<any[]>('/work-orders').catch(() => null),
         api.get<any>('/analytics/daily-reports?days=7').catch(() => null),
         api.get<any[]>('/staff/trades-availability').catch(() => null),
         api.get<any>('/health').catch(() => null),
+        api.get<any>('/campus/map-status').catch(() => null),
+        api.get<any>('/invariants').catch(() => null),
       ]);
 
       if (pulseData) setPulse(pulseData);
       if (summaryData) setSummary(summaryData);
+      if (Array.isArray(mapStatus?.blocks)) setCampusBlocks(mapStatus.blocks);
+      if (invariants) setInvariantData(invariants);
       const orders = Array.isArray(ticketsData) ? ticketsData : (ticketsData as any)?.items || [];
       if (ticketsData) setActiveTickets(orders);
 
@@ -539,6 +545,38 @@ export const CommandCenter: React.FC = () => {
   ).length;
   const displayTotalSolved = Math.max(totalSolvedInRange, totalResolvedTickets);
   const animatedTotalSolved = useAnimatedNumber(displayTotalSolved, 400);
+
+  const campusBlockCount = campusBlocks.length;
+  const synchronizedBlockCount = campusBlocks.filter((block) => block.status_label === 'OPERATIONAL').length;
+  const campusStatusPercent = campusBlockCount > 0
+    ? Math.round((synchronizedBlockCount / campusBlockCount) * 100)
+    : 0;
+
+  const activeRequestCount = Number(summary?.open_requests_count ?? pulse?.metrics?.open_requests ?? 0);
+  const problemsToSolvePercent = activeTickets.length > 0
+    ? Math.min(100, Math.round((activeRequestCount / activeTickets.length) * 100))
+    : 0;
+
+  const invariantValues: number[] = Object.values(invariantData?.invariants ?? {})
+    .map((value) => Number(value));
+  const invariantCount = invariantValues.length;
+  const verifiedInvariantCount = invariantValues.filter((value) => value === 0).length;
+  const invariantPercent = invariantCount > 0
+    ? Math.round((verifiedInvariantCount / invariantCount) * 100)
+    : 0;
+
+  const rosterWorkerMap = new Map(
+    Object.values(tradesData)
+      .flatMap((trade) => trade.workers)
+      .filter((worker) => Boolean(worker.id))
+      .map((worker) => [worker.id as string, worker] as const)
+  );
+  const rosterTotal = rosterWorkerMap.size;
+  const workingWorkerCount = Array.from(rosterWorkerMap.values())
+    .filter((worker) => worker.active_workload > 0).length;
+  const rosterPercent = rosterTotal > 0
+    ? Math.min(100, Math.round((workingWorkerCount / rosterTotal) * 100))
+    : 0;
 
   const todaySolved = dailyReports[dailyReports.length - 1]?.resolved_count || 0;
   const peakDailySolved = Math.max(...dailyReports.map((d) => d.resolved_count || 0), 0);
@@ -671,25 +709,25 @@ export const CommandCenter: React.FC = () => {
             <span className="text-[10px] font-ndot text-neutral-400 uppercase tracking-widest">
               Campus Status
             </span>
-            <LiveBadge label="NOMINAL" />
+            <LiveBadge label={campusStatusPercent === 100 ? 'NOMINAL' : 'ATTENTION'} />
           </div>
           <div className="my-2">
             <div className="text-2xl font-bold font-ndot55 tracking-wide text-white">
-              {pulse?.status_vibe?.replace('_', ' ') || 'NOMINAL'}
+              {campusStatusPercent === 100 ? 'NOMINAL' : 'ATTENTION'}
             </div>
             <div className="text-[11px] font-sans text-neutral-400 mt-0.5">
-              5 Campus Blocks Synchronized
+              {synchronizedBlockCount}/{campusBlockCount || 5} Campus Blocks Synchronized
             </div>
           </div>
           <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
-            <div className="h-full bg-emerald-400 rounded-full w-full" />
+            <div className="h-full bg-emerald-400 rounded-full transition-[width] duration-500" style={{ width: `${campusStatusPercent}%` }} />
           </div>
         </GlowCard>
 
         <GlowCard accent="amber" className="p-4 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-ndot text-neutral-400 uppercase tracking-widest">
-              Active Disruptions
+              Problems to Solve
             </span>
             <span className="flex items-center space-x-1 px-2 py-0.5 rounded-full bg-nothing-red/20 border border-nothing-red/40 text-[10px] font-ndot text-nothing-red font-bold">
               <span className="w-1.5 h-1.5 rounded-full bg-nothing-red nothing-red-dot" />
@@ -698,15 +736,15 @@ export const CommandCenter: React.FC = () => {
           </div>
           <div className="my-2">
             <div className="text-3xl font-bold font-ndot text-white flex items-baseline space-x-2">
-              <span>{summary?.open_requests_count || pulse?.metrics?.open_requests || 0}</span>
-              <span className="text-xs text-neutral-400 font-sans font-normal">critical</span>
+              <span>{activeRequestCount}</span>
+              <span className="text-xs text-neutral-400 font-sans font-normal">open</span>
             </div>
             <div className="text-[11px] font-sans text-neutral-400 mt-0.5">
-              Live automated mitigation active
+              Open work orders awaiting resolution
             </div>
           </div>
           <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
-            <div className="h-full bg-nothing-red rounded-full w-1/4" />
+            <div className="h-full bg-nothing-red rounded-full transition-[width] duration-500" style={{ width: `${problemsToSolvePercent}%` }} />
           </div>
         </GlowCard>
 
@@ -716,12 +754,12 @@ export const CommandCenter: React.FC = () => {
               Invariant Proofs
             </span>
             <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-ndot text-emerald-400">
-              100%
+              {invariantPercent}%
             </span>
           </div>
           <div className="my-2">
             <div className="text-2xl font-bold font-ndot text-white flex items-center space-x-2">
-              <span className="text-emerald-400">3/3</span>
+              <span className="text-emerald-400">{verifiedInvariantCount}/{invariantCount}</span>
               <span className="text-xs text-neutral-400 font-sans">verified</span>
             </div>
             <div className="text-[11px] font-sans text-neutral-400 mt-0.5">
@@ -729,30 +767,30 @@ export const CommandCenter: React.FC = () => {
             </div>
           </div>
           <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
-            <div className="h-full bg-emerald-400 rounded-full w-full" />
+            <div className="h-full bg-emerald-400 rounded-full transition-[width] duration-500" style={{ width: `${invariantPercent}%` }} />
           </div>
         </GlowCard>
 
         <GlowCard accent="cyan" className="p-4 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-ndot text-neutral-400 uppercase tracking-widest">
-              Technician Roster
+              Workers Working
             </span>
             <span className="px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-[10px] font-ndot text-cyan-300">
-              ON-CALL
+              LIVE
             </span>
           </div>
           <div className="my-2">
             <div className="text-2xl font-bold font-ndot text-white flex items-baseline space-x-2">
-              <span>Arun</span>
-              <span className="text-xs text-neutral-400 font-sans">Electrician</span>
+              <span>{workingWorkerCount}</span>
+              <span className="text-xs text-neutral-400 font-sans">working</span>
             </div>
             <div className="text-[11px] font-sans text-neutral-400 mt-0.5">
-              Auto-dispatched via Resend API
+              Currently assigned to active work orders
             </div>
           </div>
           <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
-            <div className="h-full bg-cyan-400 rounded-full w-3/4" />
+            <div className="h-full bg-cyan-400 rounded-full transition-[width] duration-500" style={{ width: `${rosterPercent}%` }} />
           </div>
         </GlowCard>
       </motion.div>
@@ -1133,21 +1171,7 @@ export const CommandCenter: React.FC = () => {
 
           return (
             <GlowCard accent={allConnected ? 'emerald' : 'red'} className="min-h-[200px] flex flex-col justify-between">
-              <CardTitle
-                right={
-                  allConnected ? (
-                    <span className="flex items-center space-x-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[10px] text-emerald-400 font-ndot font-bold">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]" />
-                      <span>CONNECTED</span>
-                    </span>
-                  ) : (
-                    <span className="flex items-center space-x-1.5 px-2 py-0.5 rounded-full bg-red-500/10 border border-red-500/30 text-[10px] text-[#d73832] font-ndot font-bold">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#d73832] animate-ping shadow-[0_0_8px_#d73832]" />
-                      <span>DISCONNECTED</span>
-                    </span>
-                  )
-                }
-              >
+              <CardTitle>
                 Operational Health
               </CardTitle>
 
@@ -1156,29 +1180,24 @@ export const CommandCenter: React.FC = () => {
                   const radius = 18;
                   const circumference = 2 * Math.PI * radius;
                   const isConn = item.connected;
-                  const ringColor = isConn ? '#34d399' : '#d73832';
-                  const glowColor = isConn ? 'rgba(52, 211, 153, 0.6)' : 'rgba(215, 56, 50, 0.7)';
-                  const textColor = isConn ? 'text-emerald-400' : 'text-[#d73832]';
-                  const dotColor = isConn
-                    ? 'bg-emerald-400 shadow-[0_0_8px_#34d399]'
-                    : 'bg-[#d73832] shadow-[0_0_8px_#d73832]';
+                  const ringColor = isConn ? '#2fbf91' : '#c84343';
 
                   return (
                     <div
                       key={item.id}
                       className="group flex flex-col items-center gap-1.5 cursor-pointer select-none transition-transform duration-200 hover:scale-105"
-                      title={`${item.label} (${item.sub}): ${isConn ? 'Connected / Healthy (100%)' : 'Disconnected / Offline (0%)'}`}
+                      title={`${item.label} (${item.sub}): ${isConn ? 'Connected / Healthy' : 'Disconnected / Offline'}`}
                     >
-                      {/* Circle Gauge Ring */}
-                      <div className="relative h-13 w-13 rounded-full bg-[#101217] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
+                      {/* Service name sits inside a restrained connection ring. */}
+                      <div className="relative h-14 w-14 rounded-full bg-[#0b0d15]">
                         <svg viewBox="0 0 46 46" className="h-full w-full -rotate-90" aria-hidden="true">
                           <circle
                             cx="23"
                             cy="23"
                             r={radius}
-                            fill="#101217"
-                            stroke="rgba(255,255,255,0.08)"
-                            strokeWidth="3"
+                            fill="#0b0d15"
+                            stroke="rgba(255,255,255,0.10)"
+                            strokeWidth="2.5"
                           />
                           <circle
                             cx="23"
@@ -1186,39 +1205,15 @@ export const CommandCenter: React.FC = () => {
                             r={radius}
                             fill="none"
                             stroke={ringColor}
-                            strokeWidth="3"
+                            strokeWidth="2.5"
                             strokeLinecap="round"
                             strokeDasharray={circumference}
                             strokeDashoffset={0}
-                            className="transition-all duration-500 ease-out"
-                            style={{
-                              filter: `drop-shadow(0 0 6px ${glowColor})`,
-                            }}
+                            className="transition-colors duration-300"
                           />
                         </svg>
-
-                        {/* Real Data Inside the Ring: 100% in Green or 0% in Red */}
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <span className={`text-xs font-bold font-ndot ${textColor} tracking-tight`}>
-                            {isConn ? '100%' : '0%'}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Service Label Below the Ring */}
-                      <span
-                        className={`text-[10px] font-ndot uppercase tracking-wider font-semibold transition-colors ${
-                          isConn ? 'text-neutral-300 group-hover:text-white' : 'text-neutral-400 group-hover:text-[#d73832]'
-                        }`}
-                      >
-                        {item.label}
-                      </span>
-
-                      {/* Live Status Indicator Below the Label */}
-                      <div className="flex items-center space-x-1">
-                        <span className={`w-1.5 h-1.5 rounded-full ${dotColor} ${isConn ? 'animate-pulse' : 'animate-ping'}`} />
-                        <span className={`text-[9px] font-mono tracking-tight font-semibold ${textColor}`}>
-                          {isConn ? 'ONLINE' : 'OFFLINE'}
+                        <span className="absolute inset-0 flex items-center justify-center px-1 text-center text-[8px] leading-tight font-bold font-ndot text-neutral-200">
+                          {item.label}
                         </span>
                       </div>
                     </div>
@@ -1491,11 +1486,9 @@ export const CommandCenter: React.FC = () => {
         </GlowCard>
       </motion.div>
 
-      {/* Operations & Rapid Intake Split Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 pt-2">
-        {/* Left Pane: Spatial Incident Ledger (7 Cols) */}
-        <div className="lg:col-span-7 flex flex-col space-y-3">
-          <GlowCard accent="indigo" className="p-4 flex flex-col flex-1">
+      {/* Operations Incident Ledger Section (Full Width) */}
+      <div className="w-full flex flex-col space-y-3 pt-2">
+        <GlowCard accent="indigo" className="p-4 flex flex-col flex-1">
             <div className="flex items-center justify-between pb-3 border-b border-white/10">
               <div className="flex items-center space-x-2">
                 <Activity className="w-4 h-4 text-nothing-red" />
@@ -1520,11 +1513,12 @@ export const CommandCenter: React.FC = () => {
                 <thead className="bg-[#121215] text-neutral-400 font-ndot text-[10px] border-b border-white/10 sticky top-0 shadow-sm">
                   <tr>
                     <th className="py-2.5 px-3 w-16 border-r border-white/10">Ticket</th>
+                    <th className="py-2.5 px-3 min-w-[220px] border-r border-white/10">Problem Summary</th>
                     <th className="py-2.5 px-3 w-32 border-r border-white/10">Room / Floor</th>
-                    <th className="py-2.5 px-3 w-24 border-r border-white/10">Trade</th>
+                    <th className="py-2.5 px-3 w-28 border-r border-white/10">Trade</th>
                     <th className="py-2.5 px-3 w-20 border-r border-white/10 text-right">Priority</th>
                     <th className="py-2.5 px-3 w-28 border-r border-white/10 text-right">State</th>
-                    <th className="py-2.5 px-3 w-28 border-r border-white/10 text-right">Assigned</th>
+                    <th className="py-2.5 px-3 w-32 border-r border-white/10 text-right">Assigned Worker</th>
                     <th className="py-2.5 px-3 text-center w-36">Admin Actions</th>
                   </tr>
                 </thead>
@@ -1541,6 +1535,9 @@ export const CommandCenter: React.FC = () => {
                       >
                         <td className="py-1.5 px-3 font-ndot font-bold text-white border-r border-white/10">
                           #{t.ticket_number}
+                        </td>
+                        <td className="py-1.5 px-3 font-sans text-neutral-200 border-r border-white/10 truncate max-w-sm">
+                          {t.summary || t.title || t.concise_summary || 'Campus maintenance incident'}
                         </td>
                         <td className="py-1.5 px-3 font-mono text-neutral-300 border-r border-white/10 truncate">
                           <span className="font-semibold text-white">{t.room_code || t.node_code || 'Campus General'}</span>
@@ -1637,7 +1634,7 @@ export const CommandCenter: React.FC = () => {
                   </AnimatePresence>
                   {activeTickets.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="py-8 px-4 text-center text-xs font-mono">
+                      <td colSpan={8} className="py-8 px-4 text-center text-xs font-mono">
                         <div className="text-neutral-500 mb-3">
                           No active tickets in database. Ready for live incident intake.
                         </div>
@@ -1649,197 +1646,6 @@ export const CommandCenter: React.FC = () => {
             </div>
           </GlowCard>
         </div>
-
-        {/* Right Pane: Incident Intake Terminal (5 Cols) */}
-        <div className="lg:col-span-5 flex flex-col space-y-3">
-          <GlowCard accent="red" className="p-5 space-y-3 shadow-lg flex flex-col">
-            <div className="flex items-center justify-between pb-2 border-b border-white/10">
-              <div className="flex items-center space-x-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-nothing-red nothing-glyph-red animate-pulse" />
-                <h2 className="text-xs font-bold font-ndot text-white uppercase tracking-wider">
-                  Rapid Incident Terminal
-                </h2>
-              </div>
-              <span className="text-[10px] font-ndot text-neutral-400">
-                GROQ AI MULTI-AGENT
-              </span>
-            </div>
-
-            <p className="text-[11px] text-neutral-300 leading-relaxed font-sans">
-              Enter room fault, electrical fire, or equipment hazard. Autonomous Groq agents
-              validate room & floor, auto-assign workers, and notify them via Resend.
-            </p>
-
-            {/* Quick Templates with Framer Motion spring click/hover */}
-            <div className="grid grid-cols-2 gap-2 text-left pt-1">
-              <motion.button
-                type="button"
-                whileHover={{ scale: 1.025, y: -1 }}
-                whileTap={{ scale: 0.96 }}
-                transition={{ type: 'spring', stiffness: 450, damping: 25 }}
-                onClick={() =>
-                  setIntakeText('URGENT: Electrical short circuit sparks near switchboard in RM-ACAD-204!')
-                }
-                className="p-2 bg-black/60 hover:bg-white/10 border border-white/15 rounded-xl text-[10px] text-white transition flex items-center space-x-1.5"
-              >
-                <Zap className="w-3 h-3 text-nothing-red shrink-0" />
-                <span className="truncate">Short circuit RM-ACAD-204</span>
-              </motion.button>
-              <motion.button
-                type="button"
-                whileHover={{ scale: 1.025, y: -1 }}
-                whileTap={{ scale: 0.96 }}
-                transition={{ type: 'spring', stiffness: 450, damping: 25 }}
-                onClick={() =>
-                  setIntakeText('Water pipe leaking heavily and flooding corridor in RM-MAIN-101')
-                }
-                className="p-2 bg-black/60 hover:bg-white/10 border border-white/15 rounded-xl text-[10px] text-white transition flex items-center space-x-1.5"
-              >
-                <Droplets className="w-3 h-3 text-cyan-400 shrink-0" />
-                <span className="truncate">Pipe leak in RM-MAIN-101</span>
-              </motion.button>
-              <motion.button
-                type="button"
-                whileHover={{ scale: 1.025, y: -1 }}
-                whileTap={{ scale: 0.96 }}
-                transition={{ type: 'spring', stiffness: 450, damping: 25 }}
-                onClick={() =>
-                  setIntakeText('Central Air Handling Unit AHU-AUD-MAIN blowing hot air in RM-AUD-MAIN')
-                }
-                className="p-2 bg-black/60 hover:bg-white/10 border border-white/15 rounded-xl text-[10px] text-white transition flex items-center space-x-1.5"
-              >
-                <Wind className="w-3 h-3 text-sky-400 shrink-0" />
-                <span className="truncate">AC down in Auditorium</span>
-              </motion.button>
-              <motion.button
-                type="button"
-                whileHover={{ scale: 1.025, y: -1 }}
-                whileTap={{ scale: 0.96 }}
-                transition={{ type: 'spring', stiffness: 450, damping: 25 }}
-                onClick={() =>
-                  setIntakeText('EMERGENCY: Fire catching fast in Academic Tech Block near RM-ACAD-204!')
-                }
-                className="p-2 bg-nothing-red/20 hover:bg-nothing-red/30 border border-nothing-red/40 rounded-xl text-[10px] text-white transition flex items-center space-x-1.5"
-              >
-                <Flame className="w-3 h-3 text-nothing-red shrink-0" />
-                <span className="truncate">Fire hazard near RM-ACAD-204</span>
-              </motion.button>
-            </div>
-
-            <form onSubmit={handleIntakeSubmit} className="space-y-3 pt-1">
-              <textarea
-                value={intakeText}
-                onChange={(e) => setIntakeText(e.target.value)}
-                rows={3}
-                placeholder="e.g. URGENT: Electrical short circuit sparks near switchboard in RM-ACAD-204!"
-                className="w-full bg-black/80 border border-white/15 rounded-2xl p-3 text-xs text-white font-mono focus:outline-none focus:border-white transition resize-none shadow-inner"
-              />
-
-              <motion.button
-                type="submit"
-                whileHover={{ scale: 1.015 }}
-                whileTap={{ scale: 0.975 }}
-                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                disabled={isSubmitting || !intakeText.trim()}
-                className="w-full py-2.5 nothing-btn-primary hover:brightness-110 text-black text-xs font-bold transition flex items-center justify-center space-x-2 shadow-[0_4px_20px_rgba(255,255,255,0.25)]"
-              >
-                <Send className="w-3.5 h-3.5" />
-                <span>{isSubmitting ? 'Triage Agents Dispatched...' : 'Submit Incident Report'}</span>
-              </motion.button>
-            </form>
-          </GlowCard>
-
-          {/* Groq AI Decision Output with Framer Motion AnimatePresence */}
-          <AnimatePresence mode="wait">
-            {intakeResult && (
-              <motion.div
-                key={intakeResult.ticket_number || intakeResult.reply_message || 'result'}
-                initial={{ opacity: 0, y: 10, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -10, scale: 0.98 }}
-                transition={{ type: 'spring', stiffness: 380, damping: 28 }}
-              >
-                {intakeResult.decision === 'REPLY_QUESTION' || !intakeResult.is_ticket_created ? (
-                  <GlowCard accent="cyan" className="p-4 space-y-2.5 shadow-lg border border-sky-400/40">
-                    <div className="flex items-center space-x-2 text-sky-300 font-bold font-ndot tracking-wide text-xs">
-                      <span className="w-2 h-2 rounded-full bg-sky-400 shadow-[0_0_8px_#38bdf8]" />
-                      <span>AI ASSISTANT CLARIFICATION</span>
-                    </div>
-                    <div className="p-3 bg-black/60 border border-white/10 rounded-2xl text-xs text-neutral-200 leading-relaxed font-sans shadow-inner">
-                      {intakeResult.reply_message ||
-                        'Hello! What campus maintenance or equipment issue can we help you resolve? Please specify the problem and room location.'}
-                    </div>
-                    <div className="text-[10px] text-neutral-400 font-ndot uppercase tracking-widest flex items-center justify-between">
-                      <span>DECISION: QUESTION RETURNED</span>
-                      <span className="text-emerald-400">LEDGER UNTOUCHED</span>
-                    </div>
-                  </GlowCard>
-                ) : (
-                  <GlowCard accent="red" className="p-4 space-y-2.5 shadow-lg border border-nothing-red/40">
-                    {intakeResult.emergency_instructions && (
-                      <div className="p-3.5 bg-nothing-red/15 border border-nothing-red/60 rounded-2xl space-y-2 text-xs">
-                        <div className="flex items-center space-x-2 text-white font-bold font-ndot tracking-wide">
-                          <AlertTriangle className="w-4 h-4 text-nothing-red shrink-0" />
-                          <span>{intakeResult.emergency_instructions.headline}</span>
-                        </div>
-                        <div className="p-2 bg-black/60 rounded-xl border border-white/10 text-[10px] text-neutral-200 font-mono space-y-0.5">
-                          <div>📍 Evacuation: <span className="text-white font-semibold">{intakeResult.emergency_instructions.evacuation_route}</span></div>
-                          <div>🛡️ Assembly: <span className="text-white font-semibold">{intakeResult.emergency_instructions.assembly_point}</span></div>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="p-3 bg-black/60 border border-white/10 rounded-2xl text-xs font-mono space-y-1.5 shadow-inner">
-                      <div className="flex items-center justify-between text-white font-bold font-ndot">
-                        <span>TICKET #{intakeResult.ticket_number} REGISTERED</span>
-                        <span className="text-emerald-400 font-sans">{intakeResult.state}</span>
-                      </div>
-                      <div className="text-neutral-300 text-[11px] flex justify-between">
-                        <span>Category: <strong className="text-white font-ndot">{intakeResult.category || 'TBD'}</strong></span>
-                        <span>Room: <strong className="text-white font-mono">{intakeResult.room_code || intakeResult.target_node_code} (Floor {intakeResult.floor_number ?? '1'})</strong></span>
-                      </div>
-                      <div className="text-neutral-400 text-[10px]">
-                        Summary: {intakeResult.concise_summary}
-                      </div>
-                      {intakeResult.assigned_tech_name && (
-                        <div className="text-[11px] text-emerald-400 flex items-center justify-between pt-1 border-t border-white/10 font-sans">
-                          <span>Worker: <strong className="text-white">{intakeResult.assigned_tech_name}</strong> ({intakeResult.assigned_tech_role || 'Technician'})</span>
-                          <span className="text-[10px] bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full text-emerald-400">✓ Notified via Email</span>
-                        </div>
-                      )}
-                      {intakeResult.recommended_tech_name && !intakeResult.assigned_tech_name && (
-                        <div className="text-[11px] text-neutral-400 flex items-center justify-between pt-1 border-t border-white/10 font-sans">
-                          <span>Recommended: <strong className="text-white">{intakeResult.recommended_tech_name}</strong> ({intakeResult.recommended_tech_role || 'Technician'})</span>
-                          <span className="text-[10px] bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full text-amber-300">Pending Approval</span>
-                        </div>
-                      )}
-                      {isAdmin && intakeResult.work_order_id && intakeResult.state !== 'RESOLVED' && intakeResult.state !== 'ASSIGNED' && (
-                        <div className="flex items-center justify-between pt-2 border-t border-white/10">
-                          <span className="text-[10px] text-amber-300 font-ndot flex items-center space-x-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                            <span>AWAITING ADMIN APPROVAL</span>
-                          </span>
-                          <motion.button
-                            type="button"
-                            whileHover={{ scale: 1.04 }}
-                            whileTap={{ scale: 0.96 }}
-                            disabled={actionLoadingId === intakeResult.work_order_id}
-                            onClick={() => handleApproveTicket(intakeResult.work_order_id)}
-                            className="px-3 py-1 rounded-xl bg-white text-black font-ndot text-[11px] font-bold hover:bg-neutral-200 transition shadow-[0_0_12px_rgba(255,255,255,0.4)] flex items-center space-x-1.5"
-                          >
-                            <Check className="w-3.5 h-3.5" />
-                            <span>{actionLoadingId === intakeResult.work_order_id ? 'Approving...' : 'Approve & Dispatch Now'}</span>
-                          </motion.button>
-                        </div>
-                      )}
-                    </div>
-                  </GlowCard>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
       </div>
-    </div>
   );
 };

@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import { api } from '../api/client';
-import { NothingTopologicalGraph } from '../components/nothing/NothingTopologicalGraph';
 import {
   Layers,
   Eye,
@@ -12,15 +11,12 @@ import {
   Wrench,
   CheckCircle,
   Compass,
-  GitBranch,
-  Box,
 } from 'lucide-react';
 
 export const CampusExplorer: React.FC = () => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
 
-  const [activeMode, setActiveMode] = useState<'3d-map' | 'dag-graph'>('3d-map');
   const [is3D, setIs3D] = useState(true);
   const [mapStatus, setMapStatus] = useState<any>(null);
   const [selectedBlock, setSelectedBlock] = useState<any>(null);
@@ -51,7 +47,7 @@ export const CampusExplorer: React.FC = () => {
   };
 
   useEffect(() => {
-    if (activeMode !== '3d-map' || !mapContainer.current) return;
+    if (!mapContainer.current) return;
 
     const map = new maplibregl.Map({
       container: mapContainer.current,
@@ -137,7 +133,7 @@ export const CampusExplorer: React.FC = () => {
     return () => {
       map.remove();
     };
-  }, [activeMode]);
+  }, []);
 
   const togglePitch = () => {
     if (!mapRef.current) return;
@@ -152,41 +148,8 @@ export const CampusExplorer: React.FC = () => {
 
   return (
     <div className="relative w-full h-full bg-black overflow-hidden select-none">
-      {/* Top Segmented Mode Switcher (Nothing OS Style) */}
-      <div className="absolute top-4 left-4 z-20 flex items-center space-x-1 bg-black/80 backdrop-blur-xl p-1 rounded-full border border-white/20 shadow-2xl">
-        <button
-          onClick={() => setActiveMode('3d-map')}
-          className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full text-xs font-ndot transition spring-interactive ${
-            activeMode === '3d-map'
-              ? 'bg-white text-black font-bold shadow'
-              : 'text-neutral-400 hover:text-white'
-          }`}
-        >
-          <Box className="w-3.5 h-3.5" />
-          <span>3D Geospatial Map</span>
-        </button>
-        <button
-          onClick={() => setActiveMode('dag-graph')}
-          className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full text-xs font-ndot transition spring-interactive ${
-            activeMode === 'dag-graph'
-              ? 'bg-white text-black font-bold shadow'
-              : 'text-neutral-400 hover:text-white'
-          }`}
-        >
-          <GitBranch className="w-3.5 h-3.5 text-nothing-red" />
-          <span>Topological DAG Graph</span>
-        </button>
-      </div>
-
-      {/* Render Active View */}
-      {activeMode === 'dag-graph' ? (
-        <div className="w-full h-full pt-14 p-4">
-          <NothingTopologicalGraph className="w-full h-full" />
-        </div>
-      ) : (
-        <>
-          {/* Map Container */}
-          <div ref={mapContainer} className="w-full h-full" />
+      {/* Map Container */}
+      <div ref={mapContainer} className="w-full h-full" />
 
           {/* Map Floating HUD Controls */}
           <div className="absolute top-4 right-4 z-10 flex items-center space-x-2">
@@ -334,8 +297,6 @@ export const CampusExplorer: React.FC = () => {
               )}
             </div>
           )}
-        </>
-      )}
     </div>
   );
 };

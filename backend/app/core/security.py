@@ -57,10 +57,13 @@ async def get_current_user(
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         user_id_str: str = payload.get("sub")
+        token_auth_version = payload.get("auth_version")
         if not user_id_str:
             raise AuthenticationError("Token payload missing subject identifier")
+        if token_auth_version is None:
+            raise AuthenticationError("Token predates password-based authentication")
         user_id = UUID(user_id_str)
-    except jwt.PyJWTError as e:
+    except (jwt.PyJWTError, ValueError) as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Invalid or expired authentication token: {str(e)}",
@@ -72,7 +75,7 @@ async def get_current_user(
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
             """
-            SELECT id, email, full_name, role, department_id, base_building_code
+            SELECT id, email, full_name, role, department_id, base_building_code, auth_version
             FROM users
             WHERE id = $1;
             """,
@@ -82,6 +85,11 @@ async def get_current_user(
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="User not found in system",
+            )
+        if token_auth_version != row["auth_version"]:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication token is no longer valid. Please sign in again.",
             )
         return CurrentUser(
             id=row["id"],

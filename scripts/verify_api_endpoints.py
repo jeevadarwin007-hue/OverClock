@@ -3,6 +3,9 @@ import os
 import sys
 from datetime import datetime, timezone, timedelta
 from httpx import AsyncClient, ASGITransport
+from dotenv import load_dotenv
+
+load_dotenv()
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
 
@@ -29,7 +32,7 @@ async def verify_endpoints():
 
             # 2. Login to get Bearer token
             print("\n[2/8] Testing POST /api/v1/auth/login...")
-            login_res = await client.post("/api/v1/auth/login", json={"email": "sys_admin_1@easwari.edu"})
+            login_res = await client.post("/api/v1/auth/login", json={"email": "sys_admin_1@easwari.edu", "password": os.getenv("CAMPUSOPS_ADMIN_PASSWORD", "")})
             assert login_res.status_code == 200, f"Expected 200, got {login_res.status_code}: {login_res.text}"
             token = login_res.json()["access_token"]
             headers = {"Authorization": f"Bearer {token}"}

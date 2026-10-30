@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { api } from '../api/client';
 
 export interface SeededUser {
@@ -31,21 +31,40 @@ interface AuthContextType {
   currentUser: SeededUser;
   token: string | null;
   loading: boolean;
-  switchUser: (user: SeededUser) => Promise<void>;
+  loginUser: (user: SeededUser, password: string) => Promise<void>;
+  switchUser: (user: SeededUser, password: string) => Promise<void>;
+  logoutUser: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<SeededUser>(SEEDED_USERS[0]);
-  const [token, setToken] = useState<string | null>(localStorage.getItem('campusops_token'));
-  const [loading, setLoading] = useState<boolean>(true);
+  const [currentUser, setCurrentUser] = useState<SeededUser>(SEEDED_USERS[1]);
+  const [token, setToken] = useState<string | null>(() => {
+    // Tokens issued by the old email-only login must not remain valid in the browser.
+    localStorage.removeItem('campusops_token');
+    return null;
+  });
+  const [loading, setLoading] = useState<boolean>(false);
+  const startedStudentSession = useRef(false);
 
-  const loginUser = async (user: SeededUser) => {
+  useEffect(() => {
+    if (startedStudentSession.current) return;
+    startedStudentSession.current = true;
+    // Launch directly in the read-only student persona while sign-in UI is paused.
+    void loginUser(SEEDED_USERS[1], '').catch((error) => {
+      console.error('Could not start the student session:', error);
+    });
+  }, []);
+
+  const loginUser = async (user: SeededUser, password: string) => {
     try {
       setLoading(true);
-      const res: any = await api.post('/auth/login', { email: user.email });
+      const res: any = await api.post('/auth/login', { email: user.email, password });
       if (res.access_token) {
+        if (res.role !== user.role) {
+          throw new Error('The authenticated account does not match the selected role.');
+        }
         localStorage.setItem('campusops_token', res.access_token);
         setToken(res.access_token);
         setCurrentUser({
@@ -56,22 +75,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
       }
     } catch (err) {
-      console.error('Failed to log in seeded user:', err);
+      throw new Error((err as any)?.message || 'Sign-in failed. Check your credentials.');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loginUser(currentUser);
-  }, []);
+  const switchUser = async (user: SeededUser, password: string) => {
+    await loginUser(user, password);
+  };
 
-  const switchUser = async (user: SeededUser) => {
-    await loginUser(user);
+  const logoutUser = () => {
+    localStorage.removeItem('campusops_token');
+    setToken(null);
+    setCurrentUser(SEEDED_USERS[1]);
   };
 
   return (
-    <AuthContext.Provider value={{ currentUser, token, loading, switchUser }}>
+    <AuthContext.Provider value={{ currentUser, token, loading, loginUser, switchUser, logoutUser }}>
       {children}
     </AuthContext.Provider>
   );

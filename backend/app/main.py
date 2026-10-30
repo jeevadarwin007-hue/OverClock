@@ -19,6 +19,7 @@ from app.modules.scheduling.routes import router as scheduling_router
 from app.modules.simulation.routes import router as simulation_router
 from app.modules.approvals.routes import router as approvals_router
 from app.modules.campus.routes import router as campus_router
+from app.modules.ai.routes import router as ai_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("campusops")
@@ -139,6 +140,7 @@ api_v1.include_router(scheduling_router)
 api_v1.include_router(simulation_router)
 api_v1.include_router(approvals_router)
 api_v1.include_router(campus_router)
+api_v1.include_router(ai_router)
 
 app.include_router(api_v1)
 
@@ -147,13 +149,15 @@ app.include_router(api_v1)
 @app.get("/api/v1/health")
 async def health_check():
     db_connected = False
-    try:
-        from app.database import acquire_db_connection
-        async with acquire_db_connection(actor_id=None, actor_role="SYS_ADMIN", dept_id=None) as conn:
-            val = await conn.fetchval("SELECT 1;")
-            db_connected = (val == 1)
-    except Exception:
-        db_connected = False
+    from app.database import _db_pool
+    if _db_pool is not None:
+        try:
+            from app.database import acquire_db_connection
+            async with acquire_db_connection(actor_id=None, actor_role="SYS_ADMIN", dept_id=None) as conn:
+                val = await conn.fetchval("SELECT 1;")
+                db_connected = (val == 1)
+        except Exception:
+            db_connected = False
 
     groq_connected = bool(settings.GROQ_API_KEY and len(settings.GROQ_API_KEY) > 10)
     network_connected = True

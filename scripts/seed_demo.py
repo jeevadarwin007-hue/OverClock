@@ -11,6 +11,7 @@ import sys
 from datetime import datetime, timezone, timedelta
 import asyncpg
 from dotenv import load_dotenv
+from passlib.context import CryptContext
 
 load_dotenv()
 
@@ -19,9 +20,31 @@ DB_PORT = int(os.getenv("POSTGRES_PORT", 5432))
 DB_USER = os.getenv("POSTGRES_USER", "postgres")
 DB_PASS = os.getenv("POSTGRES_PASSWORD", "postgres")
 DB_NAME = os.getenv("POSTGRES_DB", "campusops")
+PASSWORD_CONTEXT = CryptContext(schemes=["argon2"], deprecated="auto")
+
+DEMO_PASSWORDS = {
+    "sys_admin_1@easwari.edu": os.getenv("CAMPUSOPS_ADMIN_PASSWORD", ""),
+    "student_1@easwari.edu": os.getenv("CAMPUSOPS_STUDENT_PASSWORD", ""),
+}
+OTHER_DEMO_PASSWORD = os.getenv("CAMPUSOPS_OTHER_DEMO_PASSWORD", "")
 
 
 async def seed_campus():
+    missing_passwords = [name for name, value in (
+        ("CAMPUSOPS_ADMIN_PASSWORD", DEMO_PASSWORDS["sys_admin_1@easwari.edu"]),
+        ("CAMPUSOPS_STUDENT_PASSWORD", DEMO_PASSWORDS["student_1@easwari.edu"]),
+        ("CAMPUSOPS_OTHER_DEMO_PASSWORD", OTHER_DEMO_PASSWORD),
+    ) if not value]
+    if missing_passwords:
+        raise SystemExit(
+            "Set separate CampusOps demo passwords before seeding: " + ", ".join(missing_passwords)
+        )
+    if OTHER_DEMO_PASSWORD in {
+        DEMO_PASSWORDS["sys_admin_1@easwari.edu"],
+        DEMO_PASSWORDS["student_1@easwari.edu"],
+    }:
+        raise SystemExit("CAMPUSOPS_OTHER_DEMO_PASSWORD must be distinct from Admin and Student passwords.")
+
     print("=" * 75)
     print("CAMPUSOPS SEED GENERATOR: SRM EASWARI ENGINEERING COLLEGE, CHENNAI")
     print(f"Connecting to postgresql://{DB_USER}:****@{DB_HOST}:{DB_PORT}/{DB_NAME}")
@@ -37,6 +60,9 @@ async def seed_campus():
 
     try:
         async with conn.transaction():
+            await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT;")
+            await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_version INT NOT NULL DEFAULT 1;")
+
             print("\n[1/7] Cleaning existing operational data...")
             await conn.execute("DELETE FROM outbound_notifications;")
             await conn.execute("DELETE FROM room_bookings;")
@@ -87,13 +113,15 @@ async def seed_campus():
             ]
             user_map = {}
             for email, name, role, dept_id, avail, load, max_load, base_bldg in user_records:
+                password = DEMO_PASSWORDS.get(email, OTHER_DEMO_PASSWORD)
+                password_hash = PASSWORD_CONTEXT.hash(password)
                 row = await conn.fetchrow(
                     """
-                    INSERT INTO users (email, full_name, role, department_id, is_available, active_workload_count, max_concurrent_workload, base_building_code)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                    INSERT INTO users (email, full_name, role, password_hash, department_id, is_available, active_workload_count, max_concurrent_workload, base_building_code)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                     RETURNING id;
                     """,
-                    email, name, role, dept_id, avail, load, max_load, base_bldg
+                    email, name, role, password_hash, dept_id, avail, load, max_load, base_bldg
                 )
                 user_map[email] = row["id"]
                 print(f"  + User: {name} ({role}) - {email}")

@@ -10,6 +10,7 @@ import { WorkOrdersView } from './views/WorkOrdersView';
 import { InventoryApprovalsView } from './views/InventoryApprovalsView';
 import { WorkerRosterView } from './views/WorkerRosterView';
 import { InvariantProofPanel } from './views/InvariantProofPanel';
+import { AIAssistantView } from './views/AIAssistantView';
 import { api } from './api/client';
 import { Database, ShieldCheck, Activity, Cpu } from 'lucide-react';
 
@@ -19,7 +20,7 @@ export const AppContent: React.FC = () => {
   const [allInvariantsPass, setAllInvariantsPass] = useState<boolean>(true);
   const [lastSyncTime, setLastSyncTime] = useState<string>('Live');
   const navigationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const { currentUser } = useAuth();
+  const { token } = useAuth();
   const { theme } = useTheme();
 
   const handleTabChange = (nextTab: TabType) => {
@@ -39,6 +40,7 @@ export const AppContent: React.FC = () => {
 
   // Poll invariants status for global telemetry
   useEffect(() => {
+    if (!token) return;
     const checkInvariants = async () => {
       try {
         const res: any = await api.get('/invariants');
@@ -54,7 +56,7 @@ export const AppContent: React.FC = () => {
     checkInvariants();
     const interval = setInterval(checkInvariants, 8000);
     return () => clearInterval(interval);
-  }, []);
+  }, [token]);
 
   return (
     <div
@@ -85,6 +87,7 @@ export const AppContent: React.FC = () => {
             {activeTab === 'room-management' && <RoomManagementView />}
             {activeTab === 'work-orders' && <WorkOrdersView />}
             {activeTab === 'inventory-approvals' && <InventoryApprovalsView />}
+            {activeTab === 'ai-assistant' && <AIAssistantView />}
             {activeTab === 'worker-roster' && <WorkerRosterView />}
             {activeTab === 'invariants' && <InvariantProofPanel />}
           </motion.div>

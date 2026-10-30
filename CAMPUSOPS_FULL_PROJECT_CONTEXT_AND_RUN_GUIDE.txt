@@ -535,7 +535,13 @@ The Operational Flow:
 ================================================================================
 11. SEEDED USERS & AUTHENTICATION CHEAT SHEET
 ================================================================================
-All seeded accounts use password: 'password123'
+Seeded account passwords are configured in `.env` before seeding:
+  - `CAMPUSOPS_ADMIN_PASSWORD` for the SYS_ADMIN account
+  - `CAMPUSOPS_STUDENT_PASSWORD` for the STUDENT_FACULTY account
+  - `CAMPUSOPS_OTHER_DEMO_PASSWORD` for the remaining demo accounts
+The current local setup uses `1234` for both Admin and Students at the user's request.
+Anyone with that password can sign in as either persona. Approval APIs enforce the role
+of the signed-in account server-side; the remaining demo accounts use the third password.
 
 | Name                   | Email                     | Role            | Department     | Capabilities                          |
 |:-----------------------|:--------------------------|:----------------|:---------------|:--------------------------------------|
@@ -549,7 +555,7 @@ All seeded accounts use password: 'password123'
 | Priya Ramachandran     | priya.helpdesk@srmist.edu.in| DISPATCHER    | Helpdesk       | Ticket triage, intake clarification   |
 
 To switch roles in the UI:
-  Use the dropdown in the top-right corner of the navigation bar at http://localhost:5173.
+  Select Admin or Students in the navigation bar and confirm that account's password.
   The UI dynamically reconfigures permissions and displays appropriate actions.
 
 ================================================================================

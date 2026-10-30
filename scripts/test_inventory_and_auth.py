@@ -5,6 +5,9 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "backend")))
 
 import httpx
+from dotenv import load_dotenv
+
+load_dotenv()
 
 async def test_inventory_and_auth():
     print("=" * 70)
@@ -38,7 +41,7 @@ async def test_inventory_and_auth():
         print("\n[1/4] Authenticating as Admin (Approvals)...")
         admin_login = await client.post(
             "/api/v1/auth/login",
-            json={"email": "sys_admin_1@easwari.edu", "password": "password123"}
+            json={"email": "sys_admin_1@easwari.edu", "password": os.getenv("CAMPUSOPS_ADMIN_PASSWORD", "")}
         )
         assert admin_login.status_code == 200
         admin_token = admin_login.json()["access_token"]
@@ -49,7 +52,7 @@ async def test_inventory_and_auth():
         print("\n[2/4] Authenticating as Student / Staff (Reporting)...")
         student_login = await client.post(
             "/api/v1/auth/login",
-            json={"email": "student_1@easwari.edu", "password": "password123"}
+            json={"email": "student_1@easwari.edu", "password": os.getenv("CAMPUSOPS_STUDENT_PASSWORD", "")}
         )
         assert student_login.status_code == 200
         student_token = student_login.json()["access_token"]

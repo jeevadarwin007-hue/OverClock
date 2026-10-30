@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth, SEEDED_USERS } from '../context/AuthContext';
 import {
@@ -11,6 +11,8 @@ import {
   Shield,
   GraduationCap,
   Users,
+  Palette,
+  Sparkles,
 } from 'lucide-react';
 
 export type TabType =
@@ -19,6 +21,7 @@ export type TabType =
   | 'room-management'
   | 'work-orders'
   | 'inventory-approvals'
+  | 'ai-assistant'
   | 'worker-roster'
   | 'invariants';
 
@@ -36,8 +39,32 @@ export const Header: React.FC<HeaderProps> = ({
   onTabChange,
   loadingTab = null,
 }) => {
-  const { currentUser, switchUser } = useAuth();
+  const { currentUser, switchUser, loading } = useAuth();
+  const [pendingPersona, setPendingPersona] = useState<(typeof SEEDED_USERS)[number] | null>(null);
+  const [personaPassword, setPersonaPassword] = useState('');
+  const [personaError, setPersonaError] = useState('');
+  const [themeMenuOpen, setThemeMenuOpen] = useState(false);
   const isAdmin = currentUser.role === 'SYS_ADMIN' || currentUser.role === 'FACILITIES_ADMIN';
+
+  const requestPersonaSwitch = (user: (typeof SEEDED_USERS)[number]) => {
+    if (user.role === currentUser.role) return;
+    setPendingPersona(user);
+    setPersonaPassword('');
+    setPersonaError('');
+  };
+
+  const confirmPersonaSwitch = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!pendingPersona) return;
+    try {
+      await switchUser(pendingPersona, personaPassword);
+      setPendingPersona(null);
+      setPersonaPassword('');
+      setPersonaError('');
+    } catch (error) {
+      setPersonaError((error as Error).message);
+    }
+  };
 
   const navItems: { id: TabType; label: string; icon: any; adminOnly?: boolean }[] = [
     { id: 'command-center', label: 'Dashboard', icon: LayoutDashboard },
@@ -45,6 +72,7 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'room-management', label: 'Rooms', icon: DoorOpen },
     { id: 'work-orders', label: 'Work Orders', icon: ClipboardList },
     { id: 'inventory-approvals', label: 'Inventory & Approvals', icon: Layers },
+    { id: 'ai-assistant', label: 'AI Assistant', icon: Sparkles },
     { id: 'worker-roster', label: 'Worker Roster', icon: Users, adminOnly: true },
     { id: 'invariants', label: 'System Status', icon: ShieldCheck },
   ];
@@ -117,11 +145,33 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </nav>
 
-      <div className="flex items-center shrink-0">
+      <div className="flex items-center gap-2 shrink-0">
+        <div className="relative">
+          <button
+            type="button"
+            aria-expanded={themeMenuOpen}
+            aria-haspopup="dialog"
+            onClick={() => setThemeMenuOpen((open) => !open)}
+            className="flex items-center gap-1.5 rounded-full border border-white/15 bg-[#121215] px-2.5 py-1.5 text-xs text-neutral-300 transition-colors hover:bg-white/10 hover:text-white"
+            title="Theme options"
+          >
+            <Palette className="h-3.5 w-3.5" />
+            <span className="hidden xl:inline">Theme</span>
+          </button>
+          {themeMenuOpen && (
+            <div
+              role="dialog"
+              aria-label="Theme options"
+              className="absolute right-0 top-full z-[60] mt-2 w-52 rounded-xl border border-white/15 bg-[#0d0f17] p-3 text-xs text-neutral-400 shadow-2xl"
+            >
+              Theme choices will be added here.
+            </div>
+          )}
+        </div>
         <div className="flex items-center bg-[#121215] p-0.5 rounded-full border border-white/15 relative">
           <motion.button
             whileTap={{ scale: 0.95 }}
-            onClick={() => switchUser(SEEDED_USERS[0])}
+            onClick={() => requestPersonaSwitch(SEEDED_USERS[0])}
             className={`relative flex items-center space-x-1 px-2.5 py-1.5 rounded-full text-xs font-sans transition-colors duration-150 ${
               currentUser.role === 'SYS_ADMIN'
                 ? 'text-black font-bold'
@@ -144,7 +194,7 @@ export const Header: React.FC<HeaderProps> = ({
 
           <motion.button
             whileTap={{ scale: 0.95 }}
-            onClick={() => switchUser(SEEDED_USERS[1])}
+            onClick={() => requestPersonaSwitch(SEEDED_USERS[1])}
             className={`relative flex items-center space-x-1 px-2.5 py-1.5 rounded-full text-xs font-sans transition-colors duration-150 ${
               currentUser.role === 'STUDENT_FACULTY'
                 ? 'text-black font-bold'
@@ -166,6 +216,47 @@ export const Header: React.FC<HeaderProps> = ({
           </motion.button>
         </div>
       </div>
+
+      {pendingPersona && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+          <form
+            onSubmit={confirmPersonaSwitch}
+            className="w-full max-w-sm space-y-4 rounded-2xl border border-white/15 bg-[#0b0d15] p-5 shadow-2xl"
+          >
+            <div>
+              <h2 className="text-sm font-semibold text-white">Sign in as {pendingPersona.name}</h2>
+              <p className="mt-1 text-xs text-neutral-400">Confirm this account with its password.</p>
+            </div>
+            <input
+              autoFocus
+              type="password"
+              autoComplete="current-password"
+              required
+              value={personaPassword}
+              onChange={(event) => setPersonaPassword(event.target.value)}
+              placeholder="Password"
+              className="w-full rounded-xl border border-white/15 bg-black/60 px-3 py-2 text-sm text-white outline-none focus:border-white/40"
+            />
+            {personaError && <p role="alert" className="text-xs text-red-400">{personaError}</p>}
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setPendingPersona(null)}
+                className="rounded-full border border-white/15 px-4 py-2 text-xs text-neutral-300 hover:bg-white/5"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!personaPassword || loading}
+                className="rounded-full bg-white px-4 py-2 text-xs font-semibold text-black disabled:opacity-50"
+              >
+                Continue
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </header>
   );
 };

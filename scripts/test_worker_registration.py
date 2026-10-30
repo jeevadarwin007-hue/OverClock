@@ -3,6 +3,9 @@ import os
 import sys
 from uuid import uuid4
 import httpx
+from dotenv import load_dotenv
+
+load_dotenv()
 
 if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8")
@@ -16,7 +19,7 @@ async def test_worker_registration():
     await init_db_pool()
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://testserver", timeout=15.0) as client:
         print("\n--- 1. Authenticate as Admin ---")
-        login_res = await client.post("/api/v1/auth/login", json={"email": "sys_admin_1@easwari.edu"})
+        login_res = await client.post("/api/v1/auth/login", json={"email": "sys_admin_1@easwari.edu", "password": os.getenv("CAMPUSOPS_ADMIN_PASSWORD", "")})
         assert login_res.status_code == 200, f"Login failed: {login_res.text}"
         admin_token = login_res.json()["access_token"]
         admin_headers = {"Authorization": f"Bearer {admin_token}"}
@@ -48,7 +51,7 @@ async def test_worker_registration():
         print(f"✓ Worker found in list: {len(workers2)} worker(s)")
 
         print("\n--- 5. Verify Student Cannot Register Worker (Role Guard) ---")
-        student_login = await client.post("/api/v1/auth/login", json={"email": "student_1@easwari.edu"})
+        student_login = await client.post("/api/v1/auth/login", json={"email": "student_1@easwari.edu", "password": os.getenv("CAMPUSOPS_STUDENT_PASSWORD", "")})
         student_token = student_login.json()["access_token"]
         student_headers = {"Authorization": f"Bearer {student_token}"}
 

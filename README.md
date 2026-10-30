@@ -51,6 +51,12 @@ Copy `.env.example` to `.env`:
 ```bash
 cp .env.example .env
 ```
+Set values for `CAMPUSOPS_ADMIN_PASSWORD`, `CAMPUSOPS_STUDENT_PASSWORD`, and
+`CAMPUSOPS_OTHER_DEMO_PASSWORD` before seeding or starting the backend. The current
+local setup uses `1234` for Admin and Students at the user's request; the remaining
+demo accounts use the third password. Anyone with `1234` can sign in as either persona.
+The local `.env` also enables `CAMPUSOPS_ALLOW_ANY_PASSWORD=true` for convenience;
+Docker Compose defaults this setting to `false` when it is not configured.
 
 ### Starting the Database with Docker
 ```bash

@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     ALGORITHM: str = Field(default="HS256")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=30)
     REFRESH_TOKEN_EXPIRE_DAYS: int = Field(default=7)
+    CAMPUSOPS_ADMIN_PASSWORD: str = Field(default="")
+    CAMPUSOPS_STUDENT_PASSWORD: str = Field(default="")
+    CAMPUSOPS_OTHER_DEMO_PASSWORD: str = Field(default="")
+    CAMPUSOPS_ALLOW_ANY_PASSWORD: bool = Field(default=False)
 
     # Campus Settings
     CAMPUS_NAME: str = Field(default="SRM Easwari Engineering College")
@@ -36,7 +40,7 @@ class Settings(BaseSettings):
 
     # AI & Groq Configuration
     GROQ_API_KEY: str = Field(default="")
-    GROQ_MODEL: str = Field(default="llama-3.3-70b-versatile")
+    GROQ_MODEL: str = Field(default="qwen/qwen3.8-27b")
     GROQ_API_URL: str = Field(default="https://api.groq.com/openai/v1/chat/completions")
     LLM_TIMEOUT_SECONDS: float = Field(default=2.5)
     LLM_FALLBACK_MODE: str = Field(default="DETERMINISTIC_REGEX")

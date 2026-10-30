@@ -5,6 +5,9 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "backend")))
 
 import httpx
+from dotenv import load_dotenv
+
+load_dotenv()
 
 async def test_room_registration_feature():
     print("=" * 70)
@@ -38,7 +41,7 @@ async def test_room_registration_feature():
         print("\n[1/4] Authenticating as System Administrator...")
         login_res = await client.post(
             "/api/v1/auth/login",
-            json={"email": "sys_admin_1@easwari.edu", "password": "password123"}
+            json={"email": "sys_admin_1@easwari.edu", "password": os.getenv("CAMPUSOPS_ADMIN_PASSWORD", "")}
         )
         assert login_res.status_code == 200, f"Login failed: {login_res.text}"
         token = login_res.json()["access_token"]

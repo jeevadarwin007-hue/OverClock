@@ -119,6 +119,8 @@ CREATE TABLE users (
     email VARCHAR(255) UNIQUE NOT NULL,
     full_name VARCHAR(120) NOT NULL,
     role user_role NOT NULL,
+    password_hash TEXT,
+    auth_version INT NOT NULL DEFAULT 1,
     department_id UUID REFERENCES departments(id),
     is_available BOOLEAN NOT NULL DEFAULT TRUE,
     active_workload_count INT NOT NULL DEFAULT 0 CHECK (active_workload_count >= 0),
