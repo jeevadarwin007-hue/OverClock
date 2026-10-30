@@ -191,10 +191,10 @@ export const CommandCenter: React.FC = () => {
                 <thead className="bg-[#24160f]/90 text-[#d8bca4]/70 font-mono text-[10px] border-b border-[#9c6c4c]/30 sticky top-0 shadow-sm">
                   <tr>
                     <th className="py-2 px-2.5 w-16 border-r border-[#9c6c4c]/20">Ticket</th>
-                    <th className="py-2 px-2.5 border-r border-[#9c6c4c]/20">Location</th>
-                    <th className="py-2 px-2.5 border-r border-[#9c6c4c]/20">Category</th>
-                    <th className="py-2 px-2.5 border-r border-[#9c6c4c]/20 text-right">Priority</th>
-                    <th className="py-2 px-2.5 border-r border-[#9c6c4c]/20 text-right">State</th>
+                    <th className="py-2 px-2.5 w-28 border-r border-[#9c6c4c]/20">Location</th>
+                    <th className="py-2 px-2.5 w-32 border-r border-[#9c6c4c]/20">Category</th>
+                    <th className="py-2 px-2.5 w-20 border-r border-[#9c6c4c]/20 text-right">Priority</th>
+                    <th className="py-2 px-2.5 w-24 border-r border-[#9c6c4c]/20 text-right">State</th>
                     <th className="py-2 px-2.5 text-right">Assigned</th>
                   </tr>
                 </thead>
@@ -204,7 +204,7 @@ export const CommandCenter: React.FC = () => {
                       <td className="py-1 px-2.5 font-mono font-bold text-[#ec9665] border-r border-[#9c6c4c]/20">
                         #{t.ticket_number}
                       </td>
-                      <td className="py-1 px-2.5 font-mono text-[#d8bca4] border-r border-[#9c6c4c]/20">
+                      <td className="py-1 px-2.5 font-mono text-[#d8bca4] border-r border-[#9c6c4c]/20 truncate">
                         {t.node_code || 'General'}
                       </td>
                       <td className="py-1 px-2.5 font-mono text-[#f4aa7f] text-[11px] border-r border-[#9c6c4c]/20">
@@ -224,7 +224,7 @@ export const CommandCenter: React.FC = () => {
                       <td className="py-1 px-2.5 font-mono text-right border-r border-[#9c6c4c]/20">
                         <span className="text-[10px] text-[#d8bca4]">{t.state}</span>
                       </td>
-                      <td className="py-1 px-2.5 text-right font-mono text-[#f4aa7f]">
+                      <td className="py-1 px-2.5 text-right font-mono text-[#f4aa7f] truncate">
                         {t.assigned_tech_name || (
                           <span className="text-[#9c6c4c] italic">Unassigned</span>
                         )}
@@ -233,8 +233,43 @@ export const CommandCenter: React.FC = () => {
                   ))}
                   {activeTickets.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="py-12 text-center text-[#9c6c4c] text-xs font-mono">
-                        No active work orders. Ready for real incident reports.
+                      <td colSpan={6} className="py-6 px-4 text-center text-xs font-mono">
+                        <div className="text-[#9c6c4c] mb-3">
+                          No active work orders. Ready for real incident reports.
+                        </div>
+                        <div className="text-[10px] uppercase tracking-wider text-[#f4aa7f] mb-2 font-bold">
+                          Quick Incident Templates (Click to fill & dispatch)
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-left">
+                          <button
+                            type="button"
+                            onClick={() => setIntakeText('URGENT: Electrical short circuit sparks near switchboard in RM-ACAD-204!')}
+                            className="p-2 bg-[#180f0a]/80 hover:bg-[#523624] border border-[#9c6c4c]/30 rounded text-[11px] text-[#f4aa7f] spring-interactive transition"
+                          >
+                            ⚡ Short circuit in RM-ACAD-204
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setIntakeText('Water pipe leaking heavily and flooding corridor in EEC-MAIN')}
+                            className="p-2 bg-[#180f0a]/80 hover:bg-[#523624] border border-[#9c6c4c]/30 rounded text-[11px] text-[#f4aa7f] spring-interactive transition"
+                          >
+                            🔧 Water leak in Main Block
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setIntakeText('Central Air Handling Unit AHU-AUD-MAIN blowing hot air in Auditorium')}
+                            className="p-2 bg-[#180f0a]/80 hover:bg-[#523624] border border-[#9c6c4c]/30 rounded text-[11px] text-[#f4aa7f] spring-interactive transition"
+                          >
+                            ❄️ AC failure in Auditorium
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setIntakeText('EMERGENCY: Fire catching fast everywhere in Academic Tech Block near RM-ACAD-204!')}
+                            className="p-2 bg-rose-950/40 hover:bg-rose-900/50 border border-rose-500/40 rounded text-[11px] text-rose-300 spring-interactive transition"
+                          >
+                            🚨 Fire hazard in Academic Block
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )}

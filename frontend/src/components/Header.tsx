@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAuth, SEEDED_USERS } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import {
   LayoutDashboard,
   Box,
@@ -11,6 +12,7 @@ import {
   GraduationCap,
   Users,
   ChevronRight,
+  Palette,
 } from 'lucide-react';
 
 export type TabType =
@@ -38,6 +40,7 @@ export const Header: React.FC<HeaderProps> = ({
   onBreadcrumbClick,
 }) => {
   const { currentUser, switchUser } = useAuth();
+  const { theme, setTheme } = useTheme();
   const isAdmin = currentUser.role === 'SYS_ADMIN' || currentUser.role === 'FACILITIES_ADMIN';
 
   const navItems: { id: TabType; label: string; icon: any; adminOnly?: boolean }[] = [
@@ -121,8 +124,39 @@ export const Header: React.FC<HeaderProps> = ({
           })}
       </div>
 
-      {/* Zone 1 Right: Strict 2-Role Persona Switcher with Glassmorphism */}
+      {/* Zone 1 Right: Theme Switcher & Strict 2-Role Persona Switcher */}
       <div className="flex items-center space-x-2 shrink-0">
+        {/* Theme Toggle (Mocha & Coral vs Monochrome) */}
+        <div className="flex items-center bg-[#523624]/40 backdrop-blur-md p-0.5 rounded-lg border border-[#9c6c4c]/35 shadow-inner">
+          <button
+            onClick={() => setTheme('mocha')}
+            className={`flex items-center space-x-1 px-2 py-1 rounded-md text-[11px] font-mono transition duration-200 spring-interactive ${
+              theme === 'mocha'
+                ? 'bg-gradient-to-r from-[#ec9665] to-[#f4aa7f] text-[#180f0a] font-bold shadow-[0_2px_8px_rgba(236,150,101,0.4)]'
+                : 'text-[#d8bca4]/70 hover:text-[#f4aa7f]'
+            }`}
+            title="Switch to warm Mocha & Coral theme"
+          >
+            <span className="text-xs">☕</span>
+            <span>Mocha</span>
+          </button>
+          <button
+            onClick={() => setTheme('monochrome')}
+            className={`flex items-center space-x-1 px-2 py-1 rounded-md text-[11px] font-mono transition duration-200 spring-interactive ${
+              theme === 'monochrome'
+                ? 'bg-white text-black font-bold shadow-[0_2px_8px_rgba(255,255,255,0.4)]'
+                : 'text-[#d8bca4]/70 hover:text-[#f4aa7f]'
+            }`}
+            title="Switch to sleek Monochrome theme"
+          >
+            <span className="text-xs">⬛</span>
+            <span>Mono</span>
+          </button>
+        </div>
+
+        <div className="h-4 w-px bg-[#9c6c4c]/40" />
+
+        {/* Persona Switcher */}
         <div className="flex items-center bg-[#523624]/40 backdrop-blur-md p-0.5 rounded-lg border border-[#9c6c4c]/35 shadow-inner">
           <button
             onClick={() => switchUser(SEEDED_USERS[0])}

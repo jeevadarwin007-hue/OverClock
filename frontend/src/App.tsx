@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { Header, TabType } from './components/Header';
 import { CommandCenter } from './views/CommandCenter';
 import { CampusExplorer } from './views/CampusExplorer';
@@ -16,6 +17,7 @@ export const AppContent: React.FC = () => {
   const [allInvariantsPass, setAllInvariantsPass] = useState<boolean>(true);
   const [lastSyncTime, setLastSyncTime] = useState<string>('Live');
   const { currentUser } = useAuth();
+  const { theme } = useTheme();
 
   // Poll invariants status for global telemetry
   useEffect(() => {
@@ -37,7 +39,14 @@ export const AppContent: React.FC = () => {
   }, []);
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-[#180f0a] text-[#d8bca4] flex flex-col font-sans select-none selection:bg-[#ec9665] selection:text-[#180f0a]">
+    <div
+      data-theme={theme}
+      className={`h-screen w-screen overflow-hidden flex flex-col font-sans select-none transition-colors duration-300 ${
+        theme === 'monochrome'
+          ? 'bg-[#09090b] text-[#e4e4e7] selection:bg-white selection:text-black'
+          : 'bg-[#180f0a] text-[#d8bca4] selection:bg-[#ec9665] selection:text-[#180f0a]'
+      }`}
+    >
       {/* Zone 1: Top Utility & Context Strip (Fixed 52px, Glassmorphic) */}
       <Header
         activeTab={activeTab}
@@ -110,9 +119,11 @@ export const AppContent: React.FC = () => {
 
 export const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ThemeProvider>
   );
 };
 

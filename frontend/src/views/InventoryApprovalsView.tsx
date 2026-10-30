@@ -248,14 +248,14 @@ export const InventoryApprovalsView: React.FC = () => {
             <thead className="bg-[#24160f]/90 backdrop-blur-md text-[#d8bca4]/70 border-b border-[#9c6c4c]/30 font-mono sticky top-0 z-10 shadow-sm">
               <tr>
                 <th className="py-2.5 px-3 w-8 border-r border-[#9c6c4c]/20 text-center">●</th>
-                <th className="py-2.5 px-3 border-r border-[#9c6c4c]/20 font-bold">SKU</th>
-                <th className="py-2.5 px-3 border-r border-[#9c6c4c]/20">Part Description</th>
-                <th className="py-2.5 px-3 border-r border-[#9c6c4c]/20">Category</th>
-                <th className="py-2.5 px-3 border-r border-[#9c6c4c]/20 text-right">On Hand</th>
-                <th className="py-2.5 px-3 border-r border-[#9c6c4c]/20 text-right">Available</th>
-                <th className="py-2.5 px-3 border-r border-[#9c6c4c]/20 text-right">Reserved</th>
-                <th className="py-2.5 px-3 border-r border-[#9c6c4c]/20 text-right">Unit Cost</th>
-                <th className="py-2.5 px-3 border-r border-[#9c6c4c]/20 text-right">Status</th>
+                <th className="py-2.5 px-3 w-28 border-r border-[#9c6c4c]/20 font-bold">SKU</th>
+                <th className="py-2.5 px-3 w-48 border-r border-[#9c6c4c]/20">Part Description</th>
+                <th className="py-2.5 px-3 w-36 border-r border-[#9c6c4c]/20">Category</th>
+                <th className="py-2.5 px-3 w-20 border-r border-[#9c6c4c]/20 text-right">On Hand</th>
+                <th className="py-2.5 px-3 w-20 border-r border-[#9c6c4c]/20 text-right">Available</th>
+                <th className="py-2.5 px-3 w-20 border-r border-[#9c6c4c]/20 text-right">Reserved</th>
+                <th className="py-2.5 px-3 w-24 border-r border-[#9c6c4c]/20 text-right">Unit Cost</th>
+                <th className="py-2.5 px-3 w-24 border-r border-[#9c6c4c]/20 text-right">Status</th>
                 {isAdmin && <th className="py-2.5 px-3 w-16 text-right">Actions</th>}
               </tr>
             </thead>

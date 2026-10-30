@@ -44,6 +44,26 @@ export const WorkOrdersView: React.FC = () => {
   const [clarifyText, setClarifyText] = useState('');
   const [isSubmittingClarify, setIsSubmittingClarify] = useState(false);
   const [transitionStatus, setTransitionStatus] = useState<string | null>(null);
+  const [quickIntakeText, setQuickIntakeText] = useState('');
+  const [isSubmittingQuick, setIsSubmittingQuick] = useState(false);
+
+  const handleQuickIntake = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickIntakeText.trim()) return;
+    try {
+      setIsSubmittingQuick(true);
+      await api.post('/intake', {
+        text: quickIntakeText.trim(),
+        channel: 'WORK_ORDERS_LEDGER',
+      });
+      setQuickIntakeText('');
+      fetchWorkOrders();
+    } catch (err: any) {
+      alert(`Intake failed: ${err.message || 'Error'}`);
+    } finally {
+      setIsSubmittingQuick(false);
+    }
+  };
 
   const fetchWorkOrders = async () => {
     try {
@@ -230,10 +250,10 @@ export const WorkOrdersView: React.FC = () => {
               <tr>
                 <th className="py-2.5 px-3 w-8 border-r border-[#9c6c4c]/20 text-center">●</th>
                 <th className="py-2.5 px-3 w-20 border-r border-[#9c6c4c]/20">Ticket</th>
-                <th className="py-2.5 px-3 border-r border-[#9c6c4c]/20">Room / Node</th>
-                <th className="py-2.5 px-3 border-r border-[#9c6c4c]/20">Category</th>
-                <th className="py-2.5 px-3 border-r border-[#9c6c4c]/20 text-right">Priority</th>
-                <th className="py-2.5 px-3 border-r border-[#9c6c4c]/20 text-right">State</th>
+                <th className="py-2.5 px-3 w-40 border-r border-[#9c6c4c]/20">Room / Node</th>
+                <th className="py-2.5 px-3 w-44 border-r border-[#9c6c4c]/20">Category</th>
+                <th className="py-2.5 px-3 w-28 border-r border-[#9c6c4c]/20 text-right">Priority</th>
+                <th className="py-2.5 px-3 w-36 border-r border-[#9c6c4c]/20 text-right">State</th>
                 <th className="py-2.5 px-3 text-right">Assigned Worker</th>
               </tr>
             </thead>
@@ -543,8 +563,88 @@ export const WorkOrdersView: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div className="p-8 text-center text-[#9c6c4c] text-xs font-mono">
-              No work order selected. File an incident from Dashboard to initiate automated triage and technician dispatch.
+            <div className="p-4 space-y-4">
+              <div className="pb-3 border-b border-[#9c6c4c]/30 flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <ClipboardList className="w-4 h-4 text-[#ec9665]" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#f4aa7f] font-mono">
+                    Operational Dispatch Station
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#ec9665]/20 text-[#f4aa7f] border border-[#ec9665]/40">
+                  Ready
+                </span>
+              </div>
+
+              {/* Direct Rapid Incident Intake */}
+              <div className="p-3 bg-[#180f0a]/70 border border-[#9c6c4c]/30 rounded-lg space-y-2.5">
+                <span className="text-[11px] font-bold text-white flex items-center space-x-1.5 font-mono">
+                  <span>⚡</span>
+                  <span>Report Maintenance Incident</span>
+                </span>
+                <p className="text-[11px] text-[#d8bca4]/70 font-mono">
+                  Enter facility issue description for automated entity triage and worker notification dispatch.
+                </p>
+                <form onSubmit={handleQuickIntake} className="space-y-2">
+                  <textarea
+                    rows={3}
+                    placeholder="e.g. Water leaking from ceiling AC in RM-ACAD-204"
+                    value={quickIntakeText}
+                    onChange={(e) => setQuickIntakeText(e.target.value)}
+                    className="w-full glass-input rounded-md p-2 text-xs text-[#f4aa7f] font-mono focus:outline-none resize-none"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isSubmittingQuick || !quickIntakeText.trim()}
+                    className="w-full py-1.5 bg-gradient-to-r from-[#ec9665] to-[#f4aa7f] text-[#180f0a] font-bold rounded-md text-xs font-mono transition spring-interactive flex items-center justify-center space-x-1 shadow disabled:opacity-50"
+                  >
+                    <Send className="w-3 h-3" />
+                    <span>{isSubmittingQuick ? 'Filing...' : 'Submit Work Order'}</span>
+                  </button>
+                </form>
+              </div>
+
+              {/* Active Ledger Metrics */}
+              <div className="space-y-2">
+                <span className="text-[10px] font-mono uppercase text-[#9c6c4c] tracking-wider block">
+                  Queue Health Telemetry
+                </span>
+                <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                  <div className="p-2.5 bg-[#180f0a]/60 rounded-lg border border-[#9c6c4c]/25">
+                    <span className="text-[10px] text-[#9c6c4c] block">Total Orders</span>
+                    <span className="text-base font-bold text-white">{workOrders.length}</span>
+                  </div>
+                  <div className="p-2.5 bg-[#180f0a]/60 rounded-lg border border-[#9c6c4c]/25">
+                    <span className="text-[10px] text-[#9c6c4c] block">In Progress</span>
+                    <span className="text-base font-bold text-[#ec9665]">
+                      {workOrders.filter((w) => w.state === 'IN_PROGRESS').length}
+                    </span>
+                  </div>
+                  <div className="p-2.5 bg-[#180f0a]/60 rounded-lg border border-[#9c6c4c]/25">
+                    <span className="text-[10px] text-[#9c6c4c] block">Awaiting Dispatch</span>
+                    <span className="text-base font-bold text-[#f4aa7f]">
+                      {workOrders.filter((w) => w.state === 'TRIAGED' || w.state === 'ASSIGNED').length}
+                    </span>
+                  </div>
+                  <div className="p-2.5 bg-[#180f0a]/60 rounded-lg border border-[#9c6c4c]/25">
+                    <span className="text-[10px] text-[#9c6c4c] block">Resolved</span>
+                    <span className="text-base font-bold text-emerald-400">
+                      {workOrders.filter((w) => w.state === 'RESOLVED' || w.state === 'CLOSED').length}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Invariant Guarantees */}
+              <div className="p-3 bg-[#24160f]/60 rounded-lg border border-[#9c6c4c]/30 text-[10px] font-mono space-y-1.5 text-[#d8bca4]/80">
+                <div className="flex items-center space-x-1.5 text-[#ec9665] font-bold">
+                  <Shield className="w-3.5 h-3.5" />
+                  <span>Strict Invariant Protection Active</span>
+                </div>
+                <div>• FSM transition trigger guard active</div>
+                <div>• Audit ledger is strictly append-only</div>
+                <div>• Groq multi-agent entity classifier enabled</div>
+              </div>
             </div>
           )}
 

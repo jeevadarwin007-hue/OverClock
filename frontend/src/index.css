@@ -12,16 +12,30 @@
       radial-gradient(circle at 90% 85%, rgba(156, 108, 76, 0.12), transparent 35%),
       radial-gradient(circle at 50% 50%, rgba(82, 54, 36, 0.15), transparent 60%);
     background-attachment: fixed;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 }
 
-/* Glassmorphism primitives */
+/* ============================================================
+   THEME: Mocha & Coral (Warm Glassmorphism)
+   ============================================================ */
+[data-theme="mocha"] {
+  --theme-bg-canvas: #180f0a;
+  --theme-glass-panel: rgba(82, 54, 36, 0.65);
+  --theme-glass-surface: rgba(95, 73, 59, 0.42);
+  --theme-glass-drawer: rgba(82, 54, 36, 0.88);
+  --theme-glass-input: rgba(24, 15, 10, 0.75);
+  --theme-border: rgba(216, 188, 164, 0.18);
+  --theme-accent: #ec9665;
+}
+
 .glass-panel {
   background: rgba(82, 54, 36, 0.65);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(216, 188, 164, 0.18);
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(244, 170, 127, 0.18);
+  transition: background-color 0.25s ease, border-color 0.25s ease;
 }
 
 .glass-surface {
@@ -30,6 +44,7 @@
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(216, 188, 164, 0.15);
   box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.25);
+  transition: background-color 0.25s ease, border-color 0.25s ease;
 }
 
 .glass-drawer {
@@ -38,6 +53,7 @@
   -webkit-backdrop-filter: blur(24px);
   border-left: 1px solid rgba(216, 188, 164, 0.25);
   box-shadow: -10px 0 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(244, 170, 127, 0.2);
+  transition: background-color 0.25s ease, border-color 0.25s ease;
 }
 
 .glass-input {
@@ -46,10 +62,95 @@
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   color: #f4aa7f;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 .glass-input:focus {
   border-color: #ec9665;
   box-shadow: 0 0 0 2px rgba(236, 150, 101, 0.25);
+}
+
+/* ============================================================
+   THEME: Monochrome (Obsidian & Silver Command Center)
+   ============================================================ */
+[data-theme="monochrome"] body,
+body.theme-monochrome {
+  background-color: #09090b !important;
+  color: #e4e4e7 !important;
+  background-image: 
+    radial-gradient(circle at 10% 10%, rgba(255, 255, 255, 0.06), transparent 35%),
+    radial-gradient(circle at 90% 85%, rgba(161, 161, 170, 0.08), transparent 40%),
+    radial-gradient(circle at 50% 50%, rgba(39, 39, 42, 0.20), transparent 65%) !important;
+}
+
+[data-theme="monochrome"] .glass-panel {
+  background: rgba(24, 24, 27, 0.82) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
+}
+
+[data-theme="monochrome"] .glass-surface {
+  background: rgba(39, 39, 42, 0.55) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-theme="monochrome"] .glass-drawer {
+  background: rgba(20, 20, 23, 0.94) !important;
+  border-left-color: rgba(255, 255, 255, 0.18) !important;
+  box-shadow: -10px 0 40px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
+}
+
+[data-theme="monochrome"] .glass-input {
+  background: rgba(9, 9, 11, 0.88) !important;
+  border-color: rgba(82, 82, 91, 0.7) !important;
+  color: #ffffff !important;
+}
+[data-theme="monochrome"] .glass-input::placeholder {
+  color: #71717a !important;
+}
+[data-theme="monochrome"] .glass-input:focus {
+  border-color: #ffffff !important;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.28) !important;
+}
+
+/* Dynamic Palette Mapping in Monochrome Mode */
+[data-theme="monochrome"] [class*="text-[#ec9665]"] {
+  color: #ffffff !important;
+}
+[data-theme="monochrome"] [class*="text-[#f4aa7f]"] {
+  color: #f4f4f5 !important;
+}
+[data-theme="monochrome"] [class*="text-[#d8bca4]"] {
+  color: #d4d4d8 !important;
+}
+[data-theme="monochrome"] [class*="text-[#9c6c4c]"] {
+  color: #a1a1aa !important;
+}
+[data-theme="monochrome"] [class*="bg-[#ec9665]"] {
+  background-color: #ffffff !important;
+  color: #09090b !important;
+}
+[data-theme="monochrome"] [class*="bg-gradient-to-r from-[#ec9665] to-[#f4aa7f]"] {
+  background-image: linear-gradient(to right, #ffffff, #d4d4d8) !important;
+  color: #09090b !important;
+}
+[data-theme="monochrome"] [class*="bg-[#24160f]"] {
+  background-color: rgba(20, 20, 23, 0.90) !important;
+}
+[data-theme="monochrome"] [class*="bg-[#180f0a]"] {
+  background-color: rgba(9, 9, 11, 0.92) !important;
+}
+[data-theme="monochrome"] [class*="bg-[#523624]"] {
+  background-color: rgba(39, 39, 42, 0.65) !important;
+}
+[data-theme="monochrome"] [class*="border-[#9c6c4c]"] {
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+[data-theme="monochrome"] [class*="border-[#ec9665]"] {
+  border-color: rgba(255, 255, 255, 0.35) !important;
+}
+[data-theme="monochrome"] [class*="shadow-[0_0_8px_#ec9665]"] {
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.8) !important;
 }
 
 /* Tiny Spring Micro-Interactions */
@@ -116,6 +217,17 @@ tr.spring-row:active {
   background: #ec9665;
 }
 
+[data-theme="monochrome"] ::-webkit-scrollbar-track {
+  background: #09090b !important;
+}
+[data-theme="monochrome"] ::-webkit-scrollbar-thumb {
+  background: #27272a !important;
+  border: 1px solid rgba(82, 82, 91, 0.5) !important;
+}
+[data-theme="monochrome"] ::-webkit-scrollbar-thumb:hover {
+  background: #52525b !important;
+}
+
 /* MapLibre popup styling */
 .maplibregl-popup-content {
   background: rgba(82, 54, 36, 0.95) !important;
@@ -128,4 +240,12 @@ tr.spring-row:active {
 }
 .maplibregl-popup-tip {
   border-top-color: #523624 !important;
+}
+[data-theme="monochrome"] .maplibregl-popup-content {
+  background: rgba(24, 24, 27, 0.95) !important;
+  color: #f4f4f5 !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+[data-theme="monochrome"] .maplibregl-popup-tip {
+  border-top-color: #27272a !important;
 }
