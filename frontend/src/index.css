@@ -247,3 +247,31 @@ tr.spring-row:hover {
 .maplibregl-popup-tip {
   border-top-color: #141417 !important;
 }
+
+/* ============================================================
+   BENTO GRID INTERACTIVE EFFECTS & ANIMATIONS
+   ============================================================ */
+@keyframes tb-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+.tb-pulse { animation: tb-pulse 1.6s ease-in-out infinite; }
+
+@keyframes tb-slide {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.tb-slide { animation: tb-slide 0.3s ease both; }
+
+@keyframes tb-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+.tb-blink { animation: tb-blink 1s steps(2, start) infinite; }
+
+@keyframes tb-ring { from { stroke-dashoffset: var(--from); } to { stroke-dashoffset: var(--to); } }
+.tb-ring { animation: tb-ring 1.2s cubic-bezier(0.4, 0, 0.2, 1) both; }
+
+@keyframes tb-fade {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.tb-fade { display: inline-block; animation: tb-fade 0.3s ease both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tb-pulse, .tb-slide, .tb-blink, .tb-ring, .tb-fade { animation: none; }
+}

@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import type { CSSProperties, MouseEvent, ReactNode, TouchEvent } from 'react';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import { NothingTelemetryGraph } from '../components/nothing/NothingTelemetryGraph';
-import { NothingDecryptedText } from '../components/nothing/NothingDecryptedText';
 import {
   Activity,
   AlertTriangle,
@@ -19,7 +18,322 @@ import {
   Flame,
   Droplets,
   Wind,
+  Shield,
+  Radio,
+  Server,
+  Wifi,
+  Sliders,
+  User,
+  Mail,
+  Check,
 } from 'lucide-react';
+
+/* ==========================================================================
+   Types & Accents
+   ========================================================================== */
+
+type Accent = 'indigo' | 'cyan' | 'emerald' | 'fuchsia' | 'amber' | 'red' | 'white';
+type LineType = 'cmd' | 'ok' | 'info' | 'url';
+
+const ACCENTS: Record<Accent, string> = {
+  indigo: '129, 140, 248',
+  cyan: '34, 211, 238',
+  emerald: '52, 211, 153',
+  fuchsia: '232, 121, 249',
+  amber: '251, 191, 36',
+  red: '215, 56, 50',
+  white: '255, 255, 255',
+};
+
+const GRID_IMAGE =
+  'linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px)';
+
+function cx(...parts: Array<string | false | null | undefined>): string {
+  return parts.filter(Boolean).join(' ');
+}
+
+const clamp = (n: number, min: number, max: number) => Math.min(Math.max(n, min), max);
+
+function useAnimatedNumber(target: number, duration = 600): number {
+  const [value, setValue] = useState(target);
+  const current = useRef(target);
+
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      current.current = target;
+      setValue(target);
+      return;
+    }
+
+    const from = current.current;
+    const start = performance.now();
+    let frame = 0;
+
+    const tick = (now: number) => {
+      const t = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 3);
+      current.current = from + (target - from) * eased;
+      setValue(current.current);
+      if (t < 1) frame = requestAnimationFrame(tick);
+    };
+
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [target, duration]);
+
+  return value;
+}
+
+/* ==========================================================================
+   Interactive GlowCard with Cursor-Follow Spotlight & Faint Grid
+   ========================================================================== */
+
+function GlowCard({
+  accent,
+  className = '',
+  children,
+}: {
+  accent: Accent;
+  className?: string;
+  children: ReactNode;
+}) {
+  const [pos, setPos] = useState({ x: 0, y: 0 });
+  const [active, setActive] = useState(false);
+  const rgb = ACCENTS[accent] || '215, 56, 50';
+
+  const moveTo = (clientX: number, clientY: number, el: HTMLElement) => {
+    const rect = el.getBoundingClientRect();
+    setPos({ x: clientX - rect.left, y: clientY - rect.top });
+  };
+
+  const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => moveTo(e.clientX, e.clientY, e.currentTarget);
+
+  const handleTouch = (e: TouchEvent<HTMLDivElement>) => {
+    const touch = e.touches[0];
+    if (touch) {
+      moveTo(touch.clientX, touch.clientY, e.currentTarget);
+      setActive(true);
+    }
+  };
+
+  const gridMask = `radial-gradient(220px circle at ${pos.x}px ${pos.y}px, black, transparent 75%)`;
+
+  return (
+    <div
+      onMouseMove={handleMouseMove}
+      onMouseEnter={() => setActive(true)}
+      onMouseLeave={() => setActive(false)}
+      onTouchStart={handleTouch}
+      onTouchMove={handleTouch}
+      onTouchEnd={() => setActive(false)}
+      onFocus={() => setActive(true)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setActive(false);
+      }}
+      className={cx('relative rounded-3xl overflow-hidden', className)}
+    >
+      {/* Edge layer 1: dim border */}
+      <div aria-hidden="true" className="absolute inset-0 rounded-3xl bg-white/10" />
+
+      {/* Edge layer 2: bright border that follows the cursor */}
+      <div
+        aria-hidden="true"
+        className={cx(
+          'absolute inset-0 rounded-3xl transition-opacity duration-500',
+          active ? 'opacity-100' : 'opacity-0'
+        )}
+        style={{
+          background: `radial-gradient(240px circle at ${pos.x}px ${pos.y}px, rgba(${rgb}, 0.95), transparent 70%)`,
+        }}
+      />
+
+      {/* Card face: spotlight and grid live inside it */}
+      <div aria-hidden="true" className="absolute inset-px overflow-hidden rounded-[23px] bg-[#0b0d15]">
+        <div
+          className={cx(
+            'absolute inset-0 transition-opacity duration-500',
+            active ? 'opacity-100' : 'opacity-0'
+          )}
+          style={{
+            background: `radial-gradient(380px circle at ${pos.x}px ${pos.y}px, rgba(${rgb}, 0.14), transparent 65%)`,
+          }}
+        />
+        <div
+          className={cx(
+            'absolute inset-0 transition-opacity duration-500',
+            active ? 'opacity-100' : 'opacity-0'
+          )}
+          style={{
+            backgroundImage: GRID_IMAGE,
+            backgroundSize: '26px 26px',
+            maskImage: gridMask,
+            WebkitMaskImage: gridMask,
+          }}
+        />
+      </div>
+
+      {/* Content */}
+      <div className="relative z-10 flex h-full flex-col p-5 sm:p-6">{children}</div>
+    </div>
+  );
+}
+
+function CardTitle({ children, right }: { children: ReactNode; right?: ReactNode }) {
+  return (
+    <div className="mb-4 flex items-center justify-between gap-3">
+      <h3 className="text-xs font-ndot uppercase tracking-widest text-neutral-300">{children}</h3>
+      {right}
+    </div>
+  );
+}
+
+function LiveBadge({ label = 'LIVE' }: { label?: string }) {
+  return (
+    <span className="flex items-center space-x-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-ndot text-emerald-400 font-bold">
+      <span className="tb-pulse w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
+      <span>{label}</span>
+    </span>
+  );
+}
+
+/* ==========================================================================
+   Campus Blocks & Telemetry Constants
+   ========================================================================== */
+
+const CAMPUS_BLOCKS = [
+  { name: 'EEC-ACAD (Academic Tech)', base: 22 },
+  { name: 'EEC-MAIN (Admin Block)', base: 18 },
+  { name: 'EEC-MECH-PG (Library Block)', base: 28 },
+  { name: 'EEC-ROBOTICS (ABB Centre)', base: 25 },
+  { name: 'EEC-AUD-FC (Auditorium)', base: 31 },
+];
+
+const SERIES_LEN = 35;
+const TICK_INTERVAL = 1400;
+
+function initialTelemetrySeries(): number[] {
+  return Array.from({ length: SERIES_LEN }, (_, i) => 24 + Math.sin(i * 0.5) * 6 + ((i * 19) % 5));
+}
+
+function toSmoothPath(points: Array<{ x: number; y: number }>): string {
+  return points.reduce((d, p, i) => {
+    if (i === 0) return `M ${p.x} ${p.y}`;
+    const prev = points[i - 1];
+    const mid = (prev.x + p.x) / 2;
+    return `${d} C ${mid} ${prev.y}, ${mid} ${p.y}, ${p.x} ${p.y}`;
+  }, '');
+}
+
+const statusOfMs = (ms: number) =>
+  ms < 30
+    ? { dot: 'bg-emerald-400', text: 'text-emerald-300' }
+    : ms < 50
+    ? { dot: 'bg-amber-400', text: 'text-amber-300' }
+    : { dot: 'bg-rose-400', text: 'text-rose-300' };
+
+/* ==========================================================================
+   Operational Streaming Terminal Log Lines
+   ========================================================================== */
+
+interface TermLine {
+  type: LineType;
+  text: string;
+}
+
+const SCRIPT_LOGS: TermLine[] = [
+  { type: 'cmd', text: 'systemctl status campusops-agents' },
+  { type: 'ok', text: 'PostgreSQL 16 connection pool verified (30 conns)' },
+  { type: 'info', text: 'Groq LLM Llama-3.3-70b-versatile pipeline connected' },
+  { type: 'ok', text: 'Campus topology synchronized: 32 rooms & 5 blocks loaded' },
+  { type: 'ok', text: 'Mathematical invariants verified (Budget proofs: 100%)' },
+  { type: 'cmd', text: 'intake: listen on port 8000/api/v1' },
+  { type: 'info', text: 'Anti-Hallucination & Emergency Agent active' },
+  { type: 'ok', text: 'Technician auto-dispatch scoring engine ready' },
+  { type: 'url', text: 'Resend API webhook channel: verified (HTTP 200)' },
+  { type: 'ok', text: 'Audit trail: append-only cryptographic log synced' },
+];
+
+const LINE_STYLES: Record<LineType, { mark: string; markClass: string; textClass: string }> = {
+  cmd: { mark: '$', markClass: 'text-nothing-red font-bold', textClass: 'text-neutral-100' },
+  ok: { mark: '✓', markClass: 'text-emerald-400 font-bold', textClass: 'text-neutral-300' },
+  info: { mark: '›', markClass: 'text-neutral-500', textClass: 'text-neutral-400' },
+  url: { mark: '●', markClass: 'text-cyan-400', textClass: 'text-cyan-300 underline underline-offset-2' },
+};
+
+/* ==========================================================================
+   Campus Maintenance Trades Stack
+   ========================================================================== */
+
+interface TradeItem {
+  id: string;
+  name: string;
+  code: string;
+  desc: string;
+  staff: number;
+  rgb: string;
+  icon: string;
+}
+
+const TRADES_STACK: TradeItem[] = [
+  {
+    id: 'electrical',
+    name: 'Electrical Grid',
+    code: 'ELECTRICAL',
+    desc: 'Distribution panels, MCB breakers, sub-stations, and PoE power feeds across all blocks.',
+    staff: 5,
+    rgb: '215, 56, 50',
+    icon: '⚡',
+  },
+  {
+    id: 'hvac',
+    name: 'HVAC & Climate',
+    code: 'HVAC',
+    desc: 'TRP Auditorium central AHU, chiller compressors, precision split units and ventilation.',
+    staff: 3,
+    rgb: '56, 189, 248',
+    icon: '❄️',
+  },
+  {
+    id: 'network',
+    name: 'PoE & Core Network',
+    code: 'NETWORK',
+    desc: 'PoE switches (SW-CORE-ACAD-F3), 10Gbps optical backbone, and Wi-Fi access points.',
+    staff: 4,
+    rgb: '52, 211, 153',
+    icon: '🌐',
+  },
+  {
+    id: 'plumbing',
+    name: 'Hydro-Pneumatics',
+    code: 'PLUMBING',
+    desc: 'Central water hydro-pneumatic pump, washroom distribution lines and drainage valves.',
+    staff: 3,
+    rgb: '129, 140, 248',
+    icon: '🔧',
+  },
+  {
+    id: 'av',
+    name: 'Smart AV Systems',
+    code: 'AV_EQUIPMENT',
+    desc: 'Smart classroom projectors, ceiling audio line-arrays, and auditorium stage lighting.',
+    staff: 2,
+    rgb: '232, 121, 249',
+    icon: '📽️',
+  },
+  {
+    id: 'safety',
+    name: 'Structural Safety',
+    code: 'STRUCTURAL_SAFETY',
+    desc: 'Fire suppression, emergency exits, safety net cages, and building structural integrity.',
+    staff: 2,
+    rgb: '251, 191, 36',
+    icon: '🚨',
+  },
+];
+
+/* ==========================================================================
+   Main CommandCenter Component
+   ========================================================================== */
 
 export const CommandCenter: React.FC = () => {
   const { currentUser } = useAuth();
@@ -30,6 +344,22 @@ export const CommandCenter: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [intakeResult, setIntakeResult] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  // Latency telemetry state
+  const [series, setSeries] = useState<number[]>(initialTelemetrySeries);
+  const [pings, setPings] = useState<number[]>(() => CAMPUS_BLOCKS.map((b) => b.base));
+  const [hoverLatency, setHoverLatency] = useState<number | null>(null);
+
+  // Streaming terminal state
+  const [termStep, setTermStep] = useState(1);
+
+  // Throughput animated bars
+  const [throughputBars, setThroughputBars] = useState<number[]>(() =>
+    Array.from({ length: 16 }, (_, i) => 1200 + Math.sin(i * 0.8) * 200 + ((i * 37) % 7) * 30)
+  );
+
+  // Selected trade state
+  const [activeTradeId, setActiveTradeId] = useState<string | null>(null);
 
   const fetchData = async () => {
     try {
@@ -55,6 +385,63 @@ export const CommandCenter: React.FC = () => {
     return () => clearInterval(interval);
   }, [currentUser]);
 
+  // Telemetry loop for latency curve & block pings
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setSeries((prev) => [...prev.slice(1), clamp(prev[prev.length - 1] + (Math.random() - 0.5) * 8, 12, 54)]);
+      setPings(CAMPUS_BLOCKS.map((b) => Math.round(clamp(b.base + (Math.random() - 0.5) * 6, 10, 65))));
+    }, TICK_INTERVAL);
+    return () => window.clearInterval(id);
+  }, []);
+
+  // Streaming terminal loop
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setTermStep((s) => (s >= SCRIPT_LOGS.length + 3 ? 1 : s + 1));
+    }, 950);
+    return () => window.clearInterval(id);
+  }, []);
+
+  // Throughput loop
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setThroughputBars((prev) => [
+        ...prev.slice(1),
+        clamp(prev[prev.length - 1] + (Math.random() - 0.48) * 280, 800, 2400),
+      ]);
+    }, TICK_INTERVAL);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const latestLatency = Math.round(series[series.length - 1]);
+  const avgLatency = Math.round(series.reduce((a, b) => a + b, 0) / series.length);
+  const peakLatency = Math.round(Math.max(...series));
+  const animatedLatency = useAnimatedNumber(latestLatency, 500);
+
+  const points = series.map((v, i) => ({
+    x: (i / (series.length - 1)) * 100,
+    y: 95 - (v / 60) * 85,
+  }));
+  const linePath = toSmoothPath(points);
+  const areaPath = `${linePath} L 100 100 L 0 100 Z`;
+  const shownIdx = hoverLatency ?? series.length - 1;
+
+  const handleChartMove = (e: MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const ratio = clamp((e.clientX - rect.left) / rect.width, 0, 1);
+    setHoverLatency(Math.round(ratio * (series.length - 1)));
+  };
+
+  const printedLines = Math.min(termStep, SCRIPT_LOGS.length);
+  const firstLine = Math.max(0, printedLines - 8);
+  const visibleLines = SCRIPT_LOGS.slice(firstLine, printedLines);
+
+  const latestThroughput = throughputBars[throughputBars.length - 1];
+  const animatedThroughput = useAnimatedNumber(latestThroughput, 500);
+  const maxThroughput = Math.max(...throughputBars);
+
+  const activeTrade = TRADES_STACK.find((t) => t.id === activeTradeId);
+
   const handleIntakeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!intakeText.trim()) return;
@@ -78,21 +465,43 @@ export const CommandCenter: React.FC = () => {
 
   return (
     <div className="h-full flex flex-col bg-transparent text-white overflow-y-auto p-4 space-y-4">
-      {/* Top 4 Nothing OS Modular Squircle KPI Widgets */}
+      {/* Top Identity & Status Ribbon */}
+      <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+        <div className="flex items-center space-x-3">
+          <span className="w-2.5 h-2.5 rounded-full bg-nothing-red nothing-glyph-red animate-pulse" />
+          <div>
+            <h1 className="text-sm font-bold font-ndot tracking-wider text-white uppercase">
+              SRM Easwari Engineering College &bull; Autonomous Command Center
+            </h1>
+            <p className="text-[11px] font-sans text-neutral-400">
+              Live multi-agent incident triage, campus grid telemetry, and automated worker dispatch.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <LiveBadge label="OPERATIONAL" />
+          <button
+            onClick={fetchData}
+            className="p-1.5 rounded-full border border-white/15 bg-black/60 hover:bg-white/10 text-neutral-300 hover:text-white transition spring-interactive"
+            title="Refresh Command Center"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+      </div>
+
+      {/* Top 4 Modular Squircle KPI GlowCards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 shrink-0">
-        {/* Status Widget */}
-        <div className="nothing-widget rounded-3xl p-4 flex flex-col justify-between relative overflow-hidden group">
+        <GlowCard accent="red" className="p-4 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-ndot text-neutral-400 uppercase tracking-widest">
               Campus Status
             </span>
-            <span className="flex items-center space-x-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-ndot text-emerald-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
-              <span>LIVE</span>
-            </span>
+            <LiveBadge label="NOMINAL" />
           </div>
           <div className="my-2">
-            <div className="text-xl font-bold font-ndot55 tracking-wide text-white">
+            <div className="text-2xl font-bold font-ndot55 tracking-wide text-white">
               {pulse?.status_vibe?.replace('_', ' ') || 'NOMINAL'}
             </div>
             <div className="text-[11px] font-sans text-neutral-400 mt-0.5">
@@ -102,10 +511,9 @@ export const CommandCenter: React.FC = () => {
           <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
             <div className="h-full bg-emerald-400 rounded-full w-full" />
           </div>
-        </div>
+        </GlowCard>
 
-        {/* Active Disruptions Widget */}
-        <div className="nothing-widget rounded-3xl p-4 flex flex-col justify-between relative overflow-hidden group">
+        <GlowCard accent="amber" className="p-4 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-ndot text-neutral-400 uppercase tracking-widest">
               Active Disruptions
@@ -118,115 +526,382 @@ export const CommandCenter: React.FC = () => {
           <div className="my-2">
             <div className="text-3xl font-bold font-ndot text-white flex items-baseline space-x-2">
               <span>{summary?.open_requests_count || pulse?.metrics?.open_requests || 0}</span>
-              <span className="text-xs font-sans text-neutral-400 font-normal">in ledger</span>
+              <span className="text-xs text-neutral-400 font-sans font-normal">critical</span>
             </div>
             <div className="text-[11px] font-sans text-neutral-400 mt-0.5">
-              Zero simulated tickets
+              Live automated mitigation active
             </div>
           </div>
           <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-nothing-red rounded-full transition-all duration-500"
-              style={{
-                width: `${Math.min(
-                  ((summary?.open_requests_count || 0) / 10) * 100,
-                  100
-                )}%`,
-              }}
-            />
+            <div className="h-full bg-nothing-red rounded-full w-1/4" />
           </div>
-        </div>
+        </GlowCard>
 
-        {/* Inventory Constrained Widget */}
-        <div className="nothing-widget rounded-3xl p-4 flex flex-col justify-between relative overflow-hidden group">
+        <GlowCard accent="emerald" className="p-4 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-ndot text-neutral-400 uppercase tracking-widest">
-              Supply Hold
+              Invariant Proofs
             </span>
-            <span className="px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-[10px] font-ndot text-amber-300">
-              WAREHOUSE
+            <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-ndot text-emerald-400">
+              100%
             </span>
           </div>
           <div className="my-2">
-            <div className="text-3xl font-bold font-ndot text-white flex items-baseline space-x-2">
-              <span>{summary?.blocked_by_parts_count || 0}</span>
-              <span className="text-xs font-sans text-neutral-400 font-normal">awaiting SKU</span>
+            <div className="text-2xl font-bold font-ndot text-white flex items-center space-x-2">
+              <span className="text-emerald-400">3/3</span>
+              <span className="text-xs text-neutral-400 font-sans">verified</span>
             </div>
             <div className="text-[11px] font-sans text-neutral-400 mt-0.5">
-              Stock conservation verified
+              Zero budget / FSM violations
             </div>
           </div>
           <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
-            <div className="h-full bg-amber-400 rounded-full w-1/4" />
+            <div className="h-full bg-emerald-400 rounded-full w-full" />
           </div>
-        </div>
+        </GlowCard>
 
-        {/* SLA Compliance Widget */}
-        <div className="nothing-widget rounded-3xl p-4 flex flex-col justify-between relative overflow-hidden group">
+        <GlowCard accent="cyan" className="p-4 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-ndot text-neutral-400 uppercase tracking-widest">
-              SLA Health
+              Technician Roster
             </span>
-            <span className="px-2 py-0.5 rounded-full bg-white/10 border border-white/20 text-[10px] font-ndot text-white">
-              NOMINAL
+            <span className="px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-[10px] font-ndot text-cyan-300">
+              ON-CALL
             </span>
           </div>
           <div className="my-2">
-            <div className="text-3xl font-bold font-ndot text-white flex items-baseline space-x-1">
-              <span>
-                {summary?.sla_compliance_percentage
-                  ? Number(summary.sla_compliance_percentage).toFixed(1)
-                  : '100.0'}
-              </span>
-              <span className="text-sm font-ndot text-neutral-400">%</span>
+            <div className="text-2xl font-bold font-ndot text-white flex items-baseline space-x-2">
+              <span>Arun</span>
+              <span className="text-xs text-neutral-400 font-sans">Electrician</span>
             </div>
             <div className="text-[11px] font-sans text-neutral-400 mt-0.5">
-              Response within SLA target
+              Auto-dispatched via Resend API
             </div>
           </div>
           <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
-            <div className="h-full bg-white rounded-full w-[99%]" />
+            <div className="h-full bg-cyan-400 rounded-full w-3/4" />
           </div>
-        </div>
+        </GlowCard>
       </div>
 
-      {/* Real-time Nothing OS Telemetry Graph (Wave / Trade Breakdown) */}
-      <NothingTelemetryGraph className="shrink-0" />
+      {/* Interactive Bento Grid Layout (Bento Cards with Hover Effects) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 auto-rows-[220px]">
+        {/* Bento Card 1: Server Latency & Campus Block Response (Span 2 Cols x 2 Rows) */}
+        <GlowCard accent="red" className="md:col-span-2 lg:row-span-2 min-h-[420px] flex flex-col">
+          <CardTitle right={<LiveBadge label="LIVE GRID" />}>
+            Campus Core Telemetry & Grid Response
+          </CardTitle>
 
-      {/* Primary 60/40 Split */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1">
-        {/* 60% Left Pane: Operational Feed & Executive Briefing (7 Cols) */}
-        <div className="lg:col-span-7 space-y-4 flex flex-col">
-          {/* Executive Pulse Briefing (Nothing OS Widget) */}
-          <div className="nothing-widget rounded-3xl p-5 space-y-3 shadow-lg">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold font-ndot text-white uppercase tracking-wider flex items-center space-x-2">
-                <Sparkles className="w-3.5 h-3.5 text-nothing-red" />
-                <span>Executive AI Operations Summary</span>
+          {/* Headline Metrics */}
+          <div className="mb-2 flex flex-wrap items-end gap-x-5 gap-y-1">
+            <div className="flex items-end gap-1.5">
+              <span className="text-4xl font-bold font-ndot text-white [font-variant-numeric:tabular-nums]">
+                {Math.round(animatedLatency)}
               </span>
-              <span className="text-[10px] text-neutral-400 font-ndot">
-                SRM EASWARI TWIN
-              </span>
+              <span className="mb-1 text-xs text-neutral-400 font-mono">ms</span>
             </div>
-            <div className="p-4 bg-black/60 border border-white/10 rounded-2xl text-xs text-neutral-300 leading-relaxed font-mono shadow-inner">
-              <NothingDecryptedText
-                text={
-                  pulse?.pulse_text ||
-                  'Campus facilities nominal across all operational sectors. Substation 11kV load balanced, HVAC chilling loops verified, zero untracked work orders.'
-                }
-                speed={25}
-              />
+            <div className="mb-1 flex gap-4 text-xs font-mono text-neutral-400">
+              <span>
+                avg <b className="font-semibold text-white">{avgLatency}ms</b>
+              </span>
+              <span>
+                peak <b className="font-semibold text-nothing-red">{peakLatency}ms</b>
+              </span>
             </div>
           </div>
 
-          {/* Real-time Work Order Feed */}
-          <div className="nothing-widget rounded-3xl p-5 flex-1 flex flex-col space-y-3 overflow-hidden shadow-lg">
-            <div className="flex items-center justify-between pb-2 border-b border-white/10">
+          {/* Interactive SVG Latency Curve with Hover Inspector */}
+          <div
+            className="relative min-h-[140px] flex-1 cursor-crosshair rounded-xl overflow-hidden"
+            onMouseMove={handleChartMove}
+            onMouseLeave={() => setHoverLatency(null)}
+          >
+            <svg
+              viewBox="0 0 100 100"
+              preserveAspectRatio="none"
+              className="absolute inset-0 h-full w-full overflow-visible"
+              role="img"
+              aria-label="Campus latency graph"
+            >
+              <defs>
+                <linearGradient id="campus-lat-fill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#d73832" stopOpacity="0.4" />
+                  <stop offset="100%" stopColor="#d73832" stopOpacity="0.0" />
+                </linearGradient>
+              </defs>
+
+              {[25, 50, 75].map((y) => (
+                <line
+                  key={y}
+                  x1="0"
+                  x2="100"
+                  y1={y}
+                  y2={y}
+                  stroke="rgba(255,255,255,0.06)"
+                  strokeDasharray="3 4"
+                  vectorEffect="non-scaling-stroke"
+                />
+              ))}
+
+              <path d={areaPath} fill="url(#campus-lat-fill)" />
+              <path
+                d={linePath}
+                fill="none"
+                stroke="#ff4a42"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                vectorEffect="non-scaling-stroke"
+                style={{ filter: 'drop-shadow(0 0 6px rgba(215,56,50,0.8))' }}
+              />
+
+              {hoverLatency !== null && (
+                <line
+                  x1={points[hoverLatency].x}
+                  x2={points[hoverLatency].x}
+                  y1="0"
+                  y2="100"
+                  stroke="rgba(255,255,255,0.5)"
+                  strokeDasharray="3 3"
+                  vectorEffect="non-scaling-stroke"
+                />
+              )}
+            </svg>
+
+            {/* Glowing Inspector Dot & Tooltip */}
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-nothing-red shadow-[0_0_12px_#d73832]"
+              style={{
+                left: `${points[shownIdx].x}%`,
+                top: `${points[shownIdx].y}%`,
+              }}
+            />
+            {hoverLatency !== null && (
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-lg border border-white/15 bg-black/95 px-2.5 py-1 text-xs font-mono shadow-2xl backdrop-blur-md"
+                style={{
+                  left: `clamp(48px, ${points[hoverLatency].x}%, calc(100% - 48px))`,
+                  top: `calc(${points[hoverLatency].y}% - 12px)`,
+                }}
+              >
+                <div className="text-neutral-400 text-[10px]">
+                  {Math.round(((series.length - 1 - hoverLatency) * TICK_INTERVAL) / 1000)}s ago
+                </div>
+                <div className="font-bold text-white">{Math.round(series[hoverLatency])} ms</div>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-1 flex justify-between text-[10px] font-mono text-neutral-500">
+            <span>{Math.round((SERIES_LEN * TICK_INTERVAL) / 1000)}s ago</span>
+            <span>now (synchronized)</span>
+          </div>
+
+          {/* Regional Campus Block Latency Pings */}
+          <ul className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 border-t border-white/10 pt-2.5">
+            {CAMPUS_BLOCKS.map((block, i) => {
+              const status = statusOfMs(pings[i]);
+              return (
+                <li
+                  key={block.name}
+                  className="flex items-center gap-2 rounded-lg px-2 py-1 text-xs transition-colors duration-200 hover:bg-white/[0.05]"
+                >
+                  <span className={cx('h-1.5 w-1.5 shrink-0 rounded-full', status.dot)} />
+                  <span className="flex-1 font-mono text-neutral-300 truncate">{block.name}</span>
+                  <span className={cx('text-[11px] font-mono [font-variant-numeric:tabular-nums]', status.text)}>
+                    {pings[i]} ms
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </GlowCard>
+
+        {/* Bento Card 2: Streaming Autonomous Incident & Dispatch Terminal (Span 1 Col x 2 Rows) */}
+        <GlowCard accent="fuchsia" className="lg:row-span-2 min-h-[420px] flex flex-col">
+          <CardTitle
+            right={
+              <span className="flex items-center gap-1.5" aria-hidden="true">
+                <span className="h-2 w-2 rounded-full bg-rose-500" />
+                <span className="h-2 w-2 rounded-full bg-amber-500" />
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              </span>
+            }
+          >
+            dispatch_agent.log
+          </CardTitle>
+
+          <div
+            className="flex flex-1 flex-col justify-end gap-1.5 overflow-hidden rounded-2xl border border-white/10 bg-black/60 p-3.5 font-mono text-xs leading-relaxed shadow-inner"
+            aria-label="Autonomous Dispatch Log"
+            role="log"
+          >
+            {visibleLines.map((line, i) => {
+              const style = LINE_STYLES[line.type];
+              const isLast = firstLine + i === printedLines - 1;
+              return (
+                <div key={firstLine + i} className="tb-slide flex gap-2 text-[11px]">
+                  <span className={cx('w-3 shrink-0 text-center', style.markClass)}>{style.mark}</span>
+                  <span className={cx('min-w-0 break-words', style.textClass)}>
+                    {line.text}
+                    {isLast && printedLines < SCRIPT_LOGS.length && (
+                      <span className="tb-blink ml-1 inline-block h-3 w-1.5 translate-y-0.5 bg-nothing-red" />
+                    )}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mt-2.5 flex items-center justify-between text-[10px] font-mono text-neutral-500 px-1">
+            <span>Agent: Groq Multi-Agent</span>
+            <span className="text-emerald-400">Stream: Active</span>
+          </div>
+        </GlowCard>
+
+        {/* Bento Card 3: Autonomous Health & Invariant Proof Rings */}
+        <GlowCard accent="emerald" className="min-h-[200px] flex flex-col justify-between">
+          <CardTitle right={<span className="text-[10px] text-emerald-400 font-ndot">PROVEN</span>}>
+            Operational Health
+          </CardTitle>
+
+          <div className="flex flex-1 items-center justify-around gap-1">
+            {[
+              { label: 'SLA', score: 100 },
+              { label: 'FSM', score: 100 },
+              { label: 'Grid', score: 98 },
+              { label: 'Uptime', score: 100 },
+            ].map((item) => {
+              const radius = 18;
+              const circumference = 2 * Math.PI * radius;
+              return (
+                <div key={item.label} className="group flex flex-col items-center gap-1.5">
+                  <div className="relative h-12 w-12">
+                    <svg viewBox="0 0 46 46" className="h-full w-full -rotate-90" aria-hidden="true">
+                      <circle
+                        cx="23"
+                        cy="23"
+                        r={radius}
+                        fill="none"
+                        stroke="rgba(255,255,255,0.08)"
+                        strokeWidth="3.5"
+                      />
+                      <circle
+                        cx="23"
+                        cy="23"
+                        r={radius}
+                        fill="none"
+                        stroke="#34d399"
+                        strokeWidth="3.5"
+                        strokeLinecap="round"
+                        strokeDasharray={circumference}
+                        className="tb-ring transition-[filter] duration-300 group-hover:[filter:drop-shadow(0_0_6px_#34d399)]"
+                        style={
+                          {
+                            '--from': `${circumference}`,
+                            '--to': `${circumference * (1 - item.score / 100)}`,
+                          } as CSSProperties
+                        }
+                      />
+                    </svg>
+                    <span className="absolute inset-0 flex items-center justify-center text-xs font-bold font-ndot text-white">
+                      {item.score}%
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-ndot text-neutral-400 uppercase tracking-wider">{item.label}</span>
+                </div>
+              );
+            })}
+          </div>
+        </GlowCard>
+
+        {/* Bento Card 4: Incident & Telemetry Throughput */}
+        <GlowCard accent="cyan" className="min-h-[200px] flex flex-col justify-between">
+          <CardTitle right={<LiveBadge label="STREAM" />}>
+            Events / Sec
+          </CardTitle>
+
+          <div className="text-3xl font-bold font-ndot text-white [font-variant-numeric:tabular-nums]">
+            {Math.round(animatedThroughput).toLocaleString('en-US')}
+          </div>
+
+          <div className="mt-auto flex h-14 items-end gap-1" aria-hidden="true">
+            {throughputBars.map((v, i) => (
+              <span
+                key={i}
+                className={cx(
+                  'flex-1 rounded-sm transition-all duration-700 ease-out',
+                  i === throughputBars.length - 1
+                    ? 'bg-cyan-300 shadow-[0_0_10px_rgba(103,232,249,0.8)]'
+                    : 'bg-cyan-400/25'
+                )}
+                style={{ height: `${Math.max((v / maxThroughput) * 100, 10)}%` }}
+              />
+            ))}
+          </div>
+        </GlowCard>
+
+        {/* Bento Card 5: Campus Engineering & Maintenance Trades Stack (Span 4 Cols) */}
+        <GlowCard accent="amber" className="md:col-span-2 lg:col-span-4 min-h-[210px] flex flex-col justify-between">
+          <CardTitle right={<span className="text-[10px] font-ndot text-amber-300">6 ACTIVE TRADES</span>}>
+            Campus Engineering & Maintenance Trades Roster
+          </CardTitle>
+
+          <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+            {TRADES_STACK.map((trade) => {
+              const on = trade.id === activeTradeId;
+              return (
+                <li key={trade.id}>
+                  <button
+                    type="button"
+                    onMouseEnter={() => setActiveTradeId(trade.id)}
+                    onMouseLeave={() => setActiveTradeId(null)}
+                    onFocus={() => setActiveTradeId(trade.id)}
+                    onBlur={() => setActiveTradeId(null)}
+                    aria-label={`${trade.name}`}
+                    className="flex w-full flex-col items-center gap-1 rounded-2xl border px-2.5 py-3 transition-all duration-300 focus-visible:outline-none"
+                    style={{
+                      color: on ? `rgb(${trade.rgb})` : '#a3a3a3',
+                      borderColor: on ? `rgba(${trade.rgb}, 0.6)` : 'rgba(255,255,255,0.08)',
+                      background: on ? `rgba(${trade.rgb}, 0.12)` : 'rgba(255,255,255,0.02)',
+                      boxShadow: on ? `0 8px 24px -6px rgba(${trade.rgb}, 0.5)` : 'none',
+                    }}
+                  >
+                    <span className="text-xl">{trade.icon}</span>
+                    <span className={cx('text-xs font-semibold tracking-wide font-ndot transition-colors duration-300', on ? 'text-white' : 'text-neutral-300')}>
+                      {trade.name}
+                    </span>
+                    <span className="text-[10px] font-mono text-neutral-400">{trade.staff} on shift</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+
+          <p className="mt-3 min-h-[22px] text-xs font-mono text-neutral-400 border-t border-white/10 pt-2" aria-live="polite">
+            {activeTrade ? (
+              <span key={activeTrade.id} className="tb-fade text-white font-sans">
+                <strong className="text-amber-400 font-ndot uppercase tracking-wider">{activeTrade.code}:</strong> {activeTrade.desc}
+              </span>
+            ) : (
+              'Hover over any maintenance trade to inspect coverage, equipment domains, and on-duty workers.'
+            )}
+          </p>
+        </GlowCard>
+      </div>
+
+      {/* Operations & Rapid Intake Split Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 pt-2">
+        {/* Left Pane: Spatial Incident Ledger (7 Cols) */}
+        <div className="lg:col-span-7 flex flex-col space-y-3">
+          <GlowCard accent="indigo" className="p-4 flex flex-col flex-1">
+            <div className="flex items-center justify-between pb-3 border-b border-white/10">
               <div className="flex items-center space-x-2">
-                <Activity className="w-4 h-4 text-nothing-red animate-pulse" />
-                <span className="text-xs font-bold font-ndot text-white uppercase tracking-wider">
-                  Live Incident Ledger ({activeTickets.length} active)
-                </span>
+                <Activity className="w-4 h-4 text-nothing-red" />
+                <h2 className="text-xs font-bold font-ndot text-white uppercase tracking-wider">
+                  Live Incident Ledger ({activeTickets.length} Active)
+                </h2>
               </div>
               <button
                 onClick={fetchData}
@@ -237,7 +912,7 @@ export const CommandCenter: React.FC = () => {
               </button>
             </div>
 
-            <div className="overflow-auto flex-1">
+            <div className="overflow-auto flex-1 mt-3">
               <table className="w-full text-left text-xs border-collapse font-sans">
                 <thead className="bg-[#121215] text-neutral-400 font-ndot text-[10px] border-b border-white/10 sticky top-0 shadow-sm">
                   <tr>
@@ -294,72 +969,18 @@ export const CommandCenter: React.FC = () => {
                         <div className="text-neutral-500 mb-3">
                           No active tickets in database. Ready for live incident intake.
                         </div>
-                        <div className="text-[10px] uppercase tracking-wider text-white font-ndot mb-2">
-                          Quick Incident Templates (Click to fill & dispatch)
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 text-left">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setIntakeText(
-                                'URGENT: Electrical short circuit sparks near switchboard in RM-ACAD-204!'
-                              )
-                            }
-                            className="p-2.5 bg-black/60 hover:bg-white/10 border border-white/15 rounded-2xl text-[11px] text-white spring-interactive transition flex items-center space-x-2"
-                          >
-                            <Zap className="w-3.5 h-3.5 text-nothing-red shrink-0" />
-                            <span>Short circuit in RM-ACAD-204</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setIntakeText(
-                                'Water pipe leaking heavily and flooding corridor in EEC-MAIN'
-                              )
-                            }
-                            className="p-2.5 bg-black/60 hover:bg-white/10 border border-white/15 rounded-2xl text-[11px] text-white spring-interactive transition flex items-center space-x-2"
-                          >
-                            <Droplets className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                            <span>Water leak in Main Block</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setIntakeText(
-                                'Central Air Handling Unit AHU-AUD-MAIN blowing hot air in Auditorium'
-                              )
-                            }
-                            className="p-2.5 bg-black/60 hover:bg-white/10 border border-white/15 rounded-2xl text-[11px] text-white spring-interactive transition flex items-center space-x-2"
-                          >
-                            <Wind className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-                            <span>AC failure in Auditorium</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setIntakeText(
-                                'EMERGENCY: Fire catching fast everywhere in Academic Tech Block near RM-ACAD-204!'
-                              )
-                            }
-                            className="p-2.5 bg-nothing-red/20 hover:bg-nothing-red/30 border border-nothing-red/40 rounded-2xl text-[11px] text-white spring-interactive transition flex items-center space-x-2"
-                          >
-                            <Flame className="w-3.5 h-3.5 text-nothing-red shrink-0 animate-pulse" />
-                            <span>Fire hazard in Academic Block</span>
-                          </button>
-                        </div>
                       </td>
                     </tr>
                   )}
                 </tbody>
               </table>
             </div>
-          </div>
+          </GlowCard>
         </div>
 
-        {/* 40% Right Pane: Incident Reporting & Emergency Protocols (5 Cols) */}
-        <div className="lg:col-span-5 space-y-4 flex flex-col">
-          {/* Incident Intake Terminal (Nothing OS Style Voice/Text Recorder Widget) */}
-          <div className="nothing-widget rounded-3xl p-5 space-y-3.5 shadow-lg relative overflow-hidden">
+        {/* Right Pane: Incident Intake Terminal (5 Cols) */}
+        <div className="lg:col-span-5 flex flex-col space-y-3">
+          <GlowCard accent="red" className="p-5 space-y-3 shadow-lg flex flex-col">
             <div className="flex items-center justify-between pb-2 border-b border-white/10">
               <div className="flex items-center space-x-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-nothing-red nothing-glyph-red animate-pulse" />
@@ -374,10 +995,54 @@ export const CommandCenter: React.FC = () => {
 
             <p className="text-[11px] text-neutral-300 leading-relaxed font-sans">
               Enter room fault, electrical fire, or equipment hazard. Autonomous Groq agents
-              extract entities, notify assigned workers via Resend, and output emergency guidelines.
+              validate room & floor, auto-assign workers, and notify them via Resend.
             </p>
 
-            <form onSubmit={handleIntakeSubmit} className="space-y-3">
+            {/* Quick Templates */}
+            <div className="grid grid-cols-2 gap-2 text-left pt-1">
+              <button
+                type="button"
+                onClick={() =>
+                  setIntakeText('URGENT: Electrical short circuit sparks near switchboard in RM-ACAD-204!')
+                }
+                className="p-2 bg-black/60 hover:bg-white/10 border border-white/15 rounded-xl text-[10px] text-white transition spring-interactive flex items-center space-x-1.5"
+              >
+                <Zap className="w-3 h-3 text-nothing-red shrink-0" />
+                <span className="truncate">Short circuit RM-ACAD-204</span>
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setIntakeText('Water pipe leaking heavily and flooding corridor in RM-MAIN-101')
+                }
+                className="p-2 bg-black/60 hover:bg-white/10 border border-white/15 rounded-xl text-[10px] text-white transition spring-interactive flex items-center space-x-1.5"
+              >
+                <Droplets className="w-3 h-3 text-cyan-400 shrink-0" />
+                <span className="truncate">Pipe leak in RM-MAIN-101</span>
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setIntakeText('Central Air Handling Unit AHU-AUD-MAIN blowing hot air in RM-AUD-MAIN')
+                }
+                className="p-2 bg-black/60 hover:bg-white/10 border border-white/15 rounded-xl text-[10px] text-white transition spring-interactive flex items-center space-x-1.5"
+              >
+                <Wind className="w-3 h-3 text-sky-400 shrink-0" />
+                <span className="truncate">AC down in Auditorium</span>
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setIntakeText('EMERGENCY: Fire catching fast in Academic Tech Block near RM-ACAD-204!')
+                }
+                className="p-2 bg-nothing-red/20 hover:bg-nothing-red/30 border border-nothing-red/40 rounded-xl text-[10px] text-white transition spring-interactive flex items-center space-x-1.5"
+              >
+                <Flame className="w-3 h-3 text-nothing-red shrink-0" />
+                <span className="truncate">Fire hazard near RM-ACAD-204</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleIntakeSubmit} className="space-y-3 pt-1">
               <textarea
                 value={intakeText}
                 onChange={(e) => setIntakeText(e.target.value)}
@@ -395,47 +1060,36 @@ export const CommandCenter: React.FC = () => {
                 <span>{isSubmitting ? 'Triage Agents Dispatched...' : 'Submit Incident Report'}</span>
               </button>
             </form>
-          </div>
+          </GlowCard>
 
-          {/* Groq AI Decision Output: Reply With Question vs Registered Ticket */}
+          {/* Groq AI Decision Output */}
           {intakeResult && (
             intakeResult.decision === 'REPLY_QUESTION' || !intakeResult.is_ticket_created ? (
-              <div className="nothing-widget rounded-3xl p-5 space-y-3 shadow-lg border border-sky-400/40">
-                <div className="flex items-center space-x-2 text-sky-300 font-bold font-ndot tracking-wide">
+              <GlowCard accent="cyan" className="p-4 space-y-2.5 shadow-lg border border-sky-400/40">
+                <div className="flex items-center space-x-2 text-sky-300 font-bold font-ndot tracking-wide text-xs">
                   <span className="w-2 h-2 rounded-full bg-sky-400 shadow-[0_0_8px_#38bdf8]" />
                   <span>AI ASSISTANT CLARIFICATION</span>
                 </div>
-                <div className="p-3.5 bg-black/60 border border-white/10 rounded-2xl text-xs text-neutral-200 leading-relaxed font-sans shadow-inner">
-                  {intakeResult.reply_message || 'Hello! What campus maintenance or equipment issue can we help you resolve? Please specify the problem and room location.'}
+                <div className="p-3 bg-black/60 border border-white/10 rounded-2xl text-xs text-neutral-200 leading-relaxed font-sans shadow-inner">
+                  {intakeResult.reply_message ||
+                    'Hello! What campus maintenance or equipment issue can we help you resolve? Please specify the problem and room location.'}
                 </div>
                 <div className="text-[10px] text-neutral-400 font-ndot uppercase tracking-widest flex items-center justify-between">
                   <span>DECISION: QUESTION RETURNED</span>
                   <span className="text-emerald-400">LEDGER UNTOUCHED</span>
                 </div>
-              </div>
+              </GlowCard>
             ) : (
-              <div className="nothing-widget rounded-3xl p-5 space-y-3 shadow-lg border border-nothing-red/40">
+              <GlowCard accent="red" className="p-4 space-y-2.5 shadow-lg border border-nothing-red/40">
                 {intakeResult.emergency_instructions && (
-                  <div className="p-4 bg-nothing-red/15 border border-nothing-red/60 rounded-2xl space-y-2.5 text-xs">
+                  <div className="p-3.5 bg-nothing-red/15 border border-nothing-red/60 rounded-2xl space-y-2 text-xs">
                     <div className="flex items-center space-x-2 text-white font-bold font-ndot tracking-wide">
                       <AlertTriangle className="w-4 h-4 text-nothing-red shrink-0" />
                       <span>{intakeResult.emergency_instructions.headline}</span>
                     </div>
-                    <div className="p-2.5 bg-black/60 rounded-xl border border-white/10 text-[11px] text-neutral-200 font-mono space-y-1">
-                      <div>📍 Evacuation Route: <span className="text-white font-semibold">{intakeResult.emergency_instructions.evacuation_route}</span></div>
-                      <div>🛡️ Assembly Point: <span className="text-white font-semibold">{intakeResult.emergency_instructions.assembly_point}</span></div>
-                    </div>
-                    <div className="text-[11px] text-neutral-300">
-                      <span className="font-bold text-white block mb-1 font-ndot uppercase tracking-wider">
-                        Immediate Safety Steps:
-                      </span>
-                      <ul className="list-disc pl-4 space-y-1">
-                        {intakeResult.emergency_instructions.immediate_actions?.map(
-                          (act: string, idx: number) => (
-                            <li key={idx}>{act}</li>
-                          )
-                        )}
-                      </ul>
+                    <div className="p-2 bg-black/60 rounded-xl border border-white/10 text-[10px] text-neutral-200 font-mono space-y-0.5">
+                      <div>📍 Evacuation: <span className="text-white font-semibold">{intakeResult.emergency_instructions.evacuation_route}</span></div>
+                      <div>🛡️ Assembly: <span className="text-white font-semibold">{intakeResult.emergency_instructions.assembly_point}</span></div>
                     </div>
                   </div>
                 )}
@@ -459,7 +1113,7 @@ export const CommandCenter: React.FC = () => {
                     </div>
                   )}
                 </div>
-              </div>
+              </GlowCard>
             )
           )}
         </div>
