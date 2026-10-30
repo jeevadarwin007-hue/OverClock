@@ -17,7 +17,10 @@ class TechnicianScoreBreakdown(BaseModel):
 
 
 class AssignTechnicianRequest(BaseModel):
-    technician_id: Optional[UUID] = None  # None for auto-assignment via scoring
+    technician_id: Optional[UUID] = None  # None for auto-assignment or if creating new worker
+    worker_name: Optional[str] = None     # Full name of worker, e.g. "Rajesh Kumar"
+    worker_email: Optional[str] = None    # Email of worker, e.g. "rajesh.kumar@easwari.edu"
+    worker_role: Optional[str] = None     # ELECTRICAL, PLUMBING, HVAC, NETWORK, AV_EQUIPMENT, STRUCTURAL_SAFETY
 
 
 class AssignTechnicianResponse(BaseModel):
@@ -25,9 +28,19 @@ class AssignTechnicianResponse(BaseModel):
     assigned_tech_id: UUID
     assigned_tech_name: str
     assigned_tech_email: str
+    assigned_tech_role: Optional[str] = None
     score: float
     explanation: str
     work_order_state: str
+
+
+class TechnicianSummary(BaseModel):
+    id: UUID
+    full_name: str
+    email: str
+    roles: List[str] = []
+    is_available: bool = True
+    active_workload_count: int = 0
 
 
 class ToggleAvailabilityRequest(BaseModel):

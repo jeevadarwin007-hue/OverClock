@@ -49,6 +49,8 @@ class WorkOrderOut(BaseModel):
     ai_summary: Optional[str] = None
     assigned_tech_id: Optional[UUID] = None
     assigned_tech_name: Optional[str] = None
+    assigned_tech_email: Optional[str] = None
+    assigned_tech_role: Optional[str] = None
     department_id: Optional[UUID] = None
     estimated_cost: Decimal
     estimated_duration_mins: int

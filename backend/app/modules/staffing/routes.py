@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
 from fastapi import APIRouter, Depends, status
 from app.core.security import get_current_user, require_roles, CurrentUser
@@ -8,10 +8,23 @@ from app.modules.staffing.schemas import (
     AssignTechnicianResponse,
     ToggleAvailabilityRequest,
     ToggleAvailabilityResponse,
+    TechnicianSummary,
 )
 from app.modules.staffing.service import StaffingService
 
 router = APIRouter(prefix="", tags=["Staffing & Workforce"])
+
+
+@router.get("/staff/technicians", response_model=List[TechnicianSummary])
+async def list_technicians(
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    async with acquire_db_connection(
+        actor_id=current_user.id,
+        actor_role=current_user.role,
+        dept_id=current_user.department_id,
+    ) as conn:
+        return await StaffingService.list_technicians(conn)
 
 
 @router.post("/work-orders/{id}/assign", response_model=AssignTechnicianResponse)
@@ -21,6 +34,10 @@ async def assign_technician_to_work_order(
     current_user: CurrentUser = Depends(require_roles(["DEPT_MANAGER", "FACILITIES_ADMIN", "SYS_ADMIN"])),
 ):
     tech_id = request.technician_id if request else None
+    worker_name = request.worker_name if request else None
+    worker_email = request.worker_email if request else None
+    worker_role = request.worker_role if request else None
+
     async with acquire_db_connection(
         actor_id=current_user.id,
         actor_role=current_user.role,
@@ -31,6 +48,9 @@ async def assign_technician_to_work_order(
                 conn,
                 work_order_id=id,
                 technician_id=tech_id,
+                worker_name=worker_name,
+                worker_email=worker_email,
+                worker_role=worker_role,
                 actor_id=current_user.id
             )
 

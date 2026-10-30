@@ -328,10 +328,12 @@ CREATE TABLE fsm_state_transitions (
 INSERT INTO fsm_state_transitions (from_state, to_state, allowed_roles) VALUES
 ('INGESTED', 'AWAITING_CLARIFICATION', ARRAY['SYS_ADMIN'::user_role, 'FACILITIES_ADMIN'::user_role]),
 ('INGESTED', 'TRIAGED', ARRAY['SYS_ADMIN'::user_role, 'FACILITIES_ADMIN'::user_role, 'STUDENT_FACULTY'::user_role]),
+('INGESTED', 'ASSIGNED', ARRAY['SYS_ADMIN'::user_role, 'FACILITIES_ADMIN'::user_role, 'DEPT_MANAGER'::user_role]),
 ('INGESTED', 'MERGED_DUPLICATE', ARRAY['SYS_ADMIN'::user_role, 'FACILITIES_ADMIN'::user_role, 'STUDENT_FACULTY'::user_role]),
 ('INGESTED', 'CLOSED', ARRAY['SYS_ADMIN'::user_role, 'FACILITIES_ADMIN'::user_role]),
 ('TRIAGED', 'MERGED_DUPLICATE', ARRAY['SYS_ADMIN'::user_role, 'FACILITIES_ADMIN'::user_role, 'STUDENT_FACULTY'::user_role]),
 ('AWAITING_CLARIFICATION', 'TRIAGED', ARRAY['SYS_ADMIN'::user_role, 'FACILITIES_ADMIN'::user_role, 'STUDENT_FACULTY'::user_role]),
+('AWAITING_CLARIFICATION', 'ASSIGNED', ARRAY['SYS_ADMIN'::user_role, 'FACILITIES_ADMIN'::user_role, 'DEPT_MANAGER'::user_role]),
 ('TRIAGED', 'ASSIGNED', ARRAY['SYS_ADMIN'::user_role, 'FACILITIES_ADMIN'::user_role, 'DEPT_MANAGER'::user_role]),
 ('TRIAGED', 'BLOCKED_PARTS', ARRAY['TECHNICIAN'::user_role, 'SYS_ADMIN'::user_role, 'FACILITIES_ADMIN'::user_role]),
 ('ASSIGNED', 'TRIAGED', ARRAY['SYS_ADMIN'::user_role, 'FACILITIES_ADMIN'::user_role, 'DEPT_MANAGER'::user_role]),

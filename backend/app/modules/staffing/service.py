@@ -7,6 +7,7 @@ from app.modules.staffing.schemas import (
     AssignTechnicianResponse,
     DynamicReassignmentItem,
     ToggleAvailabilityResponse,
+    TechnicianSummary,
 )
 
 
@@ -86,12 +87,40 @@ class StaffingService:
         conn: asyncpg.Connection,
         work_order_id: UUID,
         technician_id: Optional[UUID] = None,
+        worker_name: Optional[str] = None,
+        worker_email: Optional[str] = None,
+        worker_role: Optional[str] = None,
         actor_id: Optional[UUID] = None
     ) -> AssignTechnicianResponse:
         """
-        Assigns or reassigns a technician to a work order.
-        If technician_id is omitted, selects the highest-scoring eligible technician.
+        Assigns or reassigns a technician/worker to a work order.
+        Supports adding/registering a worker by name, email, and role (electrician, plumber, etc.),
+        direct assignment by technician_id, or automatic deterministic dispatch scoring.
         """
+        # Role normalization map
+        ROLE_MAP = {
+            "electrician": "ELECTRICAL",
+            "electrical": "ELECTRICAL",
+            "plumber": "PLUMBING",
+            "plumbing": "PLUMBING",
+            "hvac": "HVAC",
+            "ac": "HVAC",
+            "cooling": "HVAC",
+            "network": "NETWORK",
+            "it": "NETWORK",
+            "audio": "AV_EQUIPMENT",
+            "av": "AV_EQUIPMENT",
+            "audiovisual": "AV_EQUIPMENT",
+            "carpenter": "STRUCTURAL_SAFETY",
+            "structural": "STRUCTURAL_SAFETY",
+            "safety": "STRUCTURAL_SAFETY",
+        }
+
+        target_role = None
+        if worker_role:
+            clean_role = worker_role.strip().lower()
+            target_role = ROLE_MAP.get(clean_role, worker_role.upper())
+
         # 1. Fetch work order details
         wo = await conn.fetchrow(
             """
@@ -108,7 +137,14 @@ class StaffingService:
             raise ResourceNotFoundError("Work Order", work_order_id)
 
         category = wo["category"]
-        if not category:
+        if not category and target_role:
+            category = target_role
+            await conn.execute(
+                "UPDATE work_orders SET category = $2::issue_category WHERE id = $1;",
+                work_order_id, category
+            )
+
+        if not category and not target_role and not worker_name:
             raise ConflictError("Work order must have a categorized domain before technician assignment.")
 
         target_building = wo["building_code"]
@@ -118,45 +154,121 @@ class StaffingService:
         score = 0.0
         explanation = ""
 
-        if technician_id is not None:
-            # Manual assignment validation: check eligibility and active shift
+        # Case A: Worker Name and Email provided (register / assign custom worker)
+        if worker_name and worker_email:
+            worker_email_clean = worker_email.strip().lower()
+            worker_name_clean = worker_name.strip()
+            trade_role = target_role or category or "ELECTRICAL"
+
+            existing_user = await conn.fetchrow(
+                "SELECT id, full_name, email, role FROM users WHERE LOWER(email) = $1;",
+                worker_email_clean
+            )
+            if existing_user:
+                tech_id = existing_user["id"]
+                await conn.execute(
+                    "UPDATE users SET full_name = $2, role = 'TECHNICIAN', is_available = TRUE WHERE id = $1;",
+                    tech_id, worker_name_clean
+                )
+            else:
+                tech_id = await conn.fetchval(
+                    """
+                    INSERT INTO users (id, email, full_name, role, is_available, max_concurrent_workload, active_workload_count)
+                    VALUES (gen_random_uuid(), $1, $2, 'TECHNICIAN', TRUE, 5, 0)
+                    RETURNING id;
+                    """,
+                    worker_email_clean, worker_name_clean
+                )
+
+            # Ensure trade skill registered in staff_skills
+            await conn.execute(
+                """
+                INSERT INTO staff_skills (user_id, skill, proficiency_level)
+                VALUES ($1, $2::issue_category, 5)
+                ON CONFLICT (user_id, skill) DO UPDATE SET proficiency_level = 5;
+                """,
+                tech_id, trade_role
+            )
+
+            # Ensure active shift exists
+            await conn.execute(
+                """
+                INSERT INTO staff_shifts (user_id, shift_window)
+                VALUES ($1, tstzrange(NOW() - INTERVAL '1 day', NOW() + INTERVAL '30 days'))
+                ON CONFLICT DO NOTHING;
+                """,
+                tech_id
+            )
+
+            if not category:
+                category = trade_role
+                await conn.execute(
+                    "UPDATE work_orders SET category = $2::issue_category WHERE id = $1;",
+                    work_order_id, category
+                )
+
+            selected_tech = {
+                "id": tech_id,
+                "full_name": worker_name_clean,
+                "email": worker_email_clean,
+                "role": trade_role
+            }
+            score = 100.0
+            explanation = f"Manual worker assignment: {worker_name_clean} ({trade_role}) <{worker_email_clean}>."
+
+        # Case B: Direct assignment by existing technician_id
+        elif technician_id is not None:
             tech_check = await conn.fetchrow(
                 """
                 SELECT u.id, u.full_name, u.email, u.is_available, u.active_workload_count,
                        u.max_concurrent_workload, u.base_building_code,
                        sk.proficiency_level,
+                       sk.skill::text AS primary_skill,
                        EXISTS (
                            SELECT 1 FROM staff_shifts ss
                            WHERE ss.user_id = u.id AND ss.shift_window @> NOW()
                        ) AS on_shift
                 FROM users u
                 LEFT JOIN staff_skills sk ON sk.user_id = u.id AND sk.skill = $2::issue_category
-                WHERE u.id = $1 AND u.role = 'TECHNICIAN';
+                WHERE u.id = $1;
                 """,
                 technician_id,
-                category
+                category or "ELECTRICAL"
             )
             if not tech_check:
                 raise ResourceNotFoundError("Technician", technician_id)
 
-            if not tech_check["is_available"]:
-                raise ConflictError(f"Technician {tech_check['full_name']} is currently marked unavailable.")
-
+            # Auto-ensure skill & shift for administrative assignment
+            if tech_check["proficiency_level"] is None and category:
+                await conn.execute(
+                    """
+                    INSERT INTO staff_skills (user_id, skill, proficiency_level)
+                    VALUES ($1, $2::issue_category, 4)
+                    ON CONFLICT (user_id, skill) DO NOTHING;
+                    """,
+                    technician_id, category
+                )
             if not tech_check["on_shift"]:
-                raise ConflictError(f"Technician {tech_check['full_name']} is outside active shift hours.")
+                await conn.execute(
+                    """
+                    INSERT INTO staff_shifts (user_id, shift_window)
+                    VALUES ($1, tstzrange(NOW() - INTERVAL '1 day', NOW() + INTERVAL '30 days'))
+                    ON CONFLICT DO NOTHING;
+                    """,
+                    technician_id
+                )
 
-            if tech_check["proficiency_level"] is None:
-                raise ConflictError(f"Technician {tech_check['full_name']} does not have required skill for {category}.")
-
-            if tech_check["active_workload_count"] >= tech_check["max_concurrent_workload"]:
-                raise ConflictError(f"Technician {tech_check['full_name']} has reached max concurrent workload capacity.")
-
-            selected_tech = tech_check
+            selected_tech = {
+                "id": tech_check["id"],
+                "full_name": tech_check["full_name"],
+                "email": tech_check["email"],
+                "role": target_role or tech_check["primary_skill"] or category
+            }
             score = 100.0
-            explanation = f"Direct assignment by authorized manager: {tech_check['full_name']} verified on shift with skill {category}."
+            explanation = f"Direct assignment by authorized manager: {tech_check['full_name']}."
 
         else:
-            # Deterministic Auto-Assignment
+            # Case C: Deterministic Auto-Assignment
             candidates = await StaffingService.score_eligible_technicians(
                 conn, category=category, target_building=target_building
             )
@@ -167,7 +279,8 @@ class StaffingService:
             selected_tech = {
                 "id": top_candidate.technician_id,
                 "full_name": top_candidate.full_name,
-                "email": top_candidate.email
+                "email": top_candidate.email,
+                "role": category
             }
             score = top_candidate.total_score
             explanation = top_candidate.explanation
@@ -196,7 +309,7 @@ class StaffingService:
             )
 
         # 3. Update work order state and technician
-        new_state = "ASSIGNED" if wo["state"] in ("INGESTED", "TRIAGED") else wo["state"]
+        new_state = "ASSIGNED" if wo["state"] in ("INGESTED", "TRIAGED", "AWAITING_CLARIFICATION") else wo["state"]
         await conn.execute(
             """
             UPDATE work_orders
@@ -242,10 +355,37 @@ class StaffingService:
             assigned_tech_id=new_tech_id,
             assigned_tech_name=selected_tech["full_name"],
             assigned_tech_email=selected_tech["email"],
+            assigned_tech_role=selected_tech.get("role") or category,
             score=score,
             explanation=explanation,
             work_order_state=new_state
         )
+
+    @staticmethod
+    async def list_technicians(conn: asyncpg.Connection) -> List[TechnicianSummary]:
+        """Lists all technicians registered with their skills, workload and availability."""
+        rows = await conn.fetch(
+            """
+            SELECT u.id, u.full_name, u.email, u.is_available, u.active_workload_count,
+                   COALESCE(ARRAY_AGG(sk.skill::text) FILTER (WHERE sk.skill IS NOT NULL), '{}') AS roles
+            FROM users u
+            LEFT JOIN staff_skills sk ON sk.user_id = u.id
+            WHERE u.role = 'TECHNICIAN'
+            GROUP BY u.id, u.full_name, u.email, u.is_available, u.active_workload_count
+            ORDER BY u.full_name ASC;
+            """
+        )
+        return [
+            TechnicianSummary(
+                id=r["id"],
+                full_name=r["full_name"],
+                email=r["email"],
+                roles=list(r["roles"]),
+                is_available=r["is_available"],
+                active_workload_count=r["active_workload_count"]
+            )
+            for r in rows
+        ]
 
     @staticmethod
     async def toggle_availability(

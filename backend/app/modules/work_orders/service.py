@@ -101,12 +101,17 @@ class WorkOrderService:
                    wo.parent_master_wo_id, wo.category, wo.reporter_urgency,
                    wo.calculated_priority, wo.impact_score, wo.state, wo.raw_description,
                    wo.ai_summary, wo.assigned_tech_id, u.full_name AS assigned_tech_name,
+                   u.email AS assigned_tech_email,
+                   sk.skill::text AS assigned_tech_role,
                    wo.department_id, wo.estimated_cost, wo.estimated_duration_mins,
                    wo.reassignment_count, wo.correlator_reporter_count, wo.sla_is_paused,
                    wo.sla_breached, wo.blocked_reason, wo.created_at, wo.updated_at, wo.resolved_at
             FROM work_orders wo
             LEFT JOIN campus_nodes cn ON wo.target_node_id = cn.id
             LEFT JOIN users u ON wo.assigned_tech_id = u.id
+            LEFT JOIN LATERAL (
+                SELECT skill FROM staff_skills WHERE user_id = u.id LIMIT 1
+            ) sk ON true
             WHERE wo.id = $1;
             """,
             work_order_id
@@ -155,6 +160,8 @@ class WorkOrderService:
             ai_summary=row["ai_summary"],
             assigned_tech_id=row["assigned_tech_id"],
             assigned_tech_name=row["assigned_tech_name"],
+            assigned_tech_email=row["assigned_tech_email"],
+            assigned_tech_role=row["assigned_tech_role"],
             department_id=row["department_id"],
             estimated_cost=row["estimated_cost"],
             estimated_duration_mins=row["estimated_duration_mins"],

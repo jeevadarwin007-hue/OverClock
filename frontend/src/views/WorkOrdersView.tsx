@@ -3,7 +3,6 @@ import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import {
   ClipboardList,
-  Filter,
   Search,
   MessageSquare,
   Play,
@@ -12,11 +11,27 @@ import {
   Wrench,
   Clock,
   User,
+  Mail,
+  Briefcase,
   Shield,
   ArrowRight,
   Send,
   X,
+  UserCheck,
+  UserPlus,
+  RefreshCw,
+  Zap,
+  Droplets,
 } from 'lucide-react';
+
+const WORKER_ROLE_OPTIONS = [
+  { value: 'ELECTRICAL', label: 'Electrician', icon: '⚡', desc: 'Wiring, MCB, lighting, and power distribution' },
+  { value: 'PLUMBING', label: 'Plumber', icon: '🔧', desc: 'Pipes, leakage, valves, and water supply' },
+  { value: 'HVAC', label: 'HVAC / AC Technician', icon: '❄️', desc: 'Air conditioning, chillers, and ducts' },
+  { value: 'NETWORK', label: 'Network & IT Specialist', icon: '🌐', desc: 'Ethernet ports, Wi-Fi APs, and routers' },
+  { value: 'AV_EQUIPMENT', label: 'Audio / Visual Technician', icon: '🔊', desc: 'Projectors, speakers, and amplifiers' },
+  { value: 'STRUCTURAL_SAFETY', label: 'Carpenter / Safety', icon: '🦺', desc: 'Doors, windows, civil repairs, and fire extinguishers' },
+];
 
 export const WorkOrdersView: React.FC = () => {
   const { currentUser } = useAuth();
@@ -27,6 +42,16 @@ export const WorkOrdersView: React.FC = () => {
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
   const [clarifyText, setClarifyText] = useState('');
   const [isSubmittingClarify, setIsSubmittingClarify] = useState(false);
+
+  // Assign Worker Modal State
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [assignError, setAssignError] = useState<string | null>(null);
+  const [workerForm, setWorkerForm] = useState({
+    worker_name: '',
+    worker_email: '',
+    worker_role: 'ELECTRICAL',
+  });
 
   const fetchWorkOrders = async () => {
     try {
@@ -47,6 +72,47 @@ export const WorkOrdersView: React.FC = () => {
   useEffect(() => {
     fetchWorkOrders();
   }, [currentUser]);
+
+  const handleOpenAssignModal = (ticket: any) => {
+    setSelectedTicket(ticket);
+    setAssignError(null);
+    setWorkerForm({
+      worker_name: ticket.assigned_tech_name || '',
+      worker_email: ticket.assigned_tech_email || '',
+      worker_role: ticket.assigned_tech_role || ticket.category || 'ELECTRICAL',
+    });
+    setIsAssignModalOpen(true);
+  };
+
+  const handleAssignWorker = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedTicket) return;
+    if (!workerForm.worker_name.trim()) {
+      setAssignError('Worker name is required.');
+      return;
+    }
+    if (!workerForm.worker_email.trim()) {
+      setAssignError('Worker email is required.');
+      return;
+    }
+
+    try {
+      setIsAssigning(true);
+      setAssignError(null);
+      await api.post(`/work-orders/${selectedTicket.id}/assign`, {
+        worker_name: workerForm.worker_name.trim(),
+        worker_email: workerForm.worker_email.trim(),
+        worker_role: workerForm.worker_role,
+      });
+
+      setIsAssignModalOpen(false);
+      await fetchWorkOrders();
+    } catch (err: any) {
+      setAssignError(err.message || 'Failed to assign worker.');
+    } finally {
+      setIsAssigning(false);
+    }
+  };
 
   const handleTransition = async (targetState: string, reason: string) => {
     if (!selectedTicket) return;
@@ -84,7 +150,10 @@ export const WorkOrdersView: React.FC = () => {
     const matchesSearch =
       wo.ticket_number?.toString().includes(searchQuery) ||
       (wo.node_code || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (wo.raw_description || '').toLowerCase().includes(searchQuery.toLowerCase());
+      (wo.raw_description || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (wo.assigned_tech_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (wo.assigned_tech_email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (wo.assigned_tech_role || '').toLowerCase().includes(searchQuery.toLowerCase());
     return matchesState && matchesSearch;
   });
 
@@ -110,6 +179,26 @@ export const WorkOrdersView: React.FC = () => {
     }
   };
 
+  const getRoleBadge = (role: string | null) => {
+    if (!role) return null;
+    switch (role.toUpperCase()) {
+      case 'ELECTRICAL':
+        return { label: 'Electrician', icon: '⚡', color: 'bg-amber-500/20 text-amber-300 border-amber-500/30' };
+      case 'PLUMBING':
+        return { label: 'Plumber', icon: '🔧', color: 'bg-blue-500/20 text-blue-300 border-blue-500/30' };
+      case 'HVAC':
+        return { label: 'HVAC Tech', icon: '❄️', color: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30' };
+      case 'NETWORK':
+        return { label: 'Network IT', icon: '🌐', color: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30' };
+      case 'AV_EQUIPMENT':
+        return { label: 'AV Specialist', icon: '🔊', color: 'bg-rose-500/20 text-rose-300 border-rose-500/30' };
+      case 'STRUCTURAL_SAFETY':
+        return { label: 'Carpenter / Safety', icon: '🦺', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' };
+      default:
+        return { label: role, icon: '🛠️', color: 'bg-slate-700/30 text-slate-300 border-slate-700' };
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header & Filter Controls */}
@@ -118,24 +207,24 @@ export const WorkOrdersView: React.FC = () => {
           <ClipboardList className="w-5 h-5 text-blue-400" />
           <div>
             <h2 className="text-base font-bold text-white tracking-tight">
-              Work Orders
+              Work Orders & Staff Dispatch
             </h2>
             <p className="text-xs text-slate-400">
-              Track, assign, and resolve campus maintenance tickets.
+              Track incidents, dispatch electricians & plumbers, and manage repairs.
             </p>
           </div>
         </div>
 
-        {/* Filter controls */}
+        {/* Filter & Search controls */}
         <div className="flex items-center space-x-3">
           <div className="relative">
             <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
             <input
               type="text"
-              placeholder="Search by ticket or room..."
+              placeholder="Search ticket, room, worker..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono w-48"
+              className="bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono w-56"
             />
           </div>
 
@@ -168,41 +257,66 @@ export const WorkOrdersView: React.FC = () => {
                   <th className="py-3 px-3">Room / Node</th>
                   <th className="py-3 px-3">Category</th>
                   <th className="py-3 px-3">State</th>
-                  <th className="py-3 px-3">Priority</th>
-                  <th className="py-3 px-3">Reporters</th>
+                  <th className="py-3 px-3">Assigned Worker</th>
+                  <th className="py-3 px-3 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 font-sans">
-                {filteredTickets.map((t) => (
-                  <tr
-                    key={t.id}
-                    onClick={() => setSelectedTicket(t)}
-                    className={`cursor-pointer transition ${
-                      selectedTicket?.id === t.id ? 'bg-blue-600/15 border-l-2 border-blue-500' : 'hover:bg-slate-800/40'
-                    }`}
-                  >
-                    <td className="py-3 px-3 font-mono text-blue-400 font-bold">#{t.ticket_number}</td>
-                    <td className="py-3 px-3 font-mono text-slate-200">{t.node_code || 'General'}</td>
-                    <td className="py-3 px-3 font-mono text-slate-300 text-[11px]">{t.category}</td>
-                    <td className="py-3 px-3">
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono border ${getStateBadge(t.state)}`}>
-                        {t.state}
-                      </span>
-                    </td>
-                    <td className="py-3 px-3">
-                      <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${
-                        t.calculated_priority === 'P0_CRITICAL'
-                          ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                          : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                      }`}>
-                        {t.calculated_priority}
-                      </span>
-                    </td>
-                    <td className="py-3 px-3 font-mono text-slate-400">
-                      {t.correlator_reporter_count || 1}
+                {filteredTickets.map((t) => {
+                  const roleBadge = getRoleBadge(t.assigned_tech_role || t.category);
+                  return (
+                    <tr
+                      key={t.id}
+                      onClick={() => setSelectedTicket(t)}
+                      className={`cursor-pointer transition ${
+                        selectedTicket?.id === t.id ? 'bg-blue-600/15 border-l-2 border-blue-500' : 'hover:bg-slate-800/40'
+                      }`}
+                    >
+                      <td className="py-3 px-3 font-mono text-blue-400 font-bold">#{t.ticket_number}</td>
+                      <td className="py-3 px-3 font-mono text-slate-200">{t.node_code || 'General'}</td>
+                      <td className="py-3 px-3 font-mono text-slate-300 text-[11px]">{t.category || 'TBD'}</td>
+                      <td className="py-3 px-3">
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono border ${getStateBadge(t.state)}`}>
+                          {t.state}
+                        </span>
+                      </td>
+                      <td className="py-3 px-3">
+                        {t.assigned_tech_name ? (
+                          <div className="flex flex-col space-y-0.5">
+                            <span className="font-semibold text-slate-100">{t.assigned_tech_name}</span>
+                            {roleBadge && (
+                              <span className={`inline-flex items-center space-x-1 px-1.5 py-0.2 rounded text-[10px] font-mono border w-fit ${roleBadge.color}`}>
+                                <span>{roleBadge.icon}</span>
+                                <span>{roleBadge.label}</span>
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-slate-500 italic text-[11px]">Unassigned</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-3 text-right">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenAssignModal(t);
+                          }}
+                          className="px-2.5 py-1 bg-slate-800 hover:bg-blue-600 text-slate-200 hover:text-white rounded text-[11px] font-medium border border-slate-700 hover:border-blue-500 transition shadow-sm"
+                          title="Assign or change worker"
+                        >
+                          {t.assigned_tech_name ? 'Reassign' : 'Assign Worker'}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {filteredTickets.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="py-12 text-center text-slate-500 text-xs">
+                      No work orders matching the selected filter.
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
@@ -242,6 +356,53 @@ export const WorkOrdersView: React.FC = () => {
                   <span className="text-slate-500 block text-[10px]">Priority</span>
                   <span className="text-rose-400 font-bold">{selectedTicket.calculated_priority}</span>
                 </div>
+              </div>
+
+              {/* Assigned Worker Card */}
+              <div className="p-3.5 bg-slate-950 border border-slate-800 rounded-lg space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center space-x-1.5">
+                    <User className="w-3.5 h-3.5 text-blue-400" />
+                    <span>Assigned Maintenance Worker</span>
+                  </span>
+                  <button
+                    onClick={() => handleOpenAssignModal(selectedTicket)}
+                    className="text-[11px] text-blue-400 hover:text-blue-300 font-semibold transition"
+                  >
+                    {selectedTicket.assigned_tech_name ? 'Change Worker' : '+ Assign'}
+                  </button>
+                </div>
+
+                {selectedTicket.assigned_tech_name ? (
+                  <div className="space-y-1.5 pt-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-bold text-white">{selectedTicket.assigned_tech_name}</span>
+                      {(() => {
+                        const badge = getRoleBadge(selectedTicket.assigned_tech_role || selectedTicket.category);
+                        return badge ? (
+                          <span className={`inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[11px] font-mono border ${badge.color}`}>
+                            <span>{badge.icon}</span>
+                            <span>{badge.label}</span>
+                          </span>
+                        ) : null;
+                      })()}
+                    </div>
+                    <div className="flex items-center space-x-1.5 text-xs text-slate-400 font-mono">
+                      <Mail className="w-3.5 h-3.5 text-slate-500" />
+                      <span>{selectedTicket.assigned_tech_email || 'No email registered'}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="py-2 text-center text-xs text-slate-500 bg-slate-900/50 rounded border border-dashed border-slate-800">
+                    No worker assigned yet.{' '}
+                    <button
+                      onClick={() => handleOpenAssignModal(selectedTicket)}
+                      className="text-blue-400 underline hover:text-blue-300 font-semibold ml-1"
+                    >
+                      Assign now
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Stateful Clarification Loop Box (if AWAITING_CLARIFICATION) */}
@@ -317,12 +478,112 @@ export const WorkOrdersView: React.FC = () => {
             </div>
           ) : (
             <div className="h-full flex items-center justify-center text-slate-500 text-xs py-16">
-              Select a work order from the table to inspect details and execute state transitions.
+              Select a work order from the table to inspect details and assign workers.
             </div>
           )}
         </div>
       </div>
+
+      {/* Modal: Assign Worker (Name, Email, Role) */}
+      {isAssignModalOpen && selectedTicket && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-md w-full p-6 shadow-2xl relative space-y-4">
+            <button
+              onClick={() => setIsAssignModalOpen(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center space-x-2.5 border-b border-slate-800 pb-3">
+              <div className="p-2 bg-blue-500/10 text-blue-400 rounded-lg border border-blue-500/20">
+                <UserCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-white text-sm">Assign Maintenance Worker</h3>
+                <p className="text-xs text-slate-400">
+                  Assign to Ticket #{selectedTicket.ticket_number} ({selectedTicket.node_code || 'General'})
+                </p>
+              </div>
+            </div>
+
+            {assignError && (
+              <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-lg text-rose-300 text-xs">
+                {assignError}
+              </div>
+            )}
+
+            <form onSubmit={handleAssignWorker} className="space-y-3.5">
+              {/* Worker Name */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Worker Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Murugan P"
+                  value={workerForm.worker_name}
+                  onChange={(e) => setWorkerForm({ ...workerForm, worker_name: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 font-sans"
+                />
+              </div>
+
+              {/* Worker Email */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Worker Email Address *
+                </label>
+                <input
+                  type="email"
+                  required
+                  placeholder="e.g. murugan.plumber@easwari.edu"
+                  value={workerForm.worker_email}
+                  onChange={(e) => setWorkerForm({ ...workerForm, worker_email: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 font-mono"
+                />
+              </div>
+
+              {/* Worker Role / Trade */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Worker Role / Trade *
+                </label>
+                <select
+                  value={workerForm.worker_role}
+                  onChange={(e) => setWorkerForm({ ...workerForm, worker_role: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-sans"
+                >
+                  {WORKER_ROLE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.icon} {opt.label} — {opt.desc}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end space-x-2 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setIsAssignModalOpen(false)}
+                  className="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isAssigning}
+                  className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold shadow-md shadow-blue-500/20 transition flex items-center space-x-1.5"
+                >
+                  <UserCheck className="w-3.5 h-3.5" />
+                  <span>{isAssigning ? 'Assigning...' : 'Confirm Assignment'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
-
