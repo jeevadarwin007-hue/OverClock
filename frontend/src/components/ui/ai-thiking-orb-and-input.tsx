@@ -27,7 +27,12 @@ const CARD_H = 120;
 const FLY_D = 138;
 const pillW = () => Math.min(560, window.innerWidth - 32);
 const cardW = () => Math.min(420, window.innerWidth - 32);
-const homeDy = () => window.innerHeight * 0.54 - 96; // pill centre is 96px above the viewport bottom; stage centre is at top:46%
+// Use the container's clientHeight so the pill stays visible inside the embedded container
+let _containerH = 0;
+const homeDy = () => {
+  const h = _containerH > 100 ? _containerH : window.innerHeight;
+  return h * 0.54 - 96;
+};
 
 /* ───────────────────────── math + easing ───────────────────────── */
 type Ease = (t: number) => number;
@@ -828,6 +833,12 @@ export default function MorphOrb(props: MorphOrbProps) {
     const ghosts = ghostRefs.current.filter((g): g is HTMLSpanElement => !!g);
     if (!root || !mover || !actor || !canvas || !pulse || !status || !form) return;
 
+    // Sync container height so homeDy() places the pill inside the embedded div, not off-screen
+    const syncH = () => { _containerH = root.clientHeight; };
+    syncH();
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(syncH) : null;
+    ro?.observe(root);
+
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
     reducedRef.current = mq.matches;
     const onMq = (e: MediaQueryListEvent) => { reducedRef.current = e.matches; };
@@ -859,6 +870,7 @@ export default function MorphOrb(props: MorphOrbProps) {
       }
     };
     const onResize = () => {
+      syncH();
       if (phaseRef.current === "idle" && !rt.busy()) rt.home();
     };
     window.addEventListener("keydown", onKey);
@@ -866,6 +878,7 @@ export default function MorphOrb(props: MorphOrbProps) {
     inputRef.current?.focus({ preventScroll: true });
 
     return () => {
+      ro?.disconnect();
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("resize", onResize);
       mq.removeEventListener("change", onMq);
@@ -1046,3 +1059,4 @@ export default function MorphOrb(props: MorphOrbProps) {
     </div>
   );
 }
+

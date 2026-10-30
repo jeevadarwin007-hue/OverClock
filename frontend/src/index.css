@@ -377,7 +377,7 @@ tr.spring-row:hover {
   align-items: center;
   justify-content: center;
   background: transparent;
-  overflow: hidden;
+  overflow: visible;
   user-select: none;
 }
 

@@ -39,30 +39,16 @@ export const Header: React.FC<HeaderProps> = ({
   onTabChange,
   loadingTab = null,
 }) => {
-  const { currentUser, switchUser, loading } = useAuth();
-  const [pendingPersona, setPendingPersona] = useState<(typeof SEEDED_USERS)[number] | null>(null);
-  const [personaPassword, setPersonaPassword] = useState('');
-  const [personaError, setPersonaError] = useState('');
+  const { currentUser, switchUser } = useAuth();
   const [themeMenuOpen, setThemeMenuOpen] = useState(false);
   const isAdmin = currentUser.role === 'SYS_ADMIN' || currentUser.role === 'FACILITIES_ADMIN';
 
-  const requestPersonaSwitch = (user: (typeof SEEDED_USERS)[number]) => {
+  const requestPersonaSwitch = async (user: (typeof SEEDED_USERS)[number]) => {
     if (user.role === currentUser.role) return;
-    setPendingPersona(user);
-    setPersonaPassword('');
-    setPersonaError('');
-  };
-
-  const confirmPersonaSwitch = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!pendingPersona) return;
     try {
-      await switchUser(pendingPersona, personaPassword);
-      setPendingPersona(null);
-      setPersonaPassword('');
-      setPersonaError('');
+      await switchUser(user, '');
     } catch (error) {
-      setPersonaError((error as Error).message);
+      console.error('Could not switch CampusOps role:', error);
     }
   };
 
@@ -217,46 +203,6 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {pendingPersona && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <form
-            onSubmit={confirmPersonaSwitch}
-            className="w-full max-w-sm space-y-4 rounded-2xl border border-white/15 bg-[#0b0d15] p-5 shadow-2xl"
-          >
-            <div>
-              <h2 className="text-sm font-semibold text-white">Sign in as {pendingPersona.name}</h2>
-              <p className="mt-1 text-xs text-neutral-400">Confirm this account with its password.</p>
-            </div>
-            <input
-              autoFocus
-              type="password"
-              autoComplete="current-password"
-              required
-              value={personaPassword}
-              onChange={(event) => setPersonaPassword(event.target.value)}
-              placeholder="Password"
-              className="w-full rounded-xl border border-white/15 bg-black/60 px-3 py-2 text-sm text-white outline-none focus:border-white/40"
-            />
-            {personaError && <p role="alert" className="text-xs text-red-400">{personaError}</p>}
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setPendingPersona(null)}
-                className="rounded-full border border-white/15 px-4 py-2 text-xs text-neutral-300 hover:bg-white/5"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={!personaPassword || loading}
-                className="rounded-full bg-white px-4 py-2 text-xs font-semibold text-black disabled:opacity-50"
-              >
-                Continue
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
     </header>
   );
 };
