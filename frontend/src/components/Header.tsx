@@ -1,9 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth, SEEDED_USERS } from '../context/AuthContext';
 import {
-  ShieldAlert,
-  MapPin,
-  CheckCircle2,
   LayoutDashboard,
   Box,
   DoorOpen,
@@ -12,6 +9,12 @@ import {
   ShieldCheck,
   Shield,
   GraduationCap,
+  Users,
+  Search,
+  Terminal,
+  Activity,
+  MapPin,
+  ChevronRight,
 } from 'lucide-react';
 
 export type TabType =
@@ -20,120 +23,165 @@ export type TabType =
   | 'room-management'
   | 'work-orders'
   | 'inventory-approvals'
+  | 'worker-roster'
   | 'invariants';
 
 interface HeaderProps {
   activeTab: TabType;
   onTabChange: (tab: TabType) => void;
   allInvariantsPass?: boolean;
+  selectedBreadcrumbNode?: string;
+  onBreadcrumbClick?: (segment: string) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   activeTab,
   onTabChange,
   allInvariantsPass = true,
+  selectedBreadcrumbNode = 'RM-ACAD-204',
+  onBreadcrumbClick,
 }) => {
   const { currentUser, switchUser } = useAuth();
+  const isAdmin = currentUser.role === 'SYS_ADMIN' || currentUser.role === 'FACILITIES_ADMIN';
 
-  const navItems: { id: TabType; label: string; icon: any }[] = [
+  const [commandBarOpen, setCommandBarOpen] = useState(false);
+  const [commandInput, setCommandInput] = useState('');
+
+  const navItems: { id: TabType; label: string; icon: any; adminOnly?: boolean }[] = [
     { id: 'command-center', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'campus-explorer', label: 'Campus Map', icon: Box },
     { id: 'room-management', label: 'Rooms', icon: DoorOpen },
     { id: 'work-orders', label: 'Work Orders', icon: ClipboardList },
     { id: 'inventory-approvals', label: 'Inventory & Approvals', icon: Layers },
+    { id: 'worker-roster', label: 'Worker Roster', icon: Users, adminOnly: true },
     { id: 'invariants', label: 'System Status', icon: ShieldCheck },
   ];
 
   return (
-    <header className="sticky top-0 z-50 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 shadow-md">
-      {/* Top Banner */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Institution Info */}
-          <div className="flex items-center space-x-3">
-            <div className="h-9 w-9 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-white shadow-md shadow-blue-500/20 text-base">
-              CO
-            </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <span className="font-bold text-base text-white tracking-tight">CampusOps</span>
-                <span className="text-[11px] px-2 py-0.5 rounded font-medium bg-blue-500/10 text-blue-300 border border-blue-500/20">
-                  SRM Easwari
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-400">Operations & Facilities Platform</p>
-            </div>
+    <header className="h-[52px] bg-slate-950 border-b border-slate-800 px-3 flex items-center justify-between shrink-0 select-none z-50">
+      {/* Zone 1 Left: Brand & Hierarchical Topological Breadcrumb */}
+      <div className="flex items-center space-x-3 shrink-0">
+        <div className="flex items-center space-x-2">
+          <div className="h-7 w-7 rounded bg-blue-600 flex items-center justify-center font-bold text-white text-xs shadow-sm">
+            CO
           </div>
-
-          {/* Right Status & Static User Profile */}
-          <div className="flex items-center space-x-3">
-            {/* System Status Pill */}
-            <div
-              className={`flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-medium border ${
-                allInvariantsPass
-                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25'
-                  : 'bg-rose-500/10 text-rose-400 border-rose-500/25'
-              }`}
-            >
-              <span className={`w-2 h-2 rounded-full ${allInvariantsPass ? 'bg-emerald-400' : 'bg-rose-400'}`} />
-              <span>{allInvariantsPass ? 'System Online' : 'System Alert'}</span>
-            </div>
-
-            {/* 2-Account Switcher: Admin (Approvals) vs Student / Staff (Reports) */}
-            <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800">
-              <button
-                onClick={() => switchUser(SEEDED_USERS[0])}
-                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                  currentUser.role === 'SYS_ADMIN'
-                    ? 'bg-purple-600 text-white shadow-md shadow-purple-500/25'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-                title="Switch to Administrator for approvals and operations"
-              >
-                <Shield className="w-3.5 h-3.5" />
-                <span>Admin (Approvals)</span>
-              </button>
-
-              <button
-                onClick={() => switchUser(SEEDED_USERS[1])}
-                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                  currentUser.role === 'STUDENT_FACULTY'
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-                title="Switch to Student / Staff for reporting incidents"
-              >
-                <GraduationCap className="w-3.5 h-3.5" />
-                <span>Student / Staff (Report)</span>
-              </button>
-            </div>
-          </div>
+          <span className="font-bold text-xs tracking-tight text-white uppercase font-mono">
+            CampusOps
+          </span>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="flex space-x-1 overflow-x-auto py-2 border-t border-slate-800/60">
-          {navItems.map((item) => {
+        <div className="h-4 w-px bg-slate-800" />
+
+        {/* Monospace Topological Breadcrumb Path */}
+        <nav className="flex items-center space-x-1 font-mono text-[11px] text-slate-400">
+          <button
+            onClick={() => onBreadcrumbClick?.('CAMPUS')}
+            className="hover:text-blue-400 transition"
+          >
+            SRM-EEC
+          </button>
+          <ChevronRight className="w-3 h-3 text-slate-600" />
+          <button
+            onClick={() => onBreadcrumbClick?.('BLOCK')}
+            className="hover:text-blue-400 transition"
+          >
+            EEC-ACAD
+          </button>
+          <ChevronRight className="w-3 h-3 text-slate-600" />
+          <button
+            onClick={() => onBreadcrumbClick?.('FLOOR')}
+            className="hover:text-blue-400 transition"
+          >
+            Fl 2
+          </button>
+          <ChevronRight className="w-3 h-3 text-slate-600" />
+          <button
+            onClick={() => onBreadcrumbClick?.('ROOM')}
+            className="text-blue-400 font-semibold hover:underline"
+          >
+            {selectedBreadcrumbNode}
+          </button>
+        </nav>
+      </div>
+
+      {/* Zone 1 Center: Enclosed Segmented Control Strip */}
+      <div className="flex items-center bg-slate-900 border border-slate-800 rounded p-0.5 space-x-0.5">
+        {navItems
+          .filter((item) => !item.adminOnly || isAdmin)
+          .map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
             return (
               <button
                 key={item.id}
                 onClick={() => onTabChange(item.id)}
-                className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+                className={`flex items-center space-x-1.5 px-2.5 py-1 rounded text-[11px] font-mono transition-all ${
                   isActive
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                    ? 'bg-blue-600 text-white font-bold shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
                 }`}
               >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                <Icon className="w-3 h-3" />
                 <span>{item.label}</span>
               </button>
             );
           })}
+      </div>
+
+      {/* Zone 1 Right: Command Trigger + Env Badge + Strict 2-Role Persona Switcher */}
+      <div className="flex items-center space-x-2 shrink-0">
+        {/* Command Bar Trigger */}
+        <div className="relative">
+          <div className="flex items-center bg-slate-900 border border-slate-800 rounded px-2 py-1 space-x-1.5 text-xs text-slate-400 cursor-pointer hover:border-slate-700">
+            <Search className="w-3 h-3 text-slate-500" />
+            <input
+              type="text"
+              placeholder="Command / Jump..."
+              value={commandInput}
+              onChange={(e) => setCommandInput(e.target.value)}
+              className="bg-transparent text-[11px] font-mono text-slate-200 focus:outline-none w-28"
+            />
+            <kbd className="text-[9px] font-mono bg-slate-950 px-1 py-0.5 rounded border border-slate-800 text-slate-400">
+              ⌘K
+            </kbd>
+          </div>
+        </div>
+
+        {/* Live Environment Badge */}
+        <div className="flex items-center space-x-1.5 px-2 py-1 rounded bg-slate-900 border border-slate-800 text-[10px] font-mono text-slate-300">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+          <span>PROD</span>
+        </div>
+
+        {/* Strict 2-Role Persona Switcher: Admin (Approvals) vs Student / Staff (Report) */}
+        <div className="flex items-center bg-slate-900 p-0.5 rounded border border-slate-800">
+          <button
+            onClick={() => switchUser(SEEDED_USERS[0])}
+            className={`flex items-center space-x-1 px-2.5 py-1 rounded text-[11px] font-mono transition ${
+              currentUser.role === 'SYS_ADMIN'
+                ? 'bg-purple-600 text-white font-bold shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+            title="Administrator role: approvals, scheduling, and staff dispatch"
+          >
+            <Shield className="w-3 h-3" />
+            <span>Admin (Approvals)</span>
+          </button>
+
+          <button
+            onClick={() => switchUser(SEEDED_USERS[1])}
+            className={`flex items-center space-x-1 px-2.5 py-1 rounded text-[11px] font-mono transition ${
+              currentUser.role === 'STUDENT_FACULTY'
+                ? 'bg-blue-600 text-white font-bold shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+            title="Student / Staff role: report facility incidents and track status"
+          >
+            <GraduationCap className="w-3 h-3" />
+            <span>Student / Staff (Report)</span>
+          </button>
         </div>
       </div>
     </header>
   );
 };
-
-

@@ -68,3 +68,21 @@ class ToggleAvailabilityResponse(BaseModel):
     affected_work_orders_count: int
     reassignments: List[DynamicReassignmentItem]
 
+
+class RegisterWorkerRequest(BaseModel):
+    full_name: str = Field(..., min_length=2, max_length=120)
+    email: str = Field(..., min_length=5, max_length=120)
+    role: str = Field(default="ELECTRICAL")  # ELECTRICAL, PLUMBING, HVAC, NETWORK, AV_EQUIPMENT, STRUCTURAL_SAFETY
+
+
+class WorkerDetail(BaseModel):
+    id: UUID
+    full_name: str
+    email: str
+    role: str
+    skills: List[str] = []
+    is_available: bool = True
+    active_workload_count: int = 0
+    max_concurrent_workload: int = 5
+
+

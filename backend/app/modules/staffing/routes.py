@@ -9,6 +9,8 @@ from app.modules.staffing.schemas import (
     ToggleAvailabilityRequest,
     ToggleAvailabilityResponse,
     TechnicianSummary,
+    RegisterWorkerRequest,
+    WorkerDetail,
 )
 from app.modules.staffing.service import StaffingService
 
@@ -79,4 +81,60 @@ async def toggle_staff_availability(
                 reason=request.reason,
                 actor_id=current_user.id
             )
+
+
+@router.get("/staff/workers", response_model=List[WorkerDetail])
+async def list_workers(
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """
+    Returns registered technicians and maintenance personnel.
+    """
+    async with acquire_db_connection(
+        actor_id=current_user.id,
+        actor_role=current_user.role,
+        dept_id=current_user.department_id,
+    ) as conn:
+        return await StaffingService.list_registered_workers(conn)
+
+
+@router.post("/staff/workers", response_model=WorkerDetail, status_code=status.HTTP_201_CREATED)
+async def register_worker(
+    request: RegisterWorkerRequest,
+    current_user: CurrentUser = Depends(require_roles(["SYS_ADMIN", "FACILITIES_ADMIN"])),
+):
+    """
+    Registers a maintenance worker (e.g. Electrician, Plumber) manually.
+    Admin only: SYS_ADMIN, FACILITIES_ADMIN.
+    """
+    async with acquire_db_connection(
+        actor_id=current_user.id,
+        actor_role=current_user.role,
+        dept_id=current_user.department_id,
+    ) as conn:
+        async with conn.transaction():
+            return await StaffingService.register_worker(
+                conn,
+                full_name=request.full_name,
+                email=request.email,
+                role=request.role
+            )
+
+
+@router.delete("/staff/workers/{id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_worker(
+    id: UUID,
+    current_user: CurrentUser = Depends(require_roles(["SYS_ADMIN", "FACILITIES_ADMIN"])),
+):
+    """
+    Deregisters a maintenance worker. Admin only.
+    """
+    async with acquire_db_connection(
+        actor_id=current_user.id,
+        actor_role=current_user.role,
+        dept_id=current_user.department_id,
+    ) as conn:
+        async with conn.transaction():
+            await StaffingService.delete_worker(conn, id)
+
 

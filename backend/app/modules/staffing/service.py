@@ -10,6 +10,7 @@ from app.modules.staffing.schemas import (
     DynamicReassignmentItem,
     ToggleAvailabilityResponse,
     TechnicianSummary,
+    WorkerDetail,
 )
 
 
@@ -660,4 +661,141 @@ class StaffingService:
             affected_work_orders_count=len(reassignments),
             reassignments=reassignments
         )
+
+    @staticmethod
+    async def register_worker(
+        conn: asyncpg.Connection,
+        full_name: str,
+        email: str,
+        role: str,
+    ) -> WorkerDetail:
+        ROLE_MAP = {
+            "electrician": "ELECTRICAL",
+            "electrical": "ELECTRICAL",
+            "plumber": "PLUMBING",
+            "plumbing": "PLUMBING",
+            "hvac": "HVAC",
+            "ac": "HVAC",
+            "cooling": "HVAC",
+            "network": "NETWORK",
+            "it": "NETWORK",
+            "audio": "AV_EQUIPMENT",
+            "av": "AV_EQUIPMENT",
+            "audiovisual": "AV_EQUIPMENT",
+            "carpenter": "STRUCTURAL_SAFETY",
+            "structural": "STRUCTURAL_SAFETY",
+            "safety": "STRUCTURAL_SAFETY",
+        }
+        trade_role = ROLE_MAP.get(role.strip().lower(), role.strip().upper())
+        valid_roles = ["ELECTRICAL", "HVAC", "PLUMBING", "NETWORK", "AV_EQUIPMENT", "FURNITURE", "STRUCTURAL_SAFETY"]
+        if trade_role not in valid_roles:
+            trade_role = "ELECTRICAL"
+
+        email_clean = email.strip().lower()
+        name_clean = full_name.strip()
+
+        existing = await conn.fetchrow(
+            "SELECT id, full_name, email, role FROM users WHERE LOWER(email) = $1;",
+            email_clean
+        )
+        if existing:
+            worker_id = existing["id"]
+            await conn.execute(
+                """
+                UPDATE users
+                SET full_name = $2, role = 'TECHNICIAN', is_available = TRUE
+                WHERE id = $1;
+                """,
+                worker_id, name_clean
+            )
+        else:
+            worker_id = await conn.fetchval(
+                """
+                INSERT INTO users (id, email, full_name, role, is_available, max_concurrent_workload, active_workload_count)
+                VALUES (gen_random_uuid(), $1, $2, 'TECHNICIAN', TRUE, 5, 0)
+                RETURNING id;
+                """,
+                email_clean, name_clean
+            )
+
+        # Register skill
+        await conn.execute(
+            """
+            INSERT INTO staff_skills (user_id, skill, proficiency_level)
+            VALUES ($1, $2::issue_category, 5)
+            ON CONFLICT (user_id, skill) DO UPDATE SET proficiency_level = 5;
+            """,
+            worker_id, trade_role
+        )
+
+        # Register active shift
+        await conn.execute(
+            """
+            INSERT INTO staff_shifts (user_id, shift_window)
+            VALUES ($1, tstzrange(NOW() - INTERVAL '1 day', NOW() + INTERVAL '365 days'));
+            """,
+            worker_id
+        )
+
+        return WorkerDetail(
+            id=worker_id,
+            full_name=name_clean,
+            email=email_clean,
+            role=trade_role,
+            skills=[trade_role],
+            is_available=True,
+            active_workload_count=0,
+            max_concurrent_workload=5,
+        )
+
+    @staticmethod
+    async def list_registered_workers(conn: asyncpg.Connection) -> List[WorkerDetail]:
+        rows = await conn.fetch(
+            """
+            SELECT u.id, u.full_name, u.email, u.role, u.is_available,
+                   u.active_workload_count, u.max_concurrent_workload,
+                   COALESCE(array_agg(sk.skill::text) FILTER (WHERE sk.skill IS NOT NULL), '{}') AS skills
+            FROM users u
+            LEFT JOIN staff_skills sk ON sk.user_id = u.id
+            WHERE u.role = 'TECHNICIAN'
+            GROUP BY u.id, u.full_name, u.email, u.role, u.is_available, u.active_workload_count, u.max_concurrent_workload
+            ORDER BY u.full_name ASC;
+            """
+        )
+        result = []
+        for r in rows:
+            primary_role = r["skills"][0] if r["skills"] else "GENERAL"
+            result.append(
+                WorkerDetail(
+                    id=r["id"],
+                    full_name=r["full_name"],
+                    email=r["email"],
+                    role=primary_role,
+                    skills=list(r["skills"]),
+                    is_available=r["is_available"],
+                    active_workload_count=r["active_workload_count"],
+                    max_concurrent_workload=r["max_concurrent_workload"]
+                )
+            )
+        return result
+
+    @staticmethod
+    async def delete_worker(conn: asyncpg.Connection, worker_id: UUID) -> bool:
+        # Check existence
+        existing = await conn.fetchrow("SELECT id FROM users WHERE id = $1 AND role = 'TECHNICIAN';", worker_id)
+        if not existing:
+            raise ResourceNotFoundError("Technician", worker_id)
+
+        # Unassign from any work orders
+        await conn.execute("UPDATE work_orders SET assigned_tech_id = NULL WHERE assigned_tech_id = $1;", worker_id)
+        # Clear staff skills & shifts
+        await conn.execute("DELETE FROM staff_skills WHERE user_id = $1;", worker_id)
+        await conn.execute("DELETE FROM staff_shifts WHERE user_id = $1;", worker_id)
+        # Clear foreign keys if any
+        await conn.execute("UPDATE outbound_notifications SET recipient_user_id = NULL WHERE recipient_user_id = $1;", worker_id)
+        await conn.execute("UPDATE audit_logs SET actor_user_id = NULL WHERE actor_user_id = $1;", worker_id)
+        # Delete user
+        await conn.execute("DELETE FROM users WHERE id = $1;", worker_id)
+        return True
+
 

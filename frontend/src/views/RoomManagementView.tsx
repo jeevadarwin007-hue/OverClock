@@ -317,7 +317,7 @@ export const RoomManagementView: React.FC = () => {
   const activeClassesCount = bookings.filter((b) => b.booking_type === 'CLASS').length;
 
   return (
-    <div className="space-y-6">
+    <div className="h-full flex flex-col bg-slate-950 text-slate-100 overflow-y-auto p-4 space-y-4">
       {/* Top Banner */}
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center space-x-3">

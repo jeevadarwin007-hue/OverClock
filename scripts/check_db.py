@@ -10,16 +10,16 @@ async def check():
     appr_count = await conn.fetchval("SELECT count(*) FROM approvals;")
     print(f"Inventory Parts: {parts_count}, Campus Rooms: {rooms_count}, Bookings: {bookings_count}, WorkOrders: {wo_count}, Approvals: {appr_count}")
     
-    if parts_count > 0:
-        parts = await conn.fetch("SELECT sku, name FROM inventory_parts LIMIT 5;")
-        for p in parts:
-            print("  Part:", p["sku"], p["name"])
-            
-    if rooms_count > 0:
-        rooms = await conn.fetch("SELECT node_code, name FROM campus_nodes WHERE node_type = 'ROOM' LIMIT 5;")
-        for r in rooms:
-            print("  Room:", r["node_code"], r["name"])
-            
+    users = await conn.fetch("SELECT id, full_name, email, role FROM users;")
+    print("\nUsers in DB:")
+    for u in users:
+        print(f"  {u['id']}: {u['full_name']} ({u['email']}) - Role: {u['role']}")
+        
+    skills = await conn.fetch("SELECT user_id, skill FROM staff_skills;")
+    print(f"\nStaff Skills count: {len(skills)}")
+    for s in skills:
+        print(f"  User {s['user_id']} -> Skill: {s['skill']}")
+
     await conn.close()
 
 if __name__ == "__main__":

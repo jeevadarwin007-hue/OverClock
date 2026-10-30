@@ -8,6 +8,7 @@ from app.core.exceptions import ResourceNotFoundError, ConflictError
 from app.modules.ai.llm_client import extract_incident_entities
 from app.modules.ai.agents import InstructionAgent, AntiHallucinationAgent
 from app.modules.correlation.service import CorrelationService
+from app.modules.staffing.service import StaffingService
 from app.modules.integrations.idempotency import claim_idempotency_key, complete_idempotency_key
 from app.modules.intake.schemas import InboundIntakeRequest, IntakeResponse
 
@@ -263,6 +264,26 @@ class IntakeService:
             correlation_action = correl_res.get("action", "NONE")
             if correlation_action == "MERGED_DUPLICATE":
                 wo_state = "MERGED_DUPLICATE"
+            else:
+                # Deterministic auto-dispatch to registered technician if available
+                try:
+                    candidates = await StaffingService.score_eligible_technicians(
+                        conn,
+                        category=category,
+                        target_building=node["building_code"] if node else None
+                    )
+                    if candidates:
+                        best_candidate = candidates[0]
+                        assign_res = await StaffingService.assign_technician(
+                            conn,
+                            work_order_id=wo_id,
+                            technician_id=best_candidate.technician_id,
+                            actor_id=reporter_id
+                        )
+                        wo_state = assign_res.work_order_state
+                except Exception:
+                    # Non-fatal if no technician registered on shift
+                    pass
         elif clarification_needed:
             # Queue clarification question notification
             user_email = await conn.fetchval("SELECT email FROM users WHERE id = $1;", reporter_id)

@@ -73,7 +73,7 @@ export const InvariantProofPanel: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="h-full flex flex-col bg-slate-950 text-slate-100 overflow-y-auto p-4 space-y-4">
       {/* Header Banner */}
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl flex items-center justify-between">
         <div className="flex items-center space-x-3">
