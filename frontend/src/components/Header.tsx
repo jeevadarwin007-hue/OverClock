@@ -44,9 +44,6 @@ export const Header: React.FC<HeaderProps> = ({
   const { currentUser, switchUser } = useAuth();
   const isAdmin = currentUser.role === 'SYS_ADMIN' || currentUser.role === 'FACILITIES_ADMIN';
 
-  const [commandBarOpen, setCommandBarOpen] = useState(false);
-  const [commandInput, setCommandInput] = useState('');
-
   const navItems: { id: TabType; label: string; icon: any; adminOnly?: boolean }[] = [
     { id: 'command-center', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'campus-explorer', label: 'Campus Map', icon: Box },
@@ -128,31 +125,8 @@ export const Header: React.FC<HeaderProps> = ({
           })}
       </div>
 
-      {/* Zone 1 Right: Command Trigger + Env Badge + Strict 2-Role Persona Switcher */}
+      {/* Zone 1 Right: Strict 2-Role Persona Switcher */}
       <div className="flex items-center space-x-2 shrink-0">
-        {/* Command Bar Trigger */}
-        <div className="relative">
-          <div className="flex items-center bg-slate-900 border border-slate-800 rounded px-2 py-1 space-x-1.5 text-xs text-slate-400 cursor-pointer hover:border-slate-700">
-            <Search className="w-3 h-3 text-slate-500" />
-            <input
-              type="text"
-              placeholder="Command / Jump..."
-              value={commandInput}
-              onChange={(e) => setCommandInput(e.target.value)}
-              className="bg-transparent text-[11px] font-mono text-slate-200 focus:outline-none w-28"
-            />
-            <kbd className="text-[9px] font-mono bg-slate-950 px-1 py-0.5 rounded border border-slate-800 text-slate-400">
-              ⌘K
-            </kbd>
-          </div>
-        </div>
-
-        {/* Live Environment Badge */}
-        <div className="flex items-center space-x-1.5 px-2 py-1 rounded bg-slate-900 border border-slate-800 text-[10px] font-mono text-slate-300">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-          <span>PROD</span>
-        </div>
-
         {/* Strict 2-Role Persona Switcher: Admin (Approvals) vs Student / Staff (Report) */}
         <div className="flex items-center bg-slate-900 p-0.5 rounded border border-slate-800">
           <button
