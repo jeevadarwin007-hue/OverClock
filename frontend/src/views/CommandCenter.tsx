@@ -23,13 +23,11 @@ import {
   Shield,
   Radio,
   Server,
-  Wifi,
   Sliders,
   User,
   Mail,
   Check,
   FileText,
-  Database,
 } from 'lucide-react';
 
 /* ==========================================================================
@@ -1112,28 +1110,24 @@ export const CommandCenter: React.FC = () => {
               label: 'DATABASE',
               sub: 'PostgreSQL 16',
               connected: connHealth.database,
-              icon: Database,
             },
             {
               id: 'network',
               label: 'NETWORK',
               sub: 'Campus Core API',
               connected: connHealth.network,
-              icon: Wifi,
             },
             {
               id: 'groq',
               label: 'GROQ',
               sub: 'LLaMA-3.3-70b',
               connected: connHealth.groq,
-              icon: Cpu,
             },
             {
               id: 'uptime',
               label: 'UPTIME',
               sub: 'System Invariants',
               connected: connHealth.uptime,
-              icon: Shield,
             },
           ];
 
@@ -1162,8 +1156,8 @@ export const CommandCenter: React.FC = () => {
                   const radius = 18;
                   const circumference = 2 * Math.PI * radius;
                   const isConn = item.connected;
-                  // Exact colors requested by user: Green if connected, Red if not connected
                   const ringColor = isConn ? '#34d399' : '#d73832';
+                  const glowColor = isConn ? 'rgba(52, 211, 153, 0.6)' : 'rgba(215, 56, 50, 0.7)';
                   const textColor = isConn ? 'text-emerald-400' : 'text-[#d73832]';
                   const dotColor = isConn
                     ? 'bg-emerald-400 shadow-[0_0_8px_#34d399]'
@@ -1173,17 +1167,18 @@ export const CommandCenter: React.FC = () => {
                     <div
                       key={item.id}
                       className="group flex flex-col items-center gap-1.5 cursor-pointer select-none transition-transform duration-200 hover:scale-105"
-                      title={`${item.label} (${item.sub}): ${isConn ? 'Connected / Healthy' : 'Disconnected / Offline'}`}
+                      title={`${item.label} (${item.sub}): ${isConn ? 'Connected / Healthy (100%)' : 'Disconnected / Offline (0%)'}`}
                     >
-                      <div className="relative h-12 w-12">
+                      {/* Circle Gauge Ring */}
+                      <div className="relative h-13 w-13 rounded-full bg-[#101217] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
                         <svg viewBox="0 0 46 46" className="h-full w-full -rotate-90" aria-hidden="true">
                           <circle
                             cx="23"
                             cy="23"
                             r={radius}
-                            fill="none"
+                            fill="#101217"
                             stroke="rgba(255,255,255,0.08)"
-                            strokeWidth="3.5"
+                            strokeWidth="3"
                           />
                           <circle
                             cx="23"
@@ -1191,35 +1186,41 @@ export const CommandCenter: React.FC = () => {
                             r={radius}
                             fill="none"
                             stroke={ringColor}
-                            strokeWidth="3.5"
+                            strokeWidth="3"
                             strokeLinecap="round"
                             strokeDasharray={circumference}
                             strokeDashoffset={0}
                             className="transition-all duration-500 ease-out"
                             style={{
-                              filter: `drop-shadow(0 0 5px ${isConn ? '#34d399' : '#d73832'})`,
+                              filter: `drop-shadow(0 0 6px ${glowColor})`,
                             }}
                           />
                         </svg>
-                        <span
-                          className={`absolute inset-0 flex items-center justify-center text-xs font-bold font-ndot ${textColor}`}
-                        >
-                          {isConn ? '100%' : '0%'}
-                        </span>
+
+                        {/* Real Data Inside the Ring: 100% in Green or 0% in Red */}
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <span className={`text-xs font-bold font-ndot ${textColor} tracking-tight`}>
+                            {isConn ? '100%' : '0%'}
+                          </span>
+                        </div>
                       </div>
-                      <span className="text-[10px] font-ndot text-neutral-300 uppercase tracking-wider group-hover:text-white transition-colors">
+
+                      {/* Service Label Below the Ring */}
+                      <span
+                        className={`text-[10px] font-ndot uppercase tracking-wider font-semibold transition-colors ${
+                          isConn ? 'text-neutral-300 group-hover:text-white' : 'text-neutral-400 group-hover:text-[#d73832]'
+                        }`}
+                      >
                         {item.label}
                       </span>
-                      <span className="flex items-center space-x-1 text-[9px] font-mono">
-                        <span
-                          className={`w-1.5 h-1.5 rounded-full ${dotColor} ${
-                            isConn ? 'animate-pulse' : 'animate-ping'
-                          }`}
-                        />
-                        <span className={isConn ? 'text-emerald-400 font-semibold' : 'text-[#d73832] font-semibold'}>
+
+                      {/* Live Status Indicator Below the Label */}
+                      <div className="flex items-center space-x-1">
+                        <span className={`w-1.5 h-1.5 rounded-full ${dotColor} ${isConn ? 'animate-pulse' : 'animate-ping'}`} />
+                        <span className={`text-[9px] font-mono tracking-tight font-semibold ${textColor}`}>
                           {isConn ? 'ONLINE' : 'OFFLINE'}
                         </span>
-                      </span>
+                      </div>
                     </div>
                   );
                 })}
