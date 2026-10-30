@@ -58,11 +58,11 @@ const AVAILABLE_BLOCKS = [
 ];
 
 const ROOM_TYPES = [
-  { value: 'CLASSROOM', label: 'Classroom / Lecture Hall', color: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
-  { value: 'LAB', label: 'Laboratory / Research Facility', color: 'bg-purple-500/20 text-purple-300 border-purple-500/30' },
-  { value: 'AUDITORIUM', label: 'Auditorium / Amphitheatre', color: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
-  { value: 'SEMINAR_HALL', label: 'Seminar Hall / Boardroom', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' },
-  { value: 'WORKSHOP', label: 'Workshop / Fabrication Bay', color: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30' },
+  { value: 'CLASSROOM', label: 'Classroom / Lecture Hall', color: 'bg-[#ec9665]/20 text-[#f4aa7f] border-[#ec9665]/40' },
+  { value: 'LAB', label: 'Laboratory / Research Facility', color: 'bg-[#9c6c4c]/30 text-[#d8bca4] border-[#9c6c4c]/50' },
+  { value: 'AUDITORIUM', label: 'Auditorium / Amphitheatre', color: 'bg-[#ec9665]/25 text-[#f4aa7f] border-[#ec9665]/50' },
+  { value: 'SEMINAR_HALL', label: 'Seminar Hall / Boardroom', color: 'bg-[#523624]/60 text-[#d8bca4] border-[#9c6c4c]/40' },
+  { value: 'WORKSHOP', label: 'Workshop / Fabrication Bay', color: 'bg-[#f4aa7f]/20 text-[#f4aa7f] border-[#f4aa7f]/40' },
 ];
 
 const FEATURE_OPTIONS = [
@@ -317,21 +317,21 @@ export const RoomManagementView: React.FC = () => {
   const activeClassesCount = bookings.filter((b) => b.booking_type === 'CLASS').length;
 
   return (
-    <div className="h-full flex flex-col bg-slate-950 text-slate-100 overflow-y-auto p-4 space-y-4">
-      {/* Top Banner */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="h-full flex flex-col bg-transparent text-[#d8bca4] overflow-y-auto p-4 space-y-4">
+      {/* Top Banner (Frosted Glass) */}
+      <div className="glass-panel rounded-xl p-5 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center space-x-3">
-          <div className="p-2.5 rounded-lg bg-blue-600/20 text-blue-400 border border-blue-500/30">
+          <div className="p-2.5 rounded-lg bg-[#ec9665]/20 text-[#f4aa7f] border border-[#ec9665]/35 shadow-sm spring-interactive">
             <DoorOpen className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-white tracking-tight flex items-center space-x-2">
+            <h2 className="text-lg font-bold text-white tracking-tight flex items-center space-x-2 font-mono">
               <span>Rooms & Facility Scheduling</span>
-              <span className="text-xs px-2 py-0.5 rounded font-medium bg-blue-500/10 text-blue-300 border border-blue-500/20">
+              <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-[#ec9665]/15 text-[#f4aa7f] border border-[#ec9665]/30">
                 SRM Easwari
               </span>
             </h2>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-[#d8bca4]/80">
               Manage physical rooms, schedule class lectures, and lock rooms under maintenance work.
             </p>
           </div>
@@ -340,7 +340,7 @@ export const RoomManagementView: React.FC = () => {
         <div className="flex items-center space-x-2.5">
           <button
             onClick={fetchData}
-            className="flex items-center space-x-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-750 text-slate-200 rounded-lg text-xs font-semibold border border-slate-700 transition"
+            className="flex items-center space-x-1.5 px-3 py-2 bg-[#523624]/60 hover:bg-[#ec9665] text-[#d8bca4] hover:text-[#180f0a] rounded-md text-xs font-semibold border border-[#9c6c4c]/40 transition spring-interactive shadow-sm"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             <span>Refresh</span>
@@ -357,7 +357,7 @@ export const RoomManagementView: React.FC = () => {
               }
               setIsScheduleModalOpen(true);
             }}
-            className="flex items-center space-x-1.5 px-3.5 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-bold shadow-md shadow-amber-500/20 transition"
+            className="flex items-center space-x-1.5 px-3.5 py-2 bg-[#9c6c4c] hover:bg-[#9c6c4c]/90 text-white rounded-md text-xs font-bold shadow-md transition spring-interactive"
           >
             <Calendar className="w-4 h-4" />
             <span>Schedule Class / Work</span>
@@ -366,7 +366,7 @@ export const RoomManagementView: React.FC = () => {
           {/* Add Room Button */}
           <button
             onClick={() => setIsRoomModalOpen(true)}
-            className="flex items-center space-x-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold shadow-md shadow-blue-500/20 transition"
+            className="flex items-center space-x-1.5 px-4 py-2 bg-gradient-to-r from-[#ec9665] to-[#f4aa7f] hover:brightness-110 text-[#180f0a] rounded-md text-xs font-bold shadow-[0_4px_16px_rgba(236,150,101,0.35)] transition spring-interactive"
           >
             <Plus className="w-4 h-4" />
             <span>Add Room</span>
@@ -397,69 +397,69 @@ export const RoomManagementView: React.FC = () => {
         </div>
       )}
 
-      {/* KPI Metrics Strip */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow">
+      {/* KPI Metrics Strip (Frosted Glass Cards) */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="glass-surface p-3.5 rounded-xl shadow spring-interactive">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-400">Total Rooms</span>
-            <DoorOpen className="w-4 h-4 text-blue-400" />
+            <span className="text-xs text-[#9c6c4c] font-mono">Total Rooms</span>
+            <DoorOpen className="w-4 h-4 text-[#ec9665]" />
           </div>
-          <div className="text-2xl font-bold text-white mt-1">{rooms.length}</div>
-          <span className="text-[11px] text-slate-500">Across 5 campus blocks</span>
+          <div className="text-xl font-bold text-white mt-1 font-mono">{rooms.length}</div>
+          <span className="text-[10px] text-[#9c6c4c]">Across 5 campus blocks</span>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow">
+        <div className="glass-surface p-3.5 rounded-xl shadow spring-interactive">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-400">Campus Capacity</span>
-            <Users className="w-4 h-4 text-emerald-400" />
+            <span className="text-xs text-[#9c6c4c] font-mono">Campus Capacity</span>
+            <Users className="w-4 h-4 text-[#f4aa7f]" />
           </div>
-          <div className="text-2xl font-bold text-emerald-400 mt-1">{totalCapacity.toLocaleString()}</div>
-          <span className="text-[11px] text-slate-500">Total seating capacity</span>
+          <div className="text-xl font-bold text-[#f4aa7f] mt-1 font-mono">{totalCapacity.toLocaleString()}</div>
+          <span className="text-[10px] text-[#9c6c4c]">Total seating capacity</span>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow">
+        <div className="glass-surface p-3.5 rounded-xl shadow spring-interactive">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-400">Under Work / Maintenance</span>
-            <Wrench className="w-4 h-4 text-amber-400" />
+            <span className="text-xs text-[#9c6c4c] font-mono">Under Work / Maintenance</span>
+            <Wrench className="w-4 h-4 text-[#ec9665]" />
           </div>
-          <div className="text-2xl font-bold text-amber-400 mt-1">{maintenanceCount}</div>
-          <span className="text-[11px] text-slate-500">Scheduled maintenance windows</span>
+          <div className="text-xl font-bold text-[#ec9665] mt-1 font-mono">{maintenanceCount}</div>
+          <span className="text-[10px] text-[#9c6c4c]">Scheduled maintenance windows</span>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow">
+        <div className="glass-surface p-3.5 rounded-xl shadow spring-interactive">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-400">Scheduled Classes</span>
-            <BookOpen className="w-4 h-4 text-cyan-400" />
+            <span className="text-xs text-[#9c6c4c] font-mono">Scheduled Classes</span>
+            <BookOpen className="w-4 h-4 text-[#d8bca4]" />
           </div>
-          <div className="text-2xl font-bold text-cyan-400 mt-1">{activeClassesCount}</div>
-          <span className="text-[11px] text-slate-500">Active class lectures</span>
+          <div className="text-xl font-bold text-white mt-1 font-mono">{activeClassesCount}</div>
+          <span className="text-[10px] text-[#9c6c4c]">Active class lectures</span>
         </div>
       </div>
 
       {/* Search & Filters */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow flex flex-col md:flex-row items-center justify-between gap-3">
+      <div className="glass-panel rounded-xl p-3 shadow flex flex-col md:flex-row items-center justify-between gap-3">
         <div className="relative w-full md:w-80">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+          <Search className="w-3.5 h-3.5 text-[#9c6c4c] absolute left-3 top-2.5" />
           <input
             type="text"
             placeholder="Search room code, name, or block..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-700 rounded-lg pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+            className="w-full glass-input rounded-md pl-9 pr-3 py-1.5 text-xs text-[#f4aa7f] placeholder-[#9c6c4c] focus:outline-none"
           />
         </div>
 
         <div className="flex items-center space-x-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
           <div className="flex items-center space-x-1">
-            <span className="text-xs text-slate-400 mr-1">Block:</span>
+            <span className="text-xs text-[#9c6c4c] font-mono mr-1">Block:</span>
             <select
               value={selectedBlock}
               onChange={(e) => setSelectedBlock(e.target.value)}
-              className="bg-slate-950 border border-slate-700 text-xs text-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-blue-500"
+              className="glass-input text-xs text-[#d8bca4] rounded-md px-2.5 py-1.5 focus:outline-none font-mono cursor-pointer"
             >
-              <option value="ALL">All Blocks</option>
+              <option value="ALL" className="bg-[#180f0a] text-[#d8bca4]">All Blocks</option>
               {AVAILABLE_BLOCKS.map((b) => (
-                <option key={b.code} value={b.code}>
+                <option key={b.code} value={b.code} className="bg-[#180f0a] text-[#d8bca4]">
                   {b.code}
                 </option>
               ))}
@@ -467,15 +467,15 @@ export const RoomManagementView: React.FC = () => {
           </div>
 
           <div className="flex items-center space-x-1">
-            <span className="text-xs text-slate-400 mr-1">Type:</span>
+            <span className="text-xs text-[#9c6c4c] font-mono mr-1">Type:</span>
             <select
               value={selectedType}
               onChange={(e) => setSelectedType(e.target.value)}
-              className="bg-slate-950 border border-slate-700 text-xs text-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-blue-500"
+              className="glass-input text-xs text-[#d8bca4] rounded-md px-2.5 py-1.5 focus:outline-none font-mono cursor-pointer"
             >
-              <option value="ALL">All Types</option>
+              <option value="ALL" className="bg-[#180f0a] text-[#d8bca4]">All Types</option>
               {ROOM_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>
+                <option key={t.value} value={t.value} className="bg-[#180f0a] text-[#d8bca4]">
                   {t.label}
                 </option>
               ))}
@@ -485,90 +485,89 @@ export const RoomManagementView: React.FC = () => {
       </div>
 
       {/* Registered Rooms Table */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl shadow overflow-hidden">
-        <div className="p-4 border-b border-slate-800 flex items-center justify-between">
+      <div className="glass-panel rounded-xl shadow overflow-hidden">
+        <div className="p-3.5 border-b border-[#9c6c4c]/30 flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <DoorOpen className="w-4 h-4 text-blue-400" />
-            <h3 className="font-bold text-white text-sm">
+            <DoorOpen className="w-4 h-4 text-[#ec9665]" />
+            <h3 className="font-bold text-white text-xs uppercase tracking-wider font-mono">
               Registered Campus Rooms ({rooms.length})
             </h3>
           </div>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-950 text-slate-400 border-b border-slate-800 font-mono">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead className="bg-[#24160f]/90 text-[#d8bca4]/70 border-b border-[#9c6c4c]/30 font-mono text-[10px]">
               <tr>
-                <th className="py-3 px-4">Room Code</th>
-                <th className="py-3 px-4">Room Name</th>
-                <th className="py-3 px-4">Block</th>
-                <th className="py-3 px-4">Floor</th>
-                <th className="py-3 px-4">Type</th>
-                <th className="py-3 px-4">Capacity</th>
-                <th className="py-3 px-4">Status</th>
-                <th className="py-3 px-4 text-right">Actions</th>
+                <th className="py-2.5 px-3 border-r border-[#9c6c4c]/20">Room Code</th>
+                <th className="py-2.5 px-3 border-r border-[#9c6c4c]/20">Room Name</th>
+                <th className="py-2.5 px-3 border-r border-[#9c6c4c]/20">Block</th>
+                <th className="py-2.5 px-3 border-r border-[#9c6c4c]/20">Floor</th>
+                <th className="py-2.5 px-3 border-r border-[#9c6c4c]/20">Type</th>
+                <th className="py-2.5 px-3 border-r border-[#9c6c4c]/20">Capacity</th>
+                <th className="py-2.5 px-3 border-r border-[#9c6c4c]/20">Status</th>
+                <th className="py-2.5 px-3 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 font-sans">
+            <tbody className="divide-y divide-[#9c6c4c]/20 font-sans">
               {filteredRooms.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-10 text-center text-slate-500 font-sans">
-                    No registered rooms found. Click <button onClick={() => setIsRoomModalOpen(true)} className="text-blue-400 font-semibold underline hover:text-blue-300">Add Room</button> to create rooms.
+                  <td colSpan={8} className="py-16 text-center text-[#9c6c4c] font-mono text-xs">
+                    No registered rooms in campus digital twin. Click <button onClick={() => setIsRoomModalOpen(true)} className="text-[#ec9665] font-semibold underline hover:text-[#f4aa7f]">Add Room</button> to register rooms.
                   </td>
                 </tr>
               ) : (
                 filteredRooms.map((room) => {
                   const typeObj = ROOM_TYPES.find((t) => t.value === room.room_type) || {
-                    color: 'bg-slate-800 text-slate-300 border-slate-700',
+                    color: 'bg-[#523624]/60 text-[#d8bca4] border-[#9c6c4c]/40',
                     label: room.room_type,
                   };
 
-                  // Check if room has an active maintenance block
                   const hasMaintenance = bookings.some(
                     (b) => b.room_node_id === room.id && b.booking_type === 'MAINTENANCE_BLOCK'
                   );
 
                   return (
-                    <tr key={room.id} className="hover:bg-slate-800/30 transition">
-                      <td className="py-3 px-4 font-mono font-bold text-blue-400">
+                    <tr key={room.id} className="hover:bg-[#523624]/35 transition spring-row">
+                      <td className="py-2.5 px-3 font-mono font-bold text-[#ec9665] border-r border-[#9c6c4c]/20">
                         {room.node_code}
                       </td>
-                      <td className="py-3 px-4 font-medium text-slate-100">{room.name}</td>
-                      <td className="py-3 px-4 font-mono text-slate-300">{room.building_code}</td>
-                      <td className="py-3 px-4 font-mono text-slate-400">Floor {room.floor_number}</td>
-                      <td className="py-3 px-4">
-                        <span className={`text-[10px] px-2 py-0.5 rounded font-mono border ${typeObj.color}`}>
+                      <td className="py-2.5 px-3 font-semibold text-white border-r border-[#9c6c4c]/20">{room.name}</td>
+                      <td className="py-2.5 px-3 font-mono text-[#d8bca4] border-r border-[#9c6c4c]/20">{room.building_code}</td>
+                      <td className="py-2.5 px-3 font-mono text-[#9c6c4c] border-r border-[#9c6c4c]/20">Floor {room.floor_number}</td>
+                      <td className="py-2.5 px-3 border-r border-[#9c6c4c]/20">
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono border ${typeObj.color}`}>
                           {room.room_type}
                         </span>
                       </td>
-                      <td className="py-3 px-4 font-mono font-bold text-emerald-400">
+                      <td className="py-2.5 px-3 font-mono font-bold text-[#f4aa7f] border-r border-[#9c6c4c]/20">
                         {room.room_capacity} seats
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="py-2.5 px-3 border-r border-[#9c6c4c]/20">
                         {hasMaintenance ? (
-                          <span className="flex items-center space-x-1 text-[10px] px-2.5 py-1 rounded-full font-mono bg-amber-500/10 text-amber-400 border border-amber-500/30">
-                            <Wrench className="w-3 h-3 text-amber-400" />
+                          <span className="flex items-center space-x-1 text-[10px] px-2 py-0.5 rounded-full font-mono bg-[#ec9665]/20 text-[#f4aa7f] border border-[#ec9665]/40 w-fit">
+                            <Wrench className="w-3 h-3 text-[#ec9665]" />
                             <span>UNDER WORK</span>
                           </span>
                         ) : (
                           <button
                             onClick={() => handleToggleOperational(room)}
-                            className={`flex items-center space-x-1.5 text-[11px] px-2.5 py-1 rounded-full font-mono border transition ${
+                            className={`flex items-center space-x-1 text-[10px] px-2 py-0.5 rounded-full font-mono border transition spring-interactive ${
                               room.is_operational
-                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
-                                : 'bg-rose-500/10 text-rose-400 border-rose-500/30 hover:bg-rose-500/20'
+                                ? 'bg-[#ec9665]/15 text-[#f4aa7f] border-[#ec9665]/35 hover:bg-[#ec9665]/25'
+                                : 'bg-rose-500/15 text-rose-300 border-rose-500/35 hover:bg-rose-500/25'
                             }`}
                           >
-                            <span className={`w-1.5 h-1.5 rounded-full ${room.is_operational ? 'bg-emerald-400' : 'bg-rose-400'}`} />
+                            <span className={`w-1.5 h-1.5 rounded-full ${room.is_operational ? 'bg-[#ec9665] shadow-[0_0_8px_#ec9665]' : 'bg-rose-400'}`} />
                             <span>{room.is_operational ? 'Operational' : 'Maintenance'}</span>
                           </button>
                         )}
                       </td>
-                      <td className="py-3 px-4 text-right">
+                      <td className="py-2.5 px-3 text-right">
                         <div className="flex items-center justify-end space-x-1.5">
                           <button
                             onClick={() => handleOpenScheduleForRoom(room)}
-                            className="flex items-center space-x-1 px-2.5 py-1 bg-slate-800 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 rounded text-[11px] font-semibold transition"
+                            className="flex items-center space-x-1 px-2.5 py-1 bg-[#523624]/60 hover:bg-[#ec9665] text-[#d8bca4] hover:text-[#180f0a] border border-[#9c6c4c]/40 rounded text-[11px] font-semibold transition spring-interactive"
                             title="Schedule class timing or maintenance under work"
                           >
                             <Clock className="w-3 h-3" />
@@ -576,7 +575,7 @@ export const RoomManagementView: React.FC = () => {
                           </button>
                           <button
                             onClick={() => handleDeleteRoom(room)}
-                            className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 rounded transition"
+                            className="p-1 text-[#9c6c4c] hover:text-rose-300 hover:bg-rose-950/40 rounded transition spring-interactive"
                             title="Delete room"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -593,37 +592,37 @@ export const RoomManagementView: React.FC = () => {
       </div>
 
       {/* Active Schedules & Under Work Section */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl space-y-4">
-        <div className="flex items-center justify-between">
+      <div className="glass-panel rounded-xl p-5 shadow-lg space-y-3">
+        <div className="flex items-center justify-between pb-2 border-b border-[#9c6c4c]/30">
           <div className="flex items-center space-x-2">
-            <Calendar className="w-4 h-4 text-amber-400" />
-            <h3 className="font-bold text-white text-sm">
+            <Calendar className="w-4 h-4 text-[#ec9665]" />
+            <h3 className="font-bold text-[#f4aa7f] text-xs uppercase tracking-wider font-mono">
               Active Schedules & Under Work Windows ({bookings.length})
             </h3>
           </div>
-          <span className="text-xs text-slate-400">
+          <span className="text-[10px] text-[#9c6c4c] font-mono">
             GiST conflict prevention active &bull; Overlapping times automatically protected
           </span>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-950 text-slate-400 border-b border-slate-800 font-mono">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead className="bg-[#24160f]/90 text-[#d8bca4]/70 border-b border-[#9c6c4c]/30 font-mono text-[10px]">
               <tr>
-                <th className="py-2.5 px-3">Room</th>
-                <th className="py-2.5 px-3">Type</th>
-                <th className="py-2.5 px-3">Activity / Course Title</th>
-                <th className="py-2.5 px-3">Start Time</th>
-                <th className="py-2.5 px-3">End Time</th>
-                <th className="py-2.5 px-3">Attendees</th>
-                <th className="py-2.5 px-3">Status</th>
-                <th className="py-2.5 px-3 text-right">Actions</th>
+                <th className="py-2 px-3 border-r border-[#9c6c4c]/20">Room</th>
+                <th className="py-2 px-3 border-r border-[#9c6c4c]/20">Type</th>
+                <th className="py-2 px-3 border-r border-[#9c6c4c]/20">Activity / Course Title</th>
+                <th className="py-2 px-3 border-r border-[#9c6c4c]/20">Start Time</th>
+                <th className="py-2 px-3 border-r border-[#9c6c4c]/20">End Time</th>
+                <th className="py-2 px-3 border-r border-[#9c6c4c]/20">Attendees</th>
+                <th className="py-2 px-3 border-r border-[#9c6c4c]/20">Status</th>
+                <th className="py-2 px-3 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 font-sans">
+            <tbody className="divide-y divide-[#9c6c4c]/20 font-sans">
               {bookings.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-slate-500">
+                  <td colSpan={8} className="py-12 text-center text-[#9c6c4c] font-mono text-xs">
                     No scheduled classes or maintenance work active. Click "Schedule Class / Work" to lock timings!
                   </td>
                 </tr>
@@ -633,25 +632,25 @@ export const RoomManagementView: React.FC = () => {
                   const isClass = b.booking_type === 'CLASS';
 
                   return (
-                    <tr key={b.id} className="hover:bg-slate-800/40 transition">
-                      <td className="py-2.5 px-3 font-mono font-bold text-blue-400">
+                    <tr key={b.id} className="hover:bg-[#523624]/35 transition spring-row">
+                      <td className="py-2.5 px-3 font-mono font-bold text-[#ec9665] border-r border-[#9c6c4c]/20">
                         {b.room_code || 'Room'}
                       </td>
-                      <td className="py-2.5 px-3">
-                        <span className={`text-[10px] px-2 py-0.5 rounded font-mono border ${
+                      <td className="py-2.5 px-3 border-r border-[#9c6c4c]/20">
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono border ${
                           isMaintenance
-                            ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                            ? 'bg-[#ec9665]/20 text-[#f4aa7f] border-[#ec9665]/40'
                             : isClass
-                            ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'
-                            : 'bg-purple-500/20 text-purple-300 border-purple-500/30'
+                            ? 'bg-[#9c6c4c]/25 text-[#d8bca4] border-[#9c6c4c]/40'
+                            : 'bg-[#523624]/60 text-[#f4aa7f] border-[#9c6c4c]/40'
                         }`}>
                           {isMaintenance ? 'UNDER WORK' : b.booking_type}
                         </span>
                       </td>
-                      <td className="py-2.5 px-3 font-medium text-slate-200">
+                      <td className="py-2.5 px-3 font-semibold text-white border-r border-[#9c6c4c]/20">
                         {b.course_or_event_title}
                       </td>
-                      <td className="py-2.5 px-3 font-mono text-slate-300">
+                      <td className="py-2.5 px-3 font-mono text-[#d8bca4] border-r border-[#9c6c4c]/20">
                         {new Date(b.start_time).toLocaleString([], {
                           month: 'short',
                           day: 'numeric',
@@ -659,7 +658,7 @@ export const RoomManagementView: React.FC = () => {
                           minute: '2-digit',
                         })}
                       </td>
-                      <td className="py-2.5 px-3 font-mono text-slate-300">
+                      <td className="py-2.5 px-3 font-mono text-[#d8bca4] border-r border-[#9c6c4c]/20">
                         {new Date(b.end_time).toLocaleString([], {
                           month: 'short',
                           day: 'numeric',
@@ -667,18 +666,18 @@ export const RoomManagementView: React.FC = () => {
                           minute: '2-digit',
                         })}
                       </td>
-                      <td className="py-2.5 px-3 font-mono text-emerald-400 font-bold">
+                      <td className="py-2.5 px-3 font-mono text-[#f4aa7f] font-bold border-r border-[#9c6c4c]/20">
                         {b.student_count}
                       </td>
-                      <td className="py-2.5 px-3">
-                        <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 font-mono">
+                      <td className="py-2.5 px-3 border-r border-[#9c6c4c]/20">
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#ec9665]/15 text-[#f4aa7f] border border-[#ec9665]/30 font-mono">
                           {b.status}
                         </span>
                       </td>
                       <td className="py-2.5 px-3 text-right">
                         <button
                           onClick={() => handleCancelBooking(b.id)}
-                          className="px-2.5 py-1 bg-slate-800 hover:bg-rose-900 text-slate-300 hover:text-white rounded text-[11px] font-semibold border border-slate-700 transition"
+                          className="px-2.5 py-1 bg-[#523624]/60 hover:bg-rose-950/60 text-[#d8bca4] hover:text-rose-300 rounded text-[11px] font-semibold border border-[#9c6c4c]/40 transition spring-interactive"
                         >
                           Release / Cancel
                         </button>
@@ -693,24 +692,25 @@ export const RoomManagementView: React.FC = () => {
       </div>
 
       {/* Modal: Schedule Class or Maintenance (Under Work) */}
+      {/* Modal: Schedule Class or Maintenance Work */}
       {isScheduleModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in duration-200">
-            <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="glass-panel bg-[#24160f]/95 border border-[#9c6c4c]/40 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in duration-200">
+            <div className="p-5 border-b border-[#9c6c4c]/30 flex items-center justify-between bg-[#180f0a]/60">
               <div className="flex items-center space-x-2.5">
-                <div className="p-2 bg-amber-600/20 text-amber-400 rounded-lg border border-amber-500/30">
+                <div className="p-2 bg-[#ec9665]/20 text-[#ec9665] rounded-lg border border-[#ec9665]/30">
                   <Calendar className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-white text-base">Schedule Class or Work Timing</h3>
-                  <p className="text-xs text-slate-400">
+                  <h3 className="font-bold text-[#d8bca4] text-base">Schedule Class or Work Timing</h3>
+                  <p className="text-xs text-[#d8bca4]/60">
                     Schedule lectures or lock a room for maintenance & repair work.
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setIsScheduleModalOpen(false)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
+                className="text-[#d8bca4]/60 hover:text-[#d8bca4] p-1.5 rounded-lg hover:bg-[#523624]/40 spring-interactive transition"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -718,11 +718,11 @@ export const RoomManagementView: React.FC = () => {
 
             <form onSubmit={handleCreateSchedule} className="p-6 space-y-4">
               <div>
-                <label className="block text-xs font-mono text-slate-400 mb-1">
+                <label className="block text-xs font-mono text-[#d8bca4]/70 mb-1">
                   Select Room *
                 </label>
                 {rooms.length === 0 ? (
-                  <div className="p-3 bg-rose-950/20 border border-rose-500/30 rounded-lg text-xs text-rose-300">
+                  <div className="p-3 bg-rose-950/40 border border-rose-500/30 rounded-lg text-xs text-rose-300">
                     No rooms registered yet! Please add a room first before scheduling.
                   </div>
                 ) : (
@@ -730,11 +730,11 @@ export const RoomManagementView: React.FC = () => {
                     required
                     value={scheduleFormData.room_node_id}
                     onChange={(e) => setScheduleFormData({ ...scheduleFormData, room_node_id: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-blue-500"
+                    className="w-full glass-input bg-[#180f0a]/70 border border-[#9c6c4c]/40 rounded-lg px-3 py-2 text-xs text-[#d8bca4] font-mono focus:outline-none focus:border-[#ec9665]"
                   >
-                    <option value="">-- Choose Room --</option>
+                    <option value="" className="bg-[#180f0a] text-[#d8bca4]">-- Choose Room --</option>
                     {rooms.map((r) => (
-                      <option key={r.id} value={r.id}>
+                      <option key={r.id} value={r.id} className="bg-[#180f0a] text-[#d8bca4]">
                         {r.node_code} - {r.name} ({r.building_code}, Cap: {r.room_capacity})
                       </option>
                     ))}
@@ -743,7 +743,7 @@ export const RoomManagementView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-mono text-slate-400 mb-1">
+                <label className="block text-xs font-mono text-[#d8bca4]/70 mb-1">
                   Schedule Type *
                 </label>
                 <div className="grid grid-cols-2 gap-2">
@@ -754,13 +754,13 @@ export const RoomManagementView: React.FC = () => {
                       booking_type: 'MAINTENANCE_BLOCK',
                       course_or_event_title: 'Room Under Maintenance & Work',
                     })}
-                    className={`flex items-center space-x-2 p-2.5 rounded-lg border text-xs font-semibold transition ${
+                    className={`flex items-center space-x-2 p-2.5 rounded-lg border text-xs font-semibold spring-interactive transition ${
                       scheduleFormData.booking_type === 'MAINTENANCE_BLOCK'
-                        ? 'bg-amber-600/20 border-amber-500 text-amber-300'
-                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                        ? 'bg-[#ec9665]/20 border-[#ec9665] text-[#f4aa7f]'
+                        : 'bg-[#180f0a]/60 border-[#9c6c4c]/30 text-[#d8bca4]/70 hover:border-[#9c6c4c]/60'
                     }`}
                   >
-                    <Wrench className="w-4 h-4 text-amber-400" />
+                    <Wrench className="w-4 h-4 text-[#ec9665]" />
                     <span>Under Work / Maintenance</span>
                   </button>
 
@@ -771,20 +771,20 @@ export const RoomManagementView: React.FC = () => {
                       booking_type: 'CLASS',
                       course_or_event_title: 'Class Lecture',
                     })}
-                    className={`flex items-center space-x-2 p-2.5 rounded-lg border text-xs font-semibold transition ${
+                    className={`flex items-center space-x-2 p-2.5 rounded-lg border text-xs font-semibold spring-interactive transition ${
                       scheduleFormData.booking_type === 'CLASS'
-                        ? 'bg-blue-600/20 border-blue-500 text-blue-300'
-                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                        ? 'bg-[#ec9665]/20 border-[#ec9665] text-[#f4aa7f]'
+                        : 'bg-[#180f0a]/60 border-[#9c6c4c]/30 text-[#d8bca4]/70 hover:border-[#9c6c4c]/60'
                     }`}
                   >
-                    <BookOpen className="w-4 h-4 text-blue-400" />
+                    <BookOpen className="w-4 h-4 text-[#f4aa7f]" />
                     <span>Class Lecture</span>
                   </button>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-mono text-slate-400 mb-1">
+                <label className="block text-xs font-mono text-[#d8bca4]/70 mb-1">
                   {scheduleFormData.booking_type === 'MAINTENANCE_BLOCK'
                     ? 'Work / Maintenance Description *'
                     : 'Course / Class Title *'}
@@ -799,13 +799,13 @@ export const RoomManagementView: React.FC = () => {
                   }
                   value={scheduleFormData.course_or_event_title}
                   onChange={(e) => setScheduleFormData({ ...scheduleFormData, course_or_event_title: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500"
+                  className="w-full glass-input bg-[#180f0a]/70 border border-[#9c6c4c]/40 rounded-lg px-3 py-2 text-xs text-[#d8bca4] placeholder-[#d8bca4]/40 focus:outline-none focus:border-[#ec9665]"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-mono text-slate-400 mb-1">
+                  <label className="block text-xs font-mono text-[#d8bca4]/70 mb-1">
                     Start Timing *
                   </label>
                   <input
@@ -813,12 +813,12 @@ export const RoomManagementView: React.FC = () => {
                     required
                     value={scheduleFormData.start_time}
                     onChange={(e) => setScheduleFormData({ ...scheduleFormData, start_time: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-blue-500"
+                    className="w-full glass-input bg-[#180f0a]/70 border border-[#9c6c4c]/40 rounded-lg px-3 py-2 text-xs text-[#d8bca4] font-mono focus:outline-none focus:border-[#ec9665]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-mono text-slate-400 mb-1">
+                  <label className="block text-xs font-mono text-[#d8bca4]/70 mb-1">
                     End Timing *
                   </label>
                   <input
@@ -826,13 +826,13 @@ export const RoomManagementView: React.FC = () => {
                     required
                     value={scheduleFormData.end_time}
                     onChange={(e) => setScheduleFormData({ ...scheduleFormData, end_time: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-blue-500"
+                    className="w-full glass-input bg-[#180f0a]/70 border border-[#9c6c4c]/40 rounded-lg px-3 py-2 text-xs text-[#d8bca4] font-mono focus:outline-none focus:border-[#ec9665]"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-mono text-slate-400 mb-1">
+                <label className="block text-xs font-mono text-[#d8bca4]/70 mb-1">
                   Expected Attendees / Students
                 </label>
                 <input
@@ -840,22 +840,22 @@ export const RoomManagementView: React.FC = () => {
                   min={1}
                   value={scheduleFormData.student_count}
                   onChange={(e) => setScheduleFormData({ ...scheduleFormData, student_count: parseInt(e.target.value) || 1 })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-blue-500"
+                  className="w-full glass-input bg-[#180f0a]/70 border border-[#9c6c4c]/40 rounded-lg px-3 py-2 text-xs text-[#d8bca4] font-mono focus:outline-none focus:border-[#ec9665]"
                 />
               </div>
 
-              <div className="pt-3 border-t border-slate-800 flex items-center justify-end space-x-2">
+              <div className="pt-3 border-t border-[#9c6c4c]/30 flex items-center justify-end space-x-2">
                 <button
                   type="button"
                   onClick={() => setIsScheduleModalOpen(false)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-750 text-slate-300 rounded-lg text-xs font-semibold border border-slate-700 transition"
+                  className="px-4 py-2 bg-[#523624]/60 hover:bg-[#523624] text-[#d8bca4] rounded-lg text-xs font-semibold border border-[#9c6c4c]/30 spring-interactive transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={rooms.length === 0}
-                  className="px-5 py-2 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white rounded-lg text-xs font-bold shadow-md shadow-amber-500/20 transition"
+                  className="px-5 py-2 bg-gradient-to-r from-[#ec9665] to-[#f4aa7f] text-[#180f0a] font-bold rounded-lg text-xs shadow-lg shadow-[#ec9665]/20 disabled:opacity-50 spring-interactive transition"
                 >
                   Confirm Schedule
                 </button>
@@ -867,23 +867,23 @@ export const RoomManagementView: React.FC = () => {
 
       {/* Modal: Register New Room */}
       {isRoomModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in duration-200">
-            <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="glass-panel bg-[#24160f]/95 border border-[#9c6c4c]/40 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in duration-200">
+            <div className="p-5 border-b border-[#9c6c4c]/30 flex items-center justify-between bg-[#180f0a]/60">
               <div className="flex items-center space-x-2.5">
-                <div className="p-2 bg-blue-600/20 text-blue-400 rounded-lg border border-blue-500/30">
+                <div className="p-2 bg-[#ec9665]/20 text-[#ec9665] rounded-lg border border-[#ec9665]/30">
                   <DoorOpen className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-white text-base">Register New Campus Room</h3>
-                  <p className="text-xs text-slate-400">
+                  <h3 className="font-bold text-[#d8bca4] text-base">Register New Campus Room</h3>
+                  <p className="text-xs text-[#d8bca4]/60">
                     Add room code, name, capacity, and building location.
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setIsRoomModalOpen(false)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
+                className="text-[#d8bca4]/60 hover:text-[#d8bca4] p-1.5 rounded-lg hover:bg-[#523624]/40 spring-interactive transition"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -892,7 +892,7 @@ export const RoomManagementView: React.FC = () => {
             <form onSubmit={handleRegisterRoom} className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-mono text-slate-400 mb-1">
+                  <label className="block text-xs font-mono text-[#d8bca4]/70 mb-1">
                     Room Code *
                   </label>
                   <input
@@ -901,12 +901,12 @@ export const RoomManagementView: React.FC = () => {
                     placeholder="e.g. RM-ACAD-305"
                     value={roomFormData.node_code}
                     onChange={(e) => setRoomFormData({ ...roomFormData, node_code: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white uppercase font-mono placeholder-slate-600 focus:outline-none focus:border-blue-500"
+                    className="w-full glass-input bg-[#180f0a]/70 border border-[#9c6c4c]/40 rounded-lg px-3 py-2 text-xs text-[#d8bca4] uppercase font-mono placeholder-[#d8bca4]/40 focus:outline-none focus:border-[#ec9665]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-mono text-slate-400 mb-1">
+                  <label className="block text-xs font-mono text-[#d8bca4]/70 mb-1">
                     Seating Capacity *
                   </label>
                   <input
@@ -917,13 +917,13 @@ export const RoomManagementView: React.FC = () => {
                     placeholder="e.g. 60"
                     value={roomFormData.room_capacity}
                     onChange={(e) => setRoomFormData({ ...roomFormData, room_capacity: parseInt(e.target.value) || 0 })}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-blue-500"
+                    className="w-full glass-input bg-[#180f0a]/70 border border-[#9c6c4c]/40 rounded-lg px-3 py-2 text-xs text-[#d8bca4] font-mono focus:outline-none focus:border-[#ec9665]"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-mono text-slate-400 mb-1">
+                <label className="block text-xs font-mono text-[#d8bca4]/70 mb-1">
                   Room Name *
                 </label>
                 <input
@@ -932,22 +932,22 @@ export const RoomManagementView: React.FC = () => {
                   placeholder="e.g. Advanced AI Research & Computing Lab"
                   value={roomFormData.name}
                   onChange={(e) => setRoomFormData({ ...roomFormData, name: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500"
+                  className="w-full glass-input bg-[#180f0a]/70 border border-[#9c6c4c]/40 rounded-lg px-3 py-2 text-xs text-[#d8bca4] placeholder-[#d8bca4]/40 focus:outline-none focus:border-[#ec9665]"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-mono text-slate-400 mb-1">
+                  <label className="block text-xs font-mono text-[#d8bca4]/70 mb-1">
                     Room Type *
                   </label>
                   <select
                     value={roomFormData.room_type}
                     onChange={(e) => setRoomFormData({ ...roomFormData, room_type: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-blue-500"
+                    className="w-full glass-input bg-[#180f0a]/70 border border-[#9c6c4c]/40 rounded-lg px-3 py-2 text-xs text-[#d8bca4] font-mono focus:outline-none focus:border-[#ec9665]"
                   >
                     {ROOM_TYPES.map((t) => (
-                      <option key={t.value} value={t.value}>
+                      <option key={t.value} value={t.value} className="bg-[#180f0a] text-[#d8bca4]">
                         {t.label}
                       </option>
                     ))}
@@ -955,16 +955,16 @@ export const RoomManagementView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-mono text-slate-400 mb-1">
+                  <label className="block text-xs font-mono text-[#d8bca4]/70 mb-1">
                     Building Block *
                   </label>
                   <select
                     value={roomFormData.building_code}
                     onChange={(e) => setRoomFormData({ ...roomFormData, building_code: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-blue-500"
+                    className="w-full glass-input bg-[#180f0a]/70 border border-[#9c6c4c]/40 rounded-lg px-3 py-2 text-xs text-[#d8bca4] font-mono focus:outline-none focus:border-[#ec9665]"
                   >
                     {AVAILABLE_BLOCKS.map((b) => (
-                      <option key={b.code} value={b.code}>
+                      <option key={b.code} value={b.code} className="bg-[#180f0a] text-[#d8bca4]">
                         {b.code} - {b.name}
                       </option>
                     ))}
@@ -974,7 +974,7 @@ export const RoomManagementView: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-mono text-slate-400 mb-1">
+                  <label className="block text-xs font-mono text-[#d8bca4]/70 mb-1">
                     Floor Number
                   </label>
                   <input
@@ -983,27 +983,27 @@ export const RoomManagementView: React.FC = () => {
                     max={6}
                     value={roomFormData.floor_number}
                     onChange={(e) => setRoomFormData({ ...roomFormData, floor_number: parseInt(e.target.value) || 1 })}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-blue-500"
+                    className="w-full glass-input bg-[#180f0a]/70 border border-[#9c6c4c]/40 rounded-lg px-3 py-2 text-xs text-[#d8bca4] font-mono focus:outline-none focus:border-[#ec9665]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-mono text-slate-400 mb-1">
+                  <label className="block text-xs font-mono text-[#d8bca4]/70 mb-1">
                     Initial Status
                   </label>
                   <select
                     value={roomFormData.is_operational ? 'true' : 'false'}
                     onChange={(e) => setRoomFormData({ ...roomFormData, is_operational: e.target.value === 'true' })}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-blue-500"
+                    className="w-full glass-input bg-[#180f0a]/70 border border-[#9c6c4c]/40 rounded-lg px-3 py-2 text-xs text-[#d8bca4] font-mono focus:outline-none focus:border-[#ec9665]"
                   >
-                    <option value="true">Operational</option>
-                    <option value="false">Under Maintenance</option>
+                    <option value="true" className="bg-[#180f0a] text-[#d8bca4]">Operational</option>
+                    <option value="false" className="bg-[#180f0a] text-[#d8bca4]">Under Maintenance</option>
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-mono text-slate-400 mb-2">
+                <label className="block text-xs font-mono text-[#d8bca4]/70 mb-2">
                   Room Features & Amenities
                 </label>
                 <div className="grid grid-cols-2 gap-2">
@@ -1014,31 +1014,31 @@ export const RoomManagementView: React.FC = () => {
                         type="button"
                         key={feat}
                         onClick={() => handleToggleFeature(feat)}
-                        className={`text-left px-2.5 py-1.5 rounded-lg border text-xs font-mono transition flex items-center justify-between ${
+                        className={`text-left px-2.5 py-1.5 rounded-lg border text-xs font-mono transition flex items-center justify-between spring-interactive ${
                           isSelected
-                            ? 'bg-blue-600/20 border-blue-500 text-blue-300'
-                            : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                            ? 'bg-[#ec9665]/20 border-[#ec9665] text-[#f4aa7f]'
+                            : 'bg-[#180f0a]/60 border-[#9c6c4c]/30 text-[#d8bca4]/70 hover:border-[#9c6c4c]/60'
                         }`}
                       >
                         <span>{feat}</span>
-                        {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-blue-400" />}
+                        {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-[#ec9665]" />}
                       </button>
                     );
                   })}
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-slate-800 flex items-center justify-end space-x-2">
+              <div className="pt-3 border-t border-[#9c6c4c]/30 flex items-center justify-end space-x-2">
                 <button
                   type="button"
                   onClick={() => setIsRoomModalOpen(false)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-750 text-slate-300 rounded-lg text-xs font-semibold border border-slate-700 transition"
+                  className="px-4 py-2 bg-[#523624]/60 hover:bg-[#523624] text-[#d8bca4] rounded-lg text-xs font-semibold border border-[#9c6c4c]/30 spring-interactive transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold shadow-md shadow-blue-500/20 transition"
+                  className="px-5 py-2 bg-gradient-to-r from-[#ec9665] to-[#f4aa7f] text-[#180f0a] font-bold rounded-lg text-xs shadow-lg shadow-[#ec9665]/20 spring-interactive transition"
                 >
                   Register Room
                 </button>

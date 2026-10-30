@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useAuth, SEEDED_USERS } from '../context/AuthContext';
 import {
   LayoutDashboard,
@@ -10,10 +10,6 @@ import {
   Shield,
   GraduationCap,
   Users,
-  Search,
-  Terminal,
-  Activity,
-  MapPin,
   ChevronRight,
 } from 'lucide-react';
 
@@ -55,54 +51,54 @@ export const Header: React.FC<HeaderProps> = ({
   ];
 
   return (
-    <header className="h-[52px] bg-slate-950 border-b border-slate-800 px-3 flex items-center justify-between shrink-0 select-none z-50">
+    <header className="h-[52px] bg-[#24160f]/85 backdrop-blur-xl border-b border-[#9c6c4c]/30 px-3 flex items-center justify-between shrink-0 select-none z-50 shadow-[0_4px_30px_rgba(0,0,0,0.4)]">
       {/* Zone 1 Left: Brand & Hierarchical Topological Breadcrumb */}
       <div className="flex items-center space-x-3 shrink-0">
         <div className="flex items-center space-x-2">
-          <div className="h-7 w-7 rounded bg-blue-600 flex items-center justify-center font-bold text-white text-xs shadow-sm">
+          <div className="h-7 w-7 rounded-md bg-gradient-to-br from-[#ec9665] to-[#9c6c4c] flex items-center justify-center font-black text-[#180f0a] text-xs shadow-[0_0_15px_rgba(236,150,101,0.35)] spring-interactive">
             CO
           </div>
-          <span className="font-bold text-xs tracking-tight text-white uppercase font-mono">
+          <span className="font-bold text-xs tracking-tight text-[#f4aa7f] uppercase font-mono">
             CampusOps
           </span>
         </div>
 
-        <div className="h-4 w-px bg-slate-800" />
+        <div className="h-4 w-px bg-[#9c6c4c]/40" />
 
         {/* Monospace Topological Breadcrumb Path */}
-        <nav className="flex items-center space-x-1 font-mono text-[11px] text-slate-400">
+        <nav className="flex items-center space-x-1 font-mono text-[11px] text-[#d8bca4]/70">
           <button
             onClick={() => onBreadcrumbClick?.('CAMPUS')}
-            className="hover:text-blue-400 transition"
+            className="hover:text-[#ec9665] transition spring-interactive"
           >
             SRM-EEC
           </button>
-          <ChevronRight className="w-3 h-3 text-slate-600" />
+          <ChevronRight className="w-3 h-3 text-[#9c6c4c]" />
           <button
             onClick={() => onBreadcrumbClick?.('BLOCK')}
-            className="hover:text-blue-400 transition"
+            className="hover:text-[#ec9665] transition spring-interactive"
           >
             EEC-ACAD
           </button>
-          <ChevronRight className="w-3 h-3 text-slate-600" />
+          <ChevronRight className="w-3 h-3 text-[#9c6c4c]" />
           <button
             onClick={() => onBreadcrumbClick?.('FLOOR')}
-            className="hover:text-blue-400 transition"
+            className="hover:text-[#ec9665] transition spring-interactive"
           >
             Fl 2
           </button>
-          <ChevronRight className="w-3 h-3 text-slate-600" />
+          <ChevronRight className="w-3 h-3 text-[#9c6c4c]" />
           <button
             onClick={() => onBreadcrumbClick?.('ROOM')}
-            className="text-blue-400 font-semibold hover:underline"
+            className="text-[#ec9665] font-semibold hover:underline spring-interactive"
           >
             {selectedBreadcrumbNode}
           </button>
         </nav>
       </div>
 
-      {/* Zone 1 Center: Enclosed Segmented Control Strip */}
-      <div className="flex items-center bg-slate-900 border border-slate-800 rounded p-0.5 space-x-0.5">
+      {/* Zone 1 Center: Enclosed Glass Segmented Control Strip */}
+      <div className="flex items-center bg-[#523624]/40 backdrop-blur-md border border-[#9c6c4c]/35 rounded-lg p-0.5 space-x-0.5 shadow-inner">
         {navItems
           .filter((item) => !item.adminOnly || isAdmin)
           .map((item) => {
@@ -112,29 +108,28 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 key={item.id}
                 onClick={() => onTabChange(item.id)}
-                className={`flex items-center space-x-1.5 px-2.5 py-1 rounded text-[11px] font-mono transition-all ${
+                className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-[11px] font-mono transition-all duration-200 spring-interactive ${
                   isActive
-                    ? 'bg-blue-600 text-white font-bold shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                    ? 'bg-[#ec9665] text-[#180f0a] font-bold shadow-[0_2px_12px_rgba(236,150,101,0.4)]'
+                    : 'text-[#d8bca4]/80 hover:text-[#f4aa7f] hover:bg-[#5f493b]/40'
                 }`}
               >
-                <Icon className="w-3 h-3" />
+                <Icon className={`w-3 h-3 ${isActive ? 'text-[#180f0a]' : 'text-[#d8bca4]/70'}`} />
                 <span>{item.label}</span>
               </button>
             );
           })}
       </div>
 
-      {/* Zone 1 Right: Strict 2-Role Persona Switcher */}
+      {/* Zone 1 Right: Strict 2-Role Persona Switcher with Glassmorphism */}
       <div className="flex items-center space-x-2 shrink-0">
-        {/* Strict 2-Role Persona Switcher: Admin (Approvals) vs Student / Staff (Report) */}
-        <div className="flex items-center bg-slate-900 p-0.5 rounded border border-slate-800">
+        <div className="flex items-center bg-[#523624]/40 backdrop-blur-md p-0.5 rounded-lg border border-[#9c6c4c]/35 shadow-inner">
           <button
             onClick={() => switchUser(SEEDED_USERS[0])}
-            className={`flex items-center space-x-1 px-2.5 py-1 rounded text-[11px] font-mono transition ${
+            className={`flex items-center space-x-1 px-2.5 py-1 rounded-md text-[11px] font-mono transition duration-200 spring-interactive ${
               currentUser.role === 'SYS_ADMIN'
-                ? 'bg-purple-600 text-white font-bold shadow-sm'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-gradient-to-r from-[#ec9665] to-[#f4aa7f] text-[#180f0a] font-bold shadow-[0_2px_10px_rgba(236,150,101,0.35)]'
+                : 'text-[#d8bca4]/75 hover:text-[#f4aa7f]'
             }`}
             title="Administrator role: approvals, scheduling, and staff dispatch"
           >
@@ -144,10 +139,10 @@ export const Header: React.FC<HeaderProps> = ({
 
           <button
             onClick={() => switchUser(SEEDED_USERS[1])}
-            className={`flex items-center space-x-1 px-2.5 py-1 rounded text-[11px] font-mono transition ${
+            className={`flex items-center space-x-1 px-2.5 py-1 rounded-md text-[11px] font-mono transition duration-200 spring-interactive ${
               currentUser.role === 'STUDENT_FACULTY'
-                ? 'bg-blue-600 text-white font-bold shadow-sm'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-[#9c6c4c] text-white font-bold shadow-[0_2px_10px_rgba(156,108,76,0.35)]'
+                : 'text-[#d8bca4]/75 hover:text-[#f4aa7f]'
             }`}
             title="Student / Staff role: report facility incidents and track status"
           >

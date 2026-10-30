@@ -122,42 +122,42 @@ export const WorkerRosterView: React.FC = () => {
   });
 
   return (
-    <div className="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden">
-      {/* Top Action Bar */}
-      <div className="h-12 border-b border-slate-800 bg-slate-900/80 px-4 flex items-center justify-between shrink-0">
+    <div className="h-full flex flex-col bg-transparent text-[#d8bca4] overflow-hidden">
+      {/* Top Action Bar (Glassmorphic) */}
+      <div className="h-12 border-b border-[#9c6c4c]/30 bg-[#24160f]/75 backdrop-blur-md px-4 flex items-center justify-between shrink-0 shadow-sm">
         <div className="flex items-center space-x-3">
           <div className="flex items-center space-x-2">
-            <Users className="w-4 h-4 text-blue-400" />
-            <h1 className="text-xs font-bold uppercase tracking-wider text-slate-200">
+            <Users className="w-4 h-4 text-[#ec9665]" />
+            <h1 className="text-xs font-bold uppercase tracking-wider text-[#f4aa7f] font-mono">
               Maintenance Personnel & Trade Roster
             </h1>
           </div>
-          <span className="text-[11px] px-2 py-0.5 rounded font-mono bg-blue-500/10 text-blue-400 border border-blue-500/20">
+          <span className="text-[11px] px-2 py-0.5 rounded-full font-mono bg-[#ec9665]/15 text-[#f4aa7f] border border-[#ec9665]/30">
             {workers.length} Registered Personnel
           </span>
           {!isAdmin && (
-            <span className="text-[10px] px-2 py-0.5 rounded font-mono bg-amber-500/10 text-amber-400 border border-amber-500/20">
+            <span className="text-[10px] px-2 py-0.5 rounded-full font-mono bg-amber-500/10 text-amber-300 border border-amber-500/25">
               Read-Only View (Admin required for registration)
             </span>
           )}
         </div>
 
         <div className="flex items-center space-x-3">
-          {/* Search Input */}
+          {/* Search Input with Spring */}
           <div className="relative">
-            <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2" />
+            <Search className="w-3.5 h-3.5 text-[#9c6c4c] absolute left-2.5 top-2" />
             <input
               type="text"
               placeholder="Filter by name, email, trade..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-slate-950 border border-slate-800 rounded px-2.5 pl-8 py-1 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono w-56"
+              className="glass-input rounded-md px-2.5 pl-8 py-1 text-xs placeholder-[#9c6c4c] focus:outline-none font-mono w-56 shadow-inner"
             />
           </div>
 
           <button
             onClick={fetchWorkers}
-            className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700 text-xs transition"
+            className="p-1.5 bg-[#523624]/60 hover:bg-[#ec9665] text-[#d8bca4] hover:text-[#180f0a] rounded-md border border-[#9c6c4c]/40 text-xs transition spring-interactive shadow-sm"
             title="Refresh Roster"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
@@ -166,7 +166,7 @@ export const WorkerRosterView: React.FC = () => {
           {isAdmin && (
             <button
               onClick={() => setIsDrawerOpen(true)}
-              className="flex items-center space-x-1.5 px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs font-semibold shadow transition border border-blue-500"
+              className="flex items-center space-x-1.5 px-3 py-1 bg-gradient-to-r from-[#ec9665] to-[#f4aa7f] hover:brightness-110 text-[#180f0a] rounded-md text-xs font-bold shadow-[0_2px_12px_rgba(236,150,101,0.35)] transition spring-interactive"
             >
               <UserPlus className="w-3.5 h-3.5" />
               <span>+ Register Worker</span>
@@ -180,19 +180,19 @@ export const WorkerRosterView: React.FC = () => {
         <div
           className={`px-4 py-2 text-xs flex items-center justify-between border-b ${
             statusMessage.isError
-              ? 'bg-rose-500/10 text-rose-300 border-rose-500/30'
-              : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+              ? 'bg-rose-950/60 text-rose-300 border-rose-500/30'
+              : 'bg-[#ec9665]/20 text-[#f4aa7f] border-[#ec9665]/40'
           }`}
         >
           <div className="flex items-center space-x-2">
             {statusMessage.isError ? (
               <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
             ) : (
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <CheckCircle2 className="w-4 h-4 text-[#ec9665] shrink-0" />
             )}
             <span>{statusMessage.text}</span>
           </div>
-          <button onClick={() => setStatusMessage(null)} className="text-slate-400 hover:text-white">
+          <button onClick={() => setStatusMessage(null)} className="text-[#9c6c4c] hover:text-[#d8bca4] spring-interactive">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -203,51 +203,51 @@ export const WorkerRosterView: React.FC = () => {
         {/* Ledger Table */}
         <div className="flex-1 overflow-auto">
           <table className="w-full text-left text-xs border-collapse">
-            <thead className="bg-slate-950 text-slate-400 border-b border-slate-800 font-mono sticky top-0 z-10">
+            <thead className="bg-[#24160f]/90 backdrop-blur-md text-[#d8bca4]/70 border-b border-[#9c6c4c]/30 font-mono sticky top-0 z-10 shadow-sm">
               <tr>
-                <th className="py-2 px-3 w-8 border-r border-slate-800 text-center">●</th>
-                <th className="py-2 px-3 border-r border-slate-800">Worker Full Name</th>
-                <th className="py-2 px-3 border-r border-slate-800">Email Address (Notifications)</th>
-                <th className="py-2 px-3 border-r border-slate-800">Primary Trade / Specialty</th>
-                <th className="py-2 px-3 border-r border-slate-800 text-right">Active Workload</th>
-                <th className="py-2 px-3 border-r border-slate-800 text-right">Duty Status</th>
-                {isAdmin && <th className="py-2 px-3 w-20 text-right">Actions</th>}
+                <th className="py-2.5 px-3 w-8 border-r border-[#9c6c4c]/20 text-center">●</th>
+                <th className="py-2.5 px-3 border-r border-[#9c6c4c]/20">Worker Full Name</th>
+                <th className="py-2.5 px-3 border-r border-[#9c6c4c]/20">Email Address (Notifications)</th>
+                <th className="py-2.5 px-3 border-r border-[#9c6c4c]/20">Primary Trade / Specialty</th>
+                <th className="py-2.5 px-3 border-r border-[#9c6c4c]/20 text-right">Active Workload</th>
+                <th className="py-2.5 px-3 border-r border-[#9c6c4c]/20 text-right">Duty Status</th>
+                {isAdmin && <th className="py-2.5 px-3 w-20 text-right">Actions</th>}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/80 font-sans">
+            <tbody className="divide-y divide-[#9c6c4c]/20 font-sans">
               {filteredWorkers.map((w) => {
                 const trade = TRADE_ROLES.find((t) => t.value === w.role);
                 return (
-                  <tr key={w.id} className="hover:bg-slate-900/60 transition h-9">
-                    <td className="py-2 px-3 border-r border-slate-800 text-center">
+                  <tr key={w.id} className="hover:bg-[#523624]/35 transition h-9 spring-row">
+                    <td className="py-2 px-3 border-r border-[#9c6c4c]/20 text-center">
                       <span
                         className={`inline-block w-1.5 h-1.5 rounded-full ${
-                          w.is_available ? 'bg-emerald-400' : 'bg-slate-600'
+                          w.is_available ? 'bg-[#ec9665] shadow-[0_0_8px_#ec9665]' : 'bg-[#5f493b]'
                         }`}
                         title={w.is_available ? 'Active on duty' : 'Off duty'}
                       />
                     </td>
-                    <td className="py-2 px-3 font-semibold text-slate-100 border-r border-slate-800">
+                    <td className="py-2 px-3 font-semibold text-white border-r border-[#9c6c4c]/20">
                       {w.full_name}
                     </td>
-                    <td className="py-2 px-3 font-mono text-slate-300 border-r border-slate-800">
+                    <td className="py-2 px-3 font-mono text-[#f4aa7f] border-r border-[#9c6c4c]/20">
                       {w.email}
                     </td>
-                    <td className="py-2 px-3 border-r border-slate-800">
-                      <span className="inline-flex items-center space-x-1.5 px-2 py-0.5 rounded text-[11px] font-mono bg-blue-500/10 text-blue-300 border border-blue-500/20">
+                    <td className="py-2 px-3 border-r border-[#9c6c4c]/20">
+                      <span className="inline-flex items-center space-x-1.5 px-2 py-0.5 rounded-md text-[11px] font-mono bg-[#ec9665]/15 text-[#f4aa7f] border border-[#ec9665]/30">
                         <span>{trade?.icon || '🛠️'}</span>
                         <span>{trade?.label.split(' (')[0] || w.role}</span>
                       </span>
                     </td>
-                    <td className="py-2 px-3 font-mono text-right border-r border-slate-800 text-slate-300">
+                    <td className="py-2 px-3 font-mono text-right border-r border-[#9c6c4c]/20 text-[#d8bca4]">
                       {w.active_workload_count} / {w.max_concurrent_workload} tickets
                     </td>
-                    <td className="py-2 px-3 text-right border-r border-slate-800">
+                    <td className="py-2 px-3 text-right border-r border-[#9c6c4c]/20">
                       <span
-                        className={`text-[10px] px-2 py-0.5 rounded font-mono border ${
+                        className={`text-[10px] px-2 py-0.5 rounded-full font-mono border ${
                           w.is_available
-                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25'
-                            : 'bg-slate-800 text-slate-400 border-slate-700'
+                            ? 'bg-[#ec9665]/20 text-[#f4aa7f] border-[#ec9665]/40'
+                            : 'bg-[#523624]/50 text-[#9c6c4c] border-[#9c6c4c]/30'
                         }`}
                       >
                         {w.is_available ? 'AVAILABLE' : 'OFF_SHIFT'}
@@ -257,7 +257,7 @@ export const WorkerRosterView: React.FC = () => {
                       <td className="py-2 px-3 text-right">
                         <button
                           onClick={() => handleDeleteWorker(w.id, w.full_name)}
-                          className="p-1 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 rounded transition"
+                          className="p-1 hover:bg-rose-500/25 text-[#9c6c4c] hover:text-rose-300 rounded transition spring-interactive"
                           title="Deregister worker"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -271,7 +271,7 @@ export const WorkerRosterView: React.FC = () => {
                 <tr>
                   <td
                     colSpan={isAdmin ? 7 : 6}
-                    className="py-16 text-center text-slate-500 text-xs font-mono"
+                    className="py-20 text-center text-[#9c6c4c] text-xs font-mono"
                   >
                     {workers.length === 0
                       ? 'No maintenance workers registered yet. Click "+ Register Worker" above to add electricians, plumbers, and technicians.'
@@ -283,26 +283,26 @@ export const WorkerRosterView: React.FC = () => {
           </table>
         </div>
 
-        {/* Slide-Over Drawer for Worker Registration */}
+        {/* Slide-Over Frosted Glass Drawer for Worker Registration */}
         {isDrawerOpen && (
-          <div className="w-[400px] border-l border-slate-800 bg-slate-900 p-4 flex flex-col justify-between shrink-0 shadow-2xl z-20">
+          <div className="w-[410px] glass-drawer p-4 flex flex-col justify-between shrink-0 shadow-2xl z-20">
             <div>
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center justify-between pb-3 border-b border-[#9c6c4c]/30">
                 <div className="flex items-center space-x-2">
-                  <UserPlus className="w-4 h-4 text-blue-400" />
-                  <h2 className="text-xs font-bold text-slate-100 uppercase tracking-wider">
+                  <UserPlus className="w-4 h-4 text-[#ec9665]" />
+                  <h2 className="text-xs font-bold text-[#f4aa7f] uppercase tracking-wider font-mono">
                     Register Maintenance Personnel
                   </h2>
                 </div>
                 <button
                   onClick={() => setIsDrawerOpen(false)}
-                  className="text-slate-400 hover:text-white"
+                  className="text-[#9c6c4c] hover:text-[#d8bca4] spring-interactive"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <p className="text-[11px] text-slate-400 py-3 leading-relaxed">
+              <p className="text-[11px] text-[#d8bca4]/80 py-3 leading-relaxed font-mono">
                 Add an operational technician to the campus maintenance roster. Incident intake will
                 automatically score and dispatch verified work orders to them via the Groq AI agent and
                 Resend email integration.
@@ -310,7 +310,7 @@ export const WorkerRosterView: React.FC = () => {
 
               <form onSubmit={handleRegisterWorker} className="space-y-3 pt-2">
                 <div>
-                  <label className="block text-[11px] font-mono text-slate-400 mb-1">
+                  <label className="block text-[11px] font-mono text-[#9c6c4c] mb-1">
                     Worker Full Name *
                   </label>
                   <input
@@ -319,12 +319,12 @@ export const WorkerRosterView: React.FC = () => {
                     placeholder="e.g. Murugan P"
                     value={formName}
                     onChange={(e) => setFormName(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500 font-mono"
+                    className="w-full glass-input rounded-md px-2.5 py-1.5 text-xs text-[#f4aa7f] focus:outline-none font-mono"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-mono text-slate-400 mb-1">
+                  <label className="block text-[11px] font-mono text-[#9c6c4c] mb-1">
                     Notification Email Address *
                   </label>
                   <input
@@ -333,21 +333,21 @@ export const WorkerRosterView: React.FC = () => {
                     placeholder="e.g. murugan.plumber@easwari.edu"
                     value={formEmail}
                     onChange={(e) => setFormEmail(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500 font-mono"
+                    className="w-full glass-input rounded-md px-2.5 py-1.5 text-xs text-[#f4aa7f] focus:outline-none font-mono"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-mono text-slate-400 mb-1">
+                  <label className="block text-[11px] font-mono text-[#9c6c4c] mb-1">
                     Primary Trade / Skill *
                   </label>
                   <select
                     value={formRole}
                     onChange={(e) => setFormRole(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500 font-mono"
+                    className="w-full glass-input rounded-md px-2.5 py-1.5 text-xs text-[#d8bca4] focus:outline-none font-mono cursor-pointer"
                   >
                     {TRADE_ROLES.map((t) => (
-                      <option key={t.value} value={t.value}>
+                      <option key={t.value} value={t.value} className="bg-[#180f0a] text-[#d8bca4]">
                         {t.icon} {t.label}
                       </option>
                     ))}
@@ -358,7 +358,7 @@ export const WorkerRosterView: React.FC = () => {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded text-xs font-bold transition shadow-md flex items-center justify-center space-x-1.5"
+                    className="w-full py-2 bg-gradient-to-r from-[#ec9665] to-[#f4aa7f] text-[#180f0a] disabled:opacity-50 rounded-md text-xs font-bold transition spring-interactive shadow-[0_4px_16px_rgba(236,150,101,0.35)] flex items-center justify-center space-x-1.5"
                   >
                     <UserPlus className="w-3.5 h-3.5" />
                     <span>{isSubmitting ? 'Registering...' : 'Register Worker'}</span>
@@ -367,7 +367,7 @@ export const WorkerRosterView: React.FC = () => {
               </form>
             </div>
 
-            <div className="pt-4 border-t border-slate-800 text-[10px] text-slate-500 font-mono">
+            <div className="pt-4 border-t border-[#9c6c4c]/30 text-[10px] text-[#9c6c4c] font-mono">
               Role Authority: SYS_ADMIN &bull; Shift Window: 365 Days Active &bull; Max Workload: 5
             </div>
           </div>
@@ -376,4 +376,3 @@ export const WorkerRosterView: React.FC = () => {
     </div>
   );
 };
-

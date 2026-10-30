@@ -24,12 +24,12 @@ import {
 } from 'lucide-react';
 
 const ROLE_BADGES: Record<string, { label: string; icon: string; color: string }> = {
-  ELECTRICAL: { label: 'Electrician', icon: '⚡', color: 'bg-amber-500/10 text-amber-300 border-amber-500/30' },
-  PLUMBING: { label: 'Plumber', icon: '🔧', color: 'bg-blue-500/10 text-blue-300 border-blue-500/30' },
-  HVAC: { label: 'HVAC Tech', icon: '❄️', color: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30' },
-  NETWORK: { label: 'Network Eng', icon: '🌐', color: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30' },
-  AV_EQUIPMENT: { label: 'AV Tech', icon: '📽️', color: 'bg-purple-500/10 text-purple-300 border-purple-500/30' },
-  STRUCTURAL_SAFETY: { label: 'Safety Officer', icon: '🚨', color: 'bg-rose-500/10 text-rose-300 border-rose-500/30' },
+  ELECTRICAL: { label: 'Electrician', icon: '⚡', color: 'bg-[#ec9665]/20 text-[#f4aa7f] border-[#ec9665]/40' },
+  PLUMBING: { label: 'Plumber', icon: '🔧', color: 'bg-[#9c6c4c]/25 text-[#d8bca4] border-[#9c6c4c]/45' },
+  HVAC: { label: 'HVAC Tech', icon: '❄️', color: 'bg-[#f4aa7f]/20 text-[#f4aa7f] border-[#f4aa7f]/40' },
+  NETWORK: { label: 'Network Eng', icon: '🌐', color: 'bg-[#523624]/60 text-[#d8bca4] border-[#9c6c4c]/50' },
+  AV_EQUIPMENT: { label: 'AV Tech', icon: '📽️', color: 'bg-[#ec9665]/25 text-[#f4aa7f] border-[#ec9665]/50' },
+  STRUCTURAL_SAFETY: { label: 'Safety Officer', icon: '🚨', color: 'bg-rose-500/20 text-rose-300 border-rose-500/40' },
 };
 
 export const WorkOrdersView: React.FC = () => {
@@ -55,6 +55,8 @@ export const WorkOrdersView: React.FC = () => {
         if (updated) setSelectedTicket(updated);
       } else if (data.length > 0) {
         setSelectedTicket(data[0]);
+      } else {
+        setSelectedTicket(null);
       }
     } catch (err) {
       console.error('Failed to fetch work orders:', err);
@@ -115,103 +117,103 @@ export const WorkOrdersView: React.FC = () => {
     switch (state) {
       case 'RESOLVED':
       case 'CLOSED':
-        return 'bg-emerald-400';
+        return 'bg-[#f4aa7f] shadow-[0_0_8px_#f4aa7f]';
       case 'ASSIGNED':
-        return 'bg-purple-400';
+        return 'bg-[#ec9665] shadow-[0_0_8px_#ec9665]';
       case 'IN_PROGRESS':
-        return 'bg-cyan-400';
+        return 'bg-[#d8bca4] shadow-[0_0_8px_#d8bca4]';
       case 'BLOCKED_PARTS':
-        return 'bg-amber-400';
+        return 'bg-[#9c6c4c] shadow-[0_0_8px_#9c6c4c]';
       case 'AWAITING_CLARIFICATION':
-        return 'bg-orange-400';
+        return 'bg-amber-400 shadow-[0_0_8px_#f59e0b]';
       case 'MERGED_DUPLICATE':
-        return 'bg-slate-500';
+        return 'bg-[#5f493b]';
       default:
-        return 'bg-blue-400';
+        return 'bg-[#ec9665]';
     }
   };
 
   const getStateBadge = (state: string) => {
     switch (state) {
       case 'TRIAGED':
-        return 'bg-blue-500/10 text-blue-300 border-blue-500/30';
+        return 'bg-[#ec9665]/15 text-[#f4aa7f] border-[#ec9665]/30';
       case 'ASSIGNED':
-        return 'bg-purple-500/10 text-purple-300 border-purple-500/30';
+        return 'bg-[#ec9665]/25 text-[#f4aa7f] border-[#ec9665]/50 font-bold';
       case 'IN_PROGRESS':
-        return 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30';
+        return 'bg-[#9c6c4c]/30 text-[#d8bca4] border-[#9c6c4c]/50';
       case 'BLOCKED_PARTS':
-        return 'bg-amber-500/10 text-amber-300 border-amber-500/30';
+        return 'bg-[#523624]/70 text-[#f4aa7f] border-[#9c6c4c]/40';
       case 'AWAITING_CLARIFICATION':
-        return 'bg-orange-500/10 text-orange-300 border-orange-500/30';
+        return 'bg-amber-500/15 text-amber-300 border-amber-500/35';
       case 'MERGED_DUPLICATE':
-        return 'bg-slate-500/10 text-slate-400 border-slate-700';
+        return 'bg-[#5f493b]/40 text-[#d8bca4]/60 border-[#5f493b]';
       case 'RESOLVED':
-        return 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30';
+        return 'bg-[#ec9665]/30 text-white border-[#ec9665]/60 font-bold';
       default:
-        return 'bg-slate-800 text-slate-400 border-slate-700';
+        return 'bg-[#523624] text-[#d8bca4] border-[#9c6c4c]/30';
     }
   };
 
   const getPriorityBadge = (priority: string) => {
     switch (priority) {
       case 'P0_CRITICAL':
-        return 'bg-rose-500/20 text-rose-300 border-rose-500/40 font-bold';
+        return 'bg-rose-500/25 text-rose-200 border-rose-500/50 font-bold shadow-[0_0_10px_rgba(244,63,94,0.25)]';
       case 'P1_HIGH':
-        return 'bg-orange-500/15 text-orange-300 border-orange-500/30';
+        return 'bg-[#ec9665]/25 text-[#f4aa7f] border-[#ec9665]/40 font-bold';
       case 'P2_MEDIUM':
-        return 'bg-blue-500/15 text-blue-300 border-blue-500/30';
+        return 'bg-[#9c6c4c]/20 text-[#d8bca4] border-[#9c6c4c]/35';
       default:
-        return 'bg-slate-800 text-slate-400 border-slate-700';
+        return 'bg-[#523624]/40 text-[#d8bca4]/70 border-[#9c6c4c]/30';
     }
   };
 
   return (
-    <div className="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden">
-      {/* Top Ledger Context Filter Strip */}
-      <div className="h-12 border-b border-slate-800 bg-slate-900/80 px-4 flex items-center justify-between shrink-0">
+    <div className="h-full flex flex-col bg-transparent text-[#d8bca4] overflow-hidden">
+      {/* Top Ledger Context Filter Strip (Glassmorphism) */}
+      <div className="h-12 border-b border-[#9c6c4c]/30 bg-[#24160f]/75 backdrop-blur-md px-4 flex items-center justify-between shrink-0 shadow-sm">
         <div className="flex items-center space-x-3">
           <div className="flex items-center space-x-2">
-            <ClipboardList className="w-4 h-4 text-blue-400" />
-            <h1 className="text-xs font-bold uppercase tracking-wider text-slate-200">
+            <ClipboardList className="w-4 h-4 text-[#ec9665]" />
+            <h1 className="text-xs font-bold uppercase tracking-wider text-[#f4aa7f] font-mono">
               Work Order Operational Ledger
             </h1>
           </div>
-          <span className="text-[11px] px-2 py-0.5 rounded font-mono bg-blue-500/10 text-blue-400 border border-blue-500/20">
+          <span className="text-[11px] px-2 py-0.5 rounded-full font-mono bg-[#ec9665]/15 text-[#f4aa7f] border border-[#ec9665]/30">
             {workOrders.length} Records
           </span>
         </div>
 
-        {/* Search & State Filter Controls */}
+        {/* Search & State Filter Controls with Spring Behavior */}
         <div className="flex items-center space-x-3">
           <div className="relative">
-            <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2" />
+            <Search className="w-3.5 h-3.5 text-[#9c6c4c] absolute left-2.5 top-2" />
             <input
               type="text"
               placeholder="Search ticket, room, trade..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-slate-950 border border-slate-800 rounded px-2.5 pl-8 py-1 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono w-56"
+              className="glass-input rounded-md px-2.5 pl-8 py-1 text-xs placeholder-[#9c6c4c] focus:outline-none font-mono w-56 shadow-inner"
             />
           </div>
 
           <select
             value={filterState}
             onChange={(e) => setFilterState(e.target.value)}
-            className="bg-slate-950 border border-slate-800 rounded px-2.5 py-1 text-xs text-slate-300 focus:outline-none focus:border-blue-500 font-mono"
+            className="glass-input rounded-md px-2.5 py-1 text-xs text-[#d8bca4] focus:outline-none font-mono cursor-pointer"
           >
-            <option value="ALL">All States ({workOrders.length})</option>
-            <option value="TRIAGED">Triaged</option>
-            <option value="ASSIGNED">Assigned</option>
-            <option value="IN_PROGRESS">In Progress</option>
-            <option value="BLOCKED_PARTS">Blocked on Parts</option>
-            <option value="AWAITING_CLARIFICATION">Awaiting Clarification</option>
-            <option value="MERGED_DUPLICATE">Merged Duplicate</option>
-            <option value="RESOLVED">Resolved</option>
+            <option value="ALL" className="bg-[#180f0a] text-[#d8bca4]">All States ({workOrders.length})</option>
+            <option value="TRIAGED" className="bg-[#180f0a] text-[#d8bca4]">Triaged</option>
+            <option value="ASSIGNED" className="bg-[#180f0a] text-[#d8bca4]">Assigned</option>
+            <option value="IN_PROGRESS" className="bg-[#180f0a] text-[#d8bca4]">In Progress</option>
+            <option value="BLOCKED_PARTS" className="bg-[#180f0a] text-[#d8bca4]">Blocked on Parts</option>
+            <option value="AWAITING_CLARIFICATION" className="bg-[#180f0a] text-[#d8bca4]">Awaiting Clarification</option>
+            <option value="MERGED_DUPLICATE" className="bg-[#180f0a] text-[#d8bca4]">Merged Duplicate</option>
+            <option value="RESOLVED" className="bg-[#180f0a] text-[#d8bca4]">Resolved</option>
           </select>
 
           <button
             onClick={fetchWorkOrders}
-            className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700 text-xs transition"
+            className="p-1.5 bg-[#523624]/60 hover:bg-[#ec9665] text-[#d8bca4] hover:text-[#180f0a] rounded-md border border-[#9c6c4c]/40 text-xs transition spring-interactive shadow-sm"
             title="Refresh Ledger"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
@@ -222,20 +224,20 @@ export const WorkOrdersView: React.FC = () => {
       {/* Main 60/40 Asymmetric Workspace Split */}
       <div className="flex-1 flex overflow-hidden">
         {/* 60% Left Pane: Spatial Ledger Table (Edge-to-Edge) */}
-        <div className="flex-1 border-r border-slate-800 overflow-auto">
+        <div className="flex-1 border-r border-[#9c6c4c]/30 overflow-auto">
           <table className="w-full text-left text-xs border-collapse">
-            <thead className="bg-slate-950 text-slate-400 border-b border-slate-800 font-mono sticky top-0 z-10">
+            <thead className="bg-[#24160f]/90 backdrop-blur-md text-[#d8bca4]/70 border-b border-[#9c6c4c]/30 font-mono sticky top-0 z-10 shadow-sm">
               <tr>
-                <th className="py-2 px-3 w-8 border-r border-slate-800 text-center">●</th>
-                <th className="py-2 px-3 w-20 border-r border-slate-800">Ticket</th>
-                <th className="py-2 px-3 border-r border-slate-800">Room / Node</th>
-                <th className="py-2 px-3 border-r border-slate-800">Category</th>
-                <th className="py-2 px-3 border-r border-slate-800 text-right">Priority</th>
-                <th className="py-2 px-3 border-r border-slate-800 text-right">State</th>
-                <th className="py-2 px-3 text-right">Assigned Worker</th>
+                <th className="py-2.5 px-3 w-8 border-r border-[#9c6c4c]/20 text-center">●</th>
+                <th className="py-2.5 px-3 w-20 border-r border-[#9c6c4c]/20">Ticket</th>
+                <th className="py-2.5 px-3 border-r border-[#9c6c4c]/20">Room / Node</th>
+                <th className="py-2.5 px-3 border-r border-[#9c6c4c]/20">Category</th>
+                <th className="py-2.5 px-3 border-r border-[#9c6c4c]/20 text-right">Priority</th>
+                <th className="py-2.5 px-3 border-r border-[#9c6c4c]/20 text-right">State</th>
+                <th className="py-2.5 px-3 text-right">Assigned Worker</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/80 font-sans">
+            <tbody className="divide-y divide-[#9c6c4c]/20 font-sans">
               {filteredTickets.map((t) => {
                 const isSelected = selectedTicket?.id === t.id;
                 const roleBadge = ROLE_BADGES[t.assigned_tech_role || t.category];
@@ -243,28 +245,28 @@ export const WorkOrdersView: React.FC = () => {
                   <tr
                     key={t.id}
                     onClick={() => setSelectedTicket(t)}
-                    className={`cursor-pointer transition h-9 select-none ${
+                    className={`cursor-pointer transition h-9 select-none spring-row ${
                       isSelected
-                        ? 'bg-blue-600/15 border-l-2 border-l-blue-500'
-                        : 'hover:bg-slate-900/60'
+                        ? 'bg-[#ec9665]/20 border-l-2 border-l-[#ec9665] shadow-sm'
+                        : 'hover:bg-[#523624]/35'
                     }`}
                   >
-                    <td className="py-2 px-3 border-r border-slate-800 text-center">
+                    <td className="py-2 px-3 border-r border-[#9c6c4c]/20 text-center">
                       <span
                         className={`inline-block w-1.5 h-1.5 rounded-full ${getStatusDot(t.state)}`}
                         title={t.state}
                       />
                     </td>
-                    <td className="py-2 px-3 font-mono font-bold text-blue-400 border-r border-slate-800">
+                    <td className="py-2 px-3 font-mono font-bold text-[#ec9665] border-r border-[#9c6c4c]/20">
                       #{t.ticket_number}
                     </td>
-                    <td className="py-2 px-3 font-mono text-slate-200 border-r border-slate-800">
+                    <td className="py-2 px-3 font-mono text-[#d8bca4] border-r border-[#9c6c4c]/20">
                       {t.node_code || 'Campus General'}
                     </td>
-                    <td className="py-2 px-3 font-mono text-slate-300 text-[11px] border-r border-slate-800">
+                    <td className="py-2 px-3 font-mono text-[#f4aa7f] text-[11px] border-r border-[#9c6c4c]/20">
                       {t.category || 'PENDING_TRIAGE'}
                     </td>
-                    <td className="py-2 px-3 text-right border-r border-slate-800">
+                    <td className="py-2 px-3 text-right border-r border-[#9c6c4c]/20">
                       <span
                         className={`text-[10px] px-1.5 py-0.5 rounded font-mono border ${getPriorityBadge(
                           t.calculated_priority
@@ -273,7 +275,7 @@ export const WorkOrdersView: React.FC = () => {
                         {t.calculated_priority || 'P2'}
                       </span>
                     </td>
-                    <td className="py-2 px-3 text-right border-r border-slate-800">
+                    <td className="py-2 px-3 text-right border-r border-[#9c6c4c]/20">
                       <span
                         className={`text-[10px] px-2 py-0.5 rounded font-mono border ${getStateBadge(
                           t.state
@@ -285,7 +287,7 @@ export const WorkOrdersView: React.FC = () => {
                     <td className="py-2 px-3 text-right">
                       {t.assigned_tech_name ? (
                         <div className="inline-flex items-center space-x-1.5 justify-end">
-                          <span className="font-semibold text-slate-200">{t.assigned_tech_name}</span>
+                          <span className="font-semibold text-[#f4aa7f]">{t.assigned_tech_name}</span>
                           {roleBadge && (
                             <span
                               className={`px-1.5 py-0.2 rounded text-[10px] font-mono border ${roleBadge.color}`}
@@ -295,7 +297,7 @@ export const WorkOrdersView: React.FC = () => {
                           )}
                         </div>
                       ) : (
-                        <span className="text-slate-500 italic text-[11px] font-mono">
+                        <span className="text-[#9c6c4c] italic text-[11px] font-mono">
                           Unassigned
                         </span>
                       )}
@@ -305,7 +307,7 @@ export const WorkOrdersView: React.FC = () => {
               })}
               {filteredTickets.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-16 text-center text-slate-500 text-xs font-mono">
+                  <td colSpan={7} className="py-20 text-center text-[#9c6c4c] text-xs font-mono">
                     {workOrders.length === 0
                       ? 'No work orders in ledger. New incident reports filed from Dashboard will be recorded here.'
                       : 'No work orders matching filter criteria.'}
@@ -316,15 +318,15 @@ export const WorkOrdersView: React.FC = () => {
           </table>
         </div>
 
-        {/* 40% Right Pane: Contextual Inspector Drawer (Fixed 410px width) */}
-        <div className="w-[410px] bg-slate-900 border-l border-slate-800 flex flex-col justify-between overflow-y-auto shrink-0 shadow-2xl">
+        {/* 40% Right Pane: Contextual Inspector Drawer (Frosted Glass, Fixed 410px width) */}
+        <div className="w-[410px] glass-drawer flex flex-col justify-between overflow-y-auto shrink-0 shadow-2xl">
           {selectedTicket ? (
             <div className="p-4 space-y-4">
               {/* Drawer Header */}
-              <div className="pb-3 border-b border-slate-800 flex items-center justify-between">
+              <div className="pb-3 border-b border-[#9c6c4c]/30 flex items-center justify-between">
                 <div>
                   <div className="flex items-center space-x-2">
-                    <span className="text-sm font-mono font-bold text-blue-400">
+                    <span className="text-sm font-mono font-bold text-[#ec9665]">
                       Ticket #{selectedTicket.ticket_number}
                     </span>
                     <span
@@ -335,7 +337,7 @@ export const WorkOrdersView: React.FC = () => {
                       {selectedTicket.state}
                     </span>
                   </div>
-                  <div className="text-xs font-semibold text-slate-200 mt-1">
+                  <div className="text-xs font-semibold text-[#d8bca4] mt-1">
                     {selectedTicket.node_name
                       ? `${selectedTicket.node_name} (${selectedTicket.node_code})`
                       : 'Campus General Infrastructure'}
@@ -353,17 +355,17 @@ export const WorkOrdersView: React.FC = () => {
 
               {/* Status Alert Message */}
               {transitionStatus && (
-                <div className="p-2.5 bg-blue-500/10 border border-blue-500/30 rounded text-xs text-blue-300 font-mono">
+                <div className="p-2.5 bg-[#ec9665]/20 border border-[#ec9665]/40 rounded-md text-xs text-[#f4aa7f] font-mono shadow-sm">
                   {transitionStatus}
                 </div>
               )}
 
               {/* Reported Description */}
               <div className="space-y-1">
-                <span className="text-[10px] font-mono uppercase text-slate-400">
+                <span className="text-[10px] font-mono uppercase text-[#9c6c4c]">
                   Reported Incident Description
                 </span>
-                <div className="p-2.5 bg-slate-950 border border-slate-800 rounded text-xs text-slate-300 leading-relaxed font-mono">
+                <div className="p-3 bg-[#180f0a]/80 border border-[#9c6c4c]/35 rounded-lg text-xs text-[#d8bca4] leading-relaxed font-mono shadow-inner">
                   {selectedTicket.raw_description || 'No raw description provided.'}
                 </div>
               </div>
@@ -371,26 +373,26 @@ export const WorkOrdersView: React.FC = () => {
               {/* AI Structured Summary */}
               {selectedTicket.ai_summary && (
                 <div className="space-y-1">
-                  <span className="text-[10px] font-mono uppercase text-slate-400">
+                  <span className="text-[10px] font-mono uppercase text-[#ec9665]">
                     AI Entity Extraction Summary
                   </span>
-                  <div className="p-2.5 bg-blue-950/20 border border-blue-800/40 rounded text-xs text-blue-200 font-mono">
+                  <div className="p-3 bg-[#523624]/50 border border-[#ec9665]/35 rounded-lg text-xs text-[#f4aa7f] font-mono shadow-inner">
                     {selectedTicket.ai_summary}
                   </div>
                 </div>
               )}
 
-              {/* Assigned Worker Telemetry Card (NO Change Worker Button) */}
-              <div className="p-3 bg-slate-950 border border-slate-800 rounded space-y-2">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 flex items-center space-x-1.5">
-                  <User className="w-3.5 h-3.5 text-blue-400" />
+              {/* Assigned Worker Telemetry Card */}
+              <div className="p-3 bg-[#24160f]/80 border border-[#9c6c4c]/35 rounded-lg space-y-2 shadow-inner">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-[#9c6c4c] flex items-center space-x-1.5">
+                  <User className="w-3.5 h-3.5 text-[#ec9665]" />
                   <span>Assigned Maintenance Personnel</span>
                 </span>
 
                 {selectedTicket.assigned_tech_name ? (
                   <div className="space-y-1.5 pt-1">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-100">
+                      <span className="text-xs font-bold text-white">
                         {selectedTicket.assigned_tech_name}
                       </span>
                       {(() => {
@@ -408,35 +410,35 @@ export const WorkOrdersView: React.FC = () => {
                         ) : null;
                       })()}
                     </div>
-                    <div className="flex items-center space-x-1.5 text-xs text-slate-400 font-mono">
-                      <Mail className="w-3 h-3 text-slate-500" />
+                    <div className="flex items-center space-x-1.5 text-xs text-[#d8bca4]/80 font-mono">
+                      <Mail className="w-3 h-3 text-[#9c6c4c]" />
                       <span>{selectedTicket.assigned_tech_email || 'No email registered'}</span>
                     </div>
-                    <div className="flex items-center space-x-1 text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 w-fit font-mono">
+                    <div className="flex items-center space-x-1 text-[10px] text-[#f4aa7f] bg-[#ec9665]/15 px-2 py-0.5 rounded border border-[#ec9665]/30 w-fit font-mono">
                       <span>✓ Dispatched via Resend API</span>
                     </div>
                   </div>
                 ) : (
-                  <div className="py-2.5 text-center text-xs text-slate-500 bg-slate-900/50 rounded border border-dashed border-slate-800 font-mono">
+                  <div className="py-2.5 text-center text-xs text-[#9c6c4c] bg-[#180f0a]/50 rounded-md border border-dashed border-[#9c6c4c]/30 font-mono">
                     Pending technician assignment (Score-based auto-dispatch)
                   </div>
                 )}
               </div>
 
-              {/* Emergency Instructions Card (Anti-Hallucination Verified) */}
+              {/* Emergency Instructions Card */}
               {selectedTicket.partial_slots?.emergency_instructions && (
-                <div className="p-3 bg-rose-950/30 border border-rose-500/40 rounded space-y-2 text-xs">
-                  <div className="flex items-center space-x-1.5 text-rose-400 font-bold">
+                <div className="p-3 bg-rose-950/40 border border-rose-500/50 rounded-lg space-y-2 text-xs shadow-md">
+                  <div className="flex items-center space-x-1.5 text-rose-300 font-bold">
                     <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
                     <span>EMERGENCY PROTOCOL ACTIVE</span>
                   </div>
                   <div className="font-semibold text-rose-200">
                     {selectedTicket.partial_slots.emergency_instructions.hazard_title}
                   </div>
-                  <p className="text-[11px] text-slate-300">
+                  <p className="text-[11px] text-[#d8bca4]">
                     {selectedTicket.partial_slots.emergency_instructions.evacuation_route}
                   </p>
-                  <div className="text-[10px] text-rose-300 font-mono bg-rose-950/60 p-2 rounded border border-rose-900">
+                  <div className="text-[10px] text-rose-300 font-mono bg-rose-950/70 p-2 rounded border border-rose-900">
                     Assembly Point:{' '}
                     {selectedTicket.partial_slots.emergency_instructions.assembly_point}
                   </div>
@@ -445,12 +447,12 @@ export const WorkOrdersView: React.FC = () => {
 
               {/* Clarification Interaction (if awaiting) */}
               {selectedTicket.state === 'AWAITING_CLARIFICATION' && (
-                <div className="p-3 bg-amber-950/20 border border-amber-500/40 rounded space-y-2">
-                  <div className="flex items-center space-x-1.5 text-amber-400 text-xs font-bold">
+                <div className="p-3 bg-[#523624]/60 border border-amber-500/40 rounded-lg space-y-2 shadow-inner">
+                  <div className="flex items-center space-x-1.5 text-amber-300 text-xs font-bold">
                     <MessageSquare className="w-3.5 h-3.5" />
                     <span>Clarification Required</span>
                   </div>
-                  <p className="text-xs text-slate-300 italic">
+                  <p className="text-xs text-[#d8bca4] italic">
                     "{selectedTicket.clarification_question || 'Please provide additional details.'}"
                   </p>
                   <form onSubmit={handleClarifySubmit} className="space-y-2 pt-1">
@@ -459,12 +461,12 @@ export const WorkOrdersView: React.FC = () => {
                       placeholder="e.g. Near switchboard in Room 204..."
                       value={clarifyText}
                       onChange={(e) => setClarifyText(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-100 font-mono focus:outline-none focus:border-amber-500"
+                      className="w-full glass-input rounded-md px-2.5 py-1.5 text-xs text-[#f4aa7f] font-mono focus:outline-none"
                     />
                     <button
                       type="submit"
                       disabled={isSubmittingClarify || !clarifyText.trim()}
-                      className="w-full py-1.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white rounded text-xs font-semibold font-mono transition"
+                      className="w-full py-1.5 bg-[#ec9665] hover:bg-[#f4aa7f] text-[#180f0a] disabled:opacity-50 rounded-md text-xs font-bold font-mono transition spring-interactive shadow"
                     >
                       {isSubmittingClarify ? 'Submitting...' : 'Submit Clarification'}
                     </button>
@@ -473,15 +475,15 @@ export const WorkOrdersView: React.FC = () => {
               )}
 
               {/* FSM Lifecycle Action Triggers */}
-              <div className="space-y-2 pt-2 border-t border-slate-800">
-                <span className="text-[10px] font-mono uppercase text-slate-400 tracking-wider">
+              <div className="space-y-2 pt-2 border-t border-[#9c6c4c]/30">
+                <span className="text-[10px] font-mono uppercase text-[#9c6c4c] tracking-wider">
                   Available FSM Actions
                 </span>
                 <div className="grid grid-cols-2 gap-2">
                   {selectedTicket.state === 'ASSIGNED' && (
                     <button
                       onClick={() => handleTransition('IN_PROGRESS', 'Technician on-site inspection')}
-                      className="col-span-2 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs font-bold font-mono transition flex items-center justify-center space-x-1.5 shadow"
+                      className="col-span-2 py-2 bg-gradient-to-r from-[#ec9665] to-[#f4aa7f] text-[#180f0a] rounded-md text-xs font-bold font-mono transition spring-interactive flex items-center justify-center space-x-1.5 shadow-[0_4px_16px_rgba(236,150,101,0.35)]"
                     >
                       <Play className="w-3.5 h-3.5" />
                       <span>Start Repair</span>
@@ -494,7 +496,7 @@ export const WorkOrdersView: React.FC = () => {
                         onClick={() =>
                           handleTransition('RESOLVED', 'Repairs completed and operational tests passed.')
                         }
-                        className="py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-bold font-mono transition flex items-center justify-center space-x-1.5 shadow"
+                        className="py-2 bg-gradient-to-r from-[#ec9665] to-[#f4aa7f] text-[#180f0a] rounded-md text-xs font-bold font-mono transition spring-interactive flex items-center justify-center space-x-1.5 shadow-[0_4px_14px_rgba(236,150,101,0.3)]"
                       >
                         <CheckCircle className="w-3.5 h-3.5" />
                         <span>Mark Resolved</span>
@@ -506,7 +508,7 @@ export const WorkOrdersView: React.FC = () => {
                             'Awaiting replacement parts from central inventory'
                           )
                         }
-                        className="py-2 bg-amber-600 hover:bg-amber-500 text-white rounded text-xs font-bold font-mono transition flex items-center justify-center space-x-1.5 shadow"
+                        className="py-2 bg-[#9c6c4c] hover:bg-[#9c6c4c]/90 text-white rounded-md text-xs font-bold font-mono transition spring-interactive flex items-center justify-center space-x-1.5 shadow"
                       >
                         <Pause className="w-3.5 h-3.5" />
                         <span>Block on Parts</span>
@@ -519,7 +521,7 @@ export const WorkOrdersView: React.FC = () => {
                       onClick={() =>
                         handleTransition('IN_PROGRESS', 'Replacement parts received from store')
                       }
-                      className="col-span-2 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded text-xs font-bold font-mono transition flex items-center justify-center space-x-1.5 shadow"
+                      className="col-span-2 py-2 bg-gradient-to-r from-[#ec9665] to-[#f4aa7f] text-[#180f0a] rounded-md text-xs font-bold font-mono transition spring-interactive flex items-center justify-center space-x-1.5 shadow"
                     >
                       <Play className="w-3.5 h-3.5" />
                       <span>Resume Repair</span>
@@ -527,13 +529,13 @@ export const WorkOrdersView: React.FC = () => {
                   )}
 
                   {(selectedTicket.state === 'RESOLVED' || selectedTicket.state === 'CLOSED') && (
-                    <div className="col-span-2 py-2 text-center text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded font-mono">
+                    <div className="col-span-2 py-2 text-center text-xs text-[#f4aa7f] bg-[#ec9665]/15 border border-[#ec9665]/35 rounded-md font-mono shadow-sm">
                       ✓ Lifecycle Complete (State: {selectedTicket.state})
                     </div>
                   )}
 
                   {selectedTicket.state === 'TRIAGED' && (
-                    <div className="col-span-2 py-2 text-center text-xs text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded font-mono">
+                    <div className="col-span-2 py-2 text-center text-xs text-[#f4aa7f] bg-[#523624]/60 border border-[#ec9665]/35 rounded-md font-mono shadow-sm">
                       Awaiting Automated Worker Dispatch
                     </div>
                   )}
@@ -541,13 +543,13 @@ export const WorkOrdersView: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div className="p-8 text-center text-slate-500 text-xs font-mono">
-              Select a work order row to inspect telemetry and trigger state transitions.
+            <div className="p-8 text-center text-[#9c6c4c] text-xs font-mono">
+              No work order selected. File an incident from Dashboard to initiate automated triage and technician dispatch.
             </div>
           )}
 
           {/* Drawer Footer Status */}
-          <div className="p-3 border-t border-slate-800 text-[10px] text-slate-500 font-mono flex items-center justify-between">
+          <div className="p-3 border-t border-[#9c6c4c]/30 text-[10px] text-[#9c6c4c] font-mono flex items-center justify-between bg-[#180f0a]/50">
             <span>FSM: STRICT TRIGGER GUARDS</span>
             <span>AUDIT: IMMUTABLE</span>
           </div>

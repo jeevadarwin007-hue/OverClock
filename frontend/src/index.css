@@ -4,8 +4,99 @@
 
 @layer base {
   body {
-    @apply bg-slate-950 text-slate-100 font-sans;
+    background-color: #180f0a;
+    color: #d8bca4;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    background-image: 
+      radial-gradient(circle at 10% 10%, rgba(236, 150, 101, 0.08), transparent 30%),
+      radial-gradient(circle at 90% 85%, rgba(156, 108, 76, 0.12), transparent 35%),
+      radial-gradient(circle at 50% 50%, rgba(82, 54, 36, 0.15), transparent 60%);
+    background-attachment: fixed;
   }
+}
+
+/* Glassmorphism primitives */
+.glass-panel {
+  background: rgba(82, 54, 36, 0.65);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(216, 188, 164, 0.18);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(244, 170, 127, 0.18);
+}
+
+.glass-surface {
+  background: rgba(95, 73, 59, 0.42);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(216, 188, 164, 0.15);
+  box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.25);
+}
+
+.glass-drawer {
+  background: rgba(82, 54, 36, 0.88);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-left: 1px solid rgba(216, 188, 164, 0.25);
+  box-shadow: -10px 0 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(244, 170, 127, 0.2);
+}
+
+.glass-input {
+  background: rgba(24, 15, 10, 0.75);
+  border: 1px solid rgba(156, 108, 76, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #f4aa7f;
+}
+.glass-input:focus {
+  border-color: #ec9665;
+  box-shadow: 0 0 0 2px rgba(236, 150, 101, 0.25);
+}
+
+/* Tiny Spring Micro-Interactions */
+button, 
+[role="button"],
+.spring-interactive {
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), 
+              box-shadow 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), 
+              background-color 0.15s ease, 
+              border-color 0.15s ease,
+              color 0.15s ease;
+}
+
+button:hover,
+[role="button"]:hover,
+.spring-interactive:hover {
+  transform: translateY(-1.5px) scale(1.02);
+}
+
+button:active,
+[role="button"]:active,
+.spring-interactive:active {
+  transform: translateY(1px) scale(0.96);
+  transition-duration: 0.08s;
+}
+
+/* Spring response for inputs */
+input, select, textarea {
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1),
+              border-color 0.18s ease,
+              box-shadow 0.18s ease;
+}
+input:focus, select:focus, textarea:focus {
+  transform: translateY(-0.5px) scale(1.005);
+}
+
+/* Spring hover for table rows */
+tr.spring-row {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+              background-color 0.15s ease;
+}
+tr.spring-row:hover {
+  transform: translateX(2px) scale(1.002);
+}
+tr.spring-row:active {
+  transform: scale(0.995);
+  transition-duration: 0.08s;
 }
 
 /* Custom scrollbars */
@@ -14,40 +105,27 @@
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #090d16;
+  background: #180f0a;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: #523624;
   border-radius: 3px;
+  border: 1px solid rgba(156, 108, 76, 0.3);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: #ec9665;
 }
 
-/* MapLibre container overrides */
-.maplibregl-map {
-  font-family: inherit;
-}
+/* MapLibre popup styling */
 .maplibregl-popup-content {
-  background: #0f172a !important;
-  color: #f1f5f9 !important;
-  border: 1px solid #334155 !important;
+  background: rgba(82, 54, 36, 0.95) !important;
+  color: #d8bca4 !important;
+  border: 1px solid rgba(236, 150, 101, 0.35) !important;
   border-radius: 8px !important;
   padding: 12px !important;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5) !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6) !important;
+  backdrop-filter: blur(12px) !important;
 }
 .maplibregl-popup-tip {
-  border-top-color: #0f172a !important;
+  border-top-color: #523624 !important;
 }
-
-/* React Flow styling */
-.react-flow__node {
-  border-radius: 8px;
-}
-.react-flow__handle {
-  width: 8px;
-  height: 8px;
-  background: #60a5fa;
-  border: 2px solid #0f172a;
-}
-
