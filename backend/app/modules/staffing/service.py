@@ -799,4 +799,111 @@ class StaffingService:
         await conn.execute("DELETE FROM users WHERE id = $1;", worker_id)
         return True
 
+    @staticmethod
+    async def get_trades_availability(conn: asyncpg.Connection) -> List[Dict[str, Any]]:
+        """
+        Returns live technician availability broken down per trade/task category.
+        Includes available count, busy count, on shift total, and full worker details.
+        """
+        rows = await conn.fetch(
+            """
+            SELECT u.id, u.full_name, u.email, u.is_available, u.active_workload_count,
+                   u.max_concurrent_workload, u.base_building_code,
+                   sk.skill::text AS category, sk.proficiency_level
+            FROM users u
+            JOIN staff_skills sk ON sk.user_id = u.id
+            WHERE u.role = 'TECHNICIAN'
+            ORDER BY u.is_available DESC, u.active_workload_count ASC, u.full_name ASC;
+            """
+        )
+        trade_codes = ["ELECTRICAL", "HVAC", "NETWORK", "PLUMBING", "AV_EQUIPMENT", "STRUCTURAL_SAFETY"]
+        trades_dict = {
+            cat: {
+                "trade_code": cat,
+                "total_staff": 0,
+                "available_staff": 0,
+                "busy_staff": 0,
+                "workers": []
+            }
+            for cat in trade_codes
+        }
+
+        for r in rows:
+            cat = r["category"]
+            if cat in trades_dict:
+                is_avail = bool(r["is_available"] and r["active_workload_count"] < r["max_concurrent_workload"])
+                trades_dict[cat]["total_staff"] += 1
+                if is_avail:
+                    trades_dict[cat]["available_staff"] += 1
+                if r["active_workload_count"] > 0:
+                    trades_dict[cat]["busy_staff"] += 1
+
+                trades_dict[cat]["workers"].append({
+                    "id": str(r["id"]),
+                    "name": r["full_name"],
+                    "email": r["email"],
+                    "is_available": r["is_available"],
+                    "active_workload": r["active_workload_count"],
+                    "max_workload": r["max_concurrent_workload"],
+                    "building": r["base_building_code"] or "EEC-MAIN",
+                    "status": "AVAILABLE" if is_avail else ("BUSY" if r["active_workload_count"] > 0 else "UNAVAILABLE")
+                })
+
+        return list(trades_dict.values())
+
+    @staticmethod
+    async def ensure_seed_technicians(conn: asyncpg.Connection):
+        """
+        Idempotently seeds technicians across all 6 trade specializations.
+        Ensures realistic workforce coverage across SRM Easwari blocks.
+        """
+        SEED_TECHS = [
+            ("jeevadarwin007@gmail.com", "Arun", "EEC-ACAD", ["ELECTRICAL", "HVAC", "PLUMBING", "NETWORK", "AV_EQUIPMENT", "STRUCTURAL_SAFETY"]),
+            ("karthik.subramanian@easwari.edu", "Karthik Subramanian", "EEC-MAIN", ["ELECTRICAL", "AV_EQUIPMENT"]),
+            ("suresh.kumar@easwari.edu", "Suresh Kumar", "EEC-ACAD", ["NETWORK"]),
+            ("praveen.raj@easwari.edu", "Praveen Raj", "EEC-ACAD", ["NETWORK"]),
+            ("ravi.hvac@easwari.edu", "K. Ravi", "EEC-AUD-FC", ["HVAC"]),
+            ("balaji.climate@easwari.edu", "M. Balaji", "EEC-AUD-FC", ["HVAC"]),
+            ("saravanan.plumb@easwari.edu", "T. Saravanan", "EEC-MAIN", ["PLUMBING"]),
+            ("mani.hydro@easwari.edu", "G. Mani", "EEC-MECH-PG", ["PLUMBING"]),
+            ("dinesh.av@easwari.edu", "V. Dinesh", "EEC-ACAD", ["AV_EQUIPMENT"]),
+            ("loganathan.safety@easwari.edu", "R. Loganathan", "EEC-MAIN", ["STRUCTURAL_SAFETY"]),
+            ("vignesh.safety@easwari.edu", "S. Vignesh", "EEC-ROBOTICS", ["STRUCTURAL_SAFETY"]),
+        ]
+        admin_dept_id = await conn.fetchval("SELECT id FROM departments WHERE code = 'DEPT-ADMIN' LIMIT 1;")
+        for email, name, base_bldg, skills in SEED_TECHS:
+            user_id = await conn.fetchval("SELECT id FROM users WHERE email = $1;", email)
+            if not user_id:
+                user_id = await conn.fetchval(
+                    """
+                    INSERT INTO users (id, email, full_name, role, department_id, is_available, active_workload_count, max_concurrent_workload, base_building_code)
+                    VALUES (gen_random_uuid(), $1, $2, 'TECHNICIAN', $3, TRUE, 0, 4, $4)
+                    RETURNING id;
+                    """,
+                    email, name, admin_dept_id, base_bldg
+                )
+            else:
+                await conn.execute(
+                    "UPDATE users SET is_available = TRUE, base_building_code = $2 WHERE id = $1 AND role = 'TECHNICIAN';",
+                    user_id, base_bldg
+                )
+
+            await conn.execute(
+                """
+                INSERT INTO staff_shifts (user_id, shift_window)
+                VALUES ($1, tstzrange(NOW() - INTERVAL '1 day', NOW() + INTERVAL '365 days'))
+                ON CONFLICT DO NOTHING;
+                """,
+                user_id
+            )
+            for s in skills:
+                await conn.execute(
+                    """
+                    INSERT INTO staff_skills (user_id, skill, proficiency_level)
+                    VALUES ($1, $2::issue_category, 5)
+                    ON CONFLICT (user_id, skill) DO UPDATE SET proficiency_level = 5;
+                    """,
+                    user_id, s
+                )
+
 

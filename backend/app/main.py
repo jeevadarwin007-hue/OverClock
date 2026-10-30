@@ -46,8 +46,13 @@ async def lifespan(app: FastAPI):
                 SET allowed_roles = EXCLUDED.allowed_roles;
             """)
             logger.info("FSM state transitions successfully verified and synchronized.")
+
+            # Synchronize workforce technician specializations across all trades
+            from app.modules.staffing.service import StaffingService
+            await StaffingService.ensure_seed_technicians(conn)
+            logger.info("Campus maintenance workforce & trade specializations synchronized.")
     except Exception as e:
-        logger.warning(f"Could not synchronize FSM transitions at startup: {e}")
+        logger.warning(f"Could not synchronize FSM transitions or technicians at startup: {e}")
 
     logger.info("Starting background outbox worker...")
     stop_event = asyncio.Event()

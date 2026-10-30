@@ -29,6 +29,22 @@ async def list_technicians(
         return await StaffingService.list_technicians(conn)
 
 
+@router.get("/staff/trades-availability")
+async def get_trades_availability(
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """
+    Returns real-time worker availability broken down by trade/task.
+    Shows how many workers are available vs on shift for each maintenance trade.
+    """
+    async with acquire_db_connection(
+        actor_id=current_user.id,
+        actor_role=current_user.role,
+        dept_id=current_user.department_id,
+    ) as conn:
+        return await StaffingService.get_trades_availability(conn)
+
+
 @router.post("/work-orders/{id}/assign", response_model=AssignTechnicianResponse)
 async def assign_technician_to_work_order(
     id: UUID,

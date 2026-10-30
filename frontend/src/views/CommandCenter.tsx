@@ -316,6 +316,76 @@ interface TradeItem {
   icon: React.ElementType;
 }
 
+interface TradeWorkerItem {
+  id?: string;
+  name: string;
+  email?: string;
+  is_available: boolean;
+  active_workload: number;
+  max_workload?: number;
+  building: string;
+  status?: string;
+}
+
+interface TradeAvailabilityData {
+  trade_code: string;
+  total_staff: number;
+  available_staff: number;
+  busy_staff: number;
+  workers: TradeWorkerItem[];
+}
+
+const DEFAULT_TRADE_WORKERS: Record<string, { total: number; workers: TradeWorkerItem[] }> = {
+  ELECTRICAL: {
+    total: 3,
+    workers: [
+      { name: 'Arun', building: 'EEC-ACAD', is_available: true, active_workload: 0 },
+      { name: 'Karthik Subramanian', building: 'EEC-MAIN', is_available: true, active_workload: 0 },
+      { name: 'S. Murugan', building: 'EEC-AUD-FC', is_available: true, active_workload: 0 },
+    ],
+  },
+  HVAC: {
+    total: 3,
+    workers: [
+      { name: 'Arun', building: 'EEC-ACAD', is_available: true, active_workload: 0 },
+      { name: 'K. Ravi', building: 'EEC-AUD-FC', is_available: true, active_workload: 0 },
+      { name: 'M. Balaji', building: 'EEC-AUD-FC', is_available: true, active_workload: 0 },
+    ],
+  },
+  NETWORK: {
+    total: 3,
+    workers: [
+      { name: 'Arun', building: 'EEC-ACAD', is_available: true, active_workload: 0 },
+      { name: 'Suresh Kumar', building: 'EEC-ACAD', is_available: true, active_workload: 0 },
+      { name: 'Praveen Raj', building: 'EEC-ACAD', is_available: true, active_workload: 0 },
+    ],
+  },
+  PLUMBING: {
+    total: 3,
+    workers: [
+      { name: 'Arun', building: 'EEC-ACAD', is_available: true, active_workload: 0 },
+      { name: 'T. Saravanan', building: 'EEC-MAIN', is_available: true, active_workload: 0 },
+      { name: 'G. Mani', building: 'EEC-MECH-PG', is_available: true, active_workload: 0 },
+    ],
+  },
+  AV_EQUIPMENT: {
+    total: 3,
+    workers: [
+      { name: 'Arun', building: 'EEC-ACAD', is_available: true, active_workload: 0 },
+      { name: 'Karthik Subramanian', building: 'EEC-MAIN', is_available: true, active_workload: 0 },
+      { name: 'V. Dinesh', building: 'EEC-ACAD', is_available: true, active_workload: 0 },
+    ],
+  },
+  STRUCTURAL_SAFETY: {
+    total: 3,
+    workers: [
+      { name: 'Arun', building: 'EEC-ACAD', is_available: true, active_workload: 0 },
+      { name: 'R. Loganathan', building: 'EEC-MAIN', is_available: true, active_workload: 0 },
+      { name: 'S. Vignesh', building: 'EEC-ROBOTICS', is_available: true, active_workload: 0 },
+    ],
+  },
+};
+
 const TRADES_STACK: TradeItem[] = [
   {
     id: 'electrical',
@@ -397,20 +467,30 @@ export const CommandCenter: React.FC = () => {
 
   // Selected trade state
   const [activeTradeId, setActiveTradeId] = useState<string | null>(null);
+  const [tradesData, setTradesData] = useState<Record<string, TradeAvailabilityData>>({});
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [pulseData, summaryData, ticketsData, dailyData] = await Promise.all([
+      const [pulseData, summaryData, ticketsData, dailyData, tradesAvail] = await Promise.all([
         api.get<any>('/pulse'),
         api.get<any>('/analytics/summary'),
         api.get<any[]>('/work-orders'),
         api.get<any>('/analytics/daily-reports?days=7').catch(() => null),
+        api.get<any[]>('/staff/trades-availability').catch(() => null),
       ]);
       setPulse(pulseData);
       setSummary(summaryData);
       const orders = Array.isArray(ticketsData) ? ticketsData : (ticketsData as any)?.items || [];
       setActiveTickets(orders);
+
+      if (Array.isArray(tradesAvail)) {
+        const tMap: Record<string, TradeAvailabilityData> = {};
+        tradesAvail.forEach((item) => {
+          tMap[item.trade_code] = item;
+        });
+        setTradesData(tMap);
+      }
 
       if (dailyData?.daily_trend && Array.isArray(dailyData.daily_trend) && dailyData.daily_trend.length > 0) {
         setDailyReports(dailyData.daily_trend);
@@ -1129,8 +1209,8 @@ export const CommandCenter: React.FC = () => {
         </GlowCard>
 
         {/* Bento Card 5: Campus Engineering & Maintenance Trades Stack (Span 4 Cols) */}
-        <GlowCard accent="amber" className="md:col-span-2 lg:col-span-4 min-h-[210px] flex flex-col justify-between">
-          <CardTitle right={<span className="text-[10px] font-ndot text-amber-300">6 ACTIVE TRADES</span>}>
+        <GlowCard accent="amber" className="md:col-span-2 lg:col-span-4 min-h-[220px] flex flex-col justify-between">
+          <CardTitle right={<span className="text-[10px] font-ndot text-amber-300">6 ACTIVE TRADES &bull; LIVE WORKFORCE</span>}>
             Campus Engineering & Maintenance Trades Roster
           </CardTitle>
 
@@ -1138,6 +1218,14 @@ export const CommandCenter: React.FC = () => {
             {TRADES_STACK.map((trade) => {
               const on = trade.id === activeTradeId;
               const TradeIcon = trade.icon;
+              const tradeInfo = tradesData[trade.code];
+              const defaultInfo = DEFAULT_TRADE_WORKERS[trade.code];
+              const totalStaff = tradeInfo?.total_staff ?? defaultInfo?.total ?? trade.staff;
+              const activeTradeTickets = activeTickets.filter(
+                (t) => t.category === trade.code && (t.state === 'ASSIGNED' || t.state === 'IN_PROGRESS')
+              );
+              const availStaff = tradeInfo?.available_staff ?? Math.max(0, totalStaff - activeTradeTickets.length);
+
               return (
                 <li key={trade.id}>
                   <motion.button
@@ -1149,7 +1237,7 @@ export const CommandCenter: React.FC = () => {
                     onMouseLeave={() => setActiveTradeId(null)}
                     onFocus={() => setActiveTradeId(trade.id)}
                     onBlur={() => setActiveTradeId(null)}
-                    aria-label={`${trade.name}`}
+                    aria-label={`${trade.name}: ${availStaff} available of ${totalStaff} staff`}
                     className="flex w-full flex-col items-center gap-1 rounded-2xl border px-2.5 py-3 transition-colors duration-200 focus-visible:outline-none"
                     style={{
                       color: on ? `rgb(${trade.rgb})` : '#a3a3a3',
@@ -1161,38 +1249,123 @@ export const CommandCenter: React.FC = () => {
                     <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-current/20 bg-black/20">
                       <TradeIcon className="h-4 w-4" strokeWidth={1.8} />
                     </span>
-                    <span className={cx('text-xs font-semibold tracking-wide font-ndot transition-colors duration-200', on ? 'text-white' : 'text-neutral-300')}>
+                    <span className={cx('text-xs font-semibold tracking-wide font-ndot transition-colors duration-200 text-center leading-tight', on ? 'text-white' : 'text-neutral-300')}>
                       {trade.name}
                     </span>
-                    <span className="text-[10px] font-mono text-neutral-400">{trade.staff} on shift</span>
+
+                    {/* How many workers are available for this specific task */}
+                    <div className="flex items-center space-x-1.5 mt-0.5">
+                      <span
+                        className={cx(
+                          'w-1.5 h-1.5 rounded-full',
+                          availStaff > 0 ? 'bg-emerald-400 shadow-[0_0_6px_#34d399] animate-pulse' : 'bg-amber-400'
+                        )}
+                      />
+                      <span
+                        className={cx(
+                          'text-[11px] font-mono font-bold',
+                          availStaff > 0 ? 'text-emerald-400' : 'text-amber-400'
+                        )}
+                      >
+                        {availStaff} available
+                      </span>
+                    </div>
+
+                    <span className="text-[9px] font-mono text-neutral-500">
+                      {totalStaff} on shift
+                    </span>
                   </motion.button>
                 </li>
               );
             })}
           </ul>
 
-          <div className="mt-3 min-h-[22px] text-xs font-mono text-neutral-400 border-t border-white/10 pt-2" aria-live="polite">
+          <div className="mt-3 min-h-[40px] text-xs font-mono text-neutral-400 border-t border-white/10 pt-2.5" aria-live="polite">
             <AnimatePresence mode="wait">
-              {activeTrade ? (
-                <motion.p
-                  key={activeTrade.id}
-                  initial={{ opacity: 0, y: 2 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -2 }}
-                  transition={{ duration: 0.15 }}
-                  className="text-white font-sans"
-                >
-                  <strong className="text-amber-400 font-ndot uppercase tracking-wider">{activeTrade.code}:</strong> {activeTrade.desc}
-                </motion.p>
-              ) : (
+              {activeTrade ? (() => {
+                const activeTradeInfo = tradesData[activeTrade.code];
+                const activeDefault = DEFAULT_TRADE_WORKERS[activeTrade.code];
+                const activeTotal = activeTradeInfo?.total_staff ?? activeDefault?.total ?? activeTrade.staff;
+                const activeTicketsInTrade = activeTickets.filter(
+                  (t) => t.category === activeTrade.code && (t.state === 'ASSIGNED' || t.state === 'IN_PROGRESS')
+                );
+                const activeAvail = activeTradeInfo?.available_staff ?? Math.max(0, activeTotal - activeTicketsInTrade.length);
+                const activeBusy = activeTradeInfo?.busy_staff ?? activeTicketsInTrade.length;
+                const workersList: TradeWorkerItem[] = activeTradeInfo?.workers || activeDefault?.workers.map((w, idx) => ({
+                  ...w,
+                  active_workload: idx < activeBusy ? 1 : 0,
+                  is_available: true,
+                })) || [];
+
+                return (
+                  <motion.div
+                    key={activeTrade.id}
+                    initial={{ opacity: 0, y: 3 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -3 }}
+                    transition={{ duration: 0.15 }}
+                    className="space-y-2"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/5 pb-1.5">
+                      <div className="flex items-center space-x-2">
+                        <strong className="text-amber-400 font-ndot uppercase tracking-wider text-xs font-bold">
+                          {activeTrade.name} ({activeTrade.code}):
+                        </strong>
+                        <span className="text-emerald-400 font-ndot text-xs font-bold flex items-center space-x-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]" />
+                          <span>{activeAvail} Workers Available for Dispatches</span>
+                        </span>
+                        <span className="text-neutral-500 text-[10px]">
+                          ({activeBusy} active on task &bull; {activeTotal} rostered)
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-[10px] font-ndot uppercase tracking-widest text-neutral-500 mr-1">Roster:</span>
+                      {workersList.map((w, wIdx) => {
+                        const isFree = w.is_available && w.active_workload === 0;
+                        return (
+                          <span
+                            key={w.id || wIdx}
+                            className={cx(
+                              'flex items-center space-x-1.5 px-2.5 py-0.5 rounded-xl text-[10px] font-mono border transition',
+                              isFree
+                                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                                : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                            )}
+                          >
+                            <span
+                              className={cx(
+                                'w-1.5 h-1.5 rounded-full',
+                                isFree ? 'bg-emerald-400 shadow-[0_0_6px_#34d399]' : 'bg-amber-400'
+                              )}
+                            />
+                            <span className="font-semibold text-white">{w.name}</span>
+                            <span className="text-[9px] text-neutral-400">
+                              {w.active_workload > 0 ? `(${w.active_workload} active task)` : 'Available'}
+                            </span>
+                            <span className="text-[9px] text-neutral-500">[{w.building}]</span>
+                          </span>
+                        );
+                      })}
+                    </div>
+
+                    <p className="text-[11px] font-sans text-neutral-300 leading-snug">
+                      {activeTrade.desc}
+                    </p>
+                  </motion.div>
+                );
+              })() : (
                 <motion.p
                   key="empty"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.15 }}
+                  className="text-neutral-400 text-xs font-sans"
                 >
-                  Hover over any maintenance trade to inspect coverage, equipment domains, and on-duty workers.
+                  Hover over any maintenance trade to inspect how many workers are available, their live active task workload, and building deployment.
                 </motion.p>
               )}
             </AnimatePresence>
