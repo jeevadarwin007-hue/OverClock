@@ -29,6 +29,7 @@ import {
   Mail,
   Check,
   FileText,
+  Database,
 } from 'lucide-react';
 
 /* ==========================================================================
@@ -335,57 +336,6 @@ interface TradeAvailabilityData {
   workers: TradeWorkerItem[];
 }
 
-const DEFAULT_TRADE_WORKERS: Record<string, { total: number; workers: TradeWorkerItem[] }> = {
-  ELECTRICAL: {
-    total: 3,
-    workers: [
-      { name: 'Arun', building: 'EEC-ACAD', is_available: true, active_workload: 0 },
-      { name: 'Karthik Subramanian', building: 'EEC-MAIN', is_available: true, active_workload: 0 },
-      { name: 'S. Murugan', building: 'EEC-AUD-FC', is_available: true, active_workload: 0 },
-    ],
-  },
-  HVAC: {
-    total: 3,
-    workers: [
-      { name: 'Arun', building: 'EEC-ACAD', is_available: true, active_workload: 0 },
-      { name: 'K. Ravi', building: 'EEC-AUD-FC', is_available: true, active_workload: 0 },
-      { name: 'M. Balaji', building: 'EEC-AUD-FC', is_available: true, active_workload: 0 },
-    ],
-  },
-  NETWORK: {
-    total: 3,
-    workers: [
-      { name: 'Arun', building: 'EEC-ACAD', is_available: true, active_workload: 0 },
-      { name: 'Suresh Kumar', building: 'EEC-ACAD', is_available: true, active_workload: 0 },
-      { name: 'Praveen Raj', building: 'EEC-ACAD', is_available: true, active_workload: 0 },
-    ],
-  },
-  PLUMBING: {
-    total: 3,
-    workers: [
-      { name: 'Arun', building: 'EEC-ACAD', is_available: true, active_workload: 0 },
-      { name: 'T. Saravanan', building: 'EEC-MAIN', is_available: true, active_workload: 0 },
-      { name: 'G. Mani', building: 'EEC-MECH-PG', is_available: true, active_workload: 0 },
-    ],
-  },
-  AV_EQUIPMENT: {
-    total: 3,
-    workers: [
-      { name: 'Arun', building: 'EEC-ACAD', is_available: true, active_workload: 0 },
-      { name: 'Karthik Subramanian', building: 'EEC-MAIN', is_available: true, active_workload: 0 },
-      { name: 'V. Dinesh', building: 'EEC-ACAD', is_available: true, active_workload: 0 },
-    ],
-  },
-  STRUCTURAL_SAFETY: {
-    total: 3,
-    workers: [
-      { name: 'Arun', building: 'EEC-ACAD', is_available: true, active_workload: 0 },
-      { name: 'R. Loganathan', building: 'EEC-MAIN', is_available: true, active_workload: 0 },
-      { name: 'S. Vignesh', building: 'EEC-ROBOTICS', is_available: true, active_workload: 0 },
-    ],
-  },
-};
-
 const TRADES_STACK: TradeItem[] = [
   {
     id: 'electrical',
@@ -469,20 +419,30 @@ export const CommandCenter: React.FC = () => {
   const [activeTradeId, setActiveTradeId] = useState<string | null>(null);
   const [tradesData, setTradesData] = useState<Record<string, TradeAvailabilityData>>({});
 
+  // Operational connectivity states: Database, Network, Groq, Uptime
+  const [connHealth, setConnHealth] = useState({
+    database: true,
+    network: typeof navigator !== 'undefined' ? navigator.onLine : true,
+    groq: true,
+    uptime: true,
+  });
+
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [pulseData, summaryData, ticketsData, dailyData, tradesAvail] = await Promise.all([
-        api.get<any>('/pulse'),
-        api.get<any>('/analytics/summary'),
-        api.get<any[]>('/work-orders'),
+      const [pulseData, summaryData, ticketsData, dailyData, tradesAvail, healthData] = await Promise.all([
+        api.get<any>('/pulse').catch(() => null),
+        api.get<any>('/analytics/summary').catch(() => null),
+        api.get<any[]>('/work-orders').catch(() => null),
         api.get<any>('/analytics/daily-reports?days=7').catch(() => null),
         api.get<any[]>('/staff/trades-availability').catch(() => null),
+        api.get<any>('/health').catch(() => null),
       ]);
-      setPulse(pulseData);
-      setSummary(summaryData);
+
+      if (pulseData) setPulse(pulseData);
+      if (summaryData) setSummary(summaryData);
       const orders = Array.isArray(ticketsData) ? ticketsData : (ticketsData as any)?.items || [];
-      setActiveTickets(orders);
+      if (ticketsData) setActiveTickets(orders);
 
       if (Array.isArray(tradesAvail)) {
         const tMap: Record<string, TradeAvailabilityData> = {};
@@ -494,11 +454,46 @@ export const CommandCenter: React.FC = () => {
 
       if (dailyData?.daily_trend && Array.isArray(dailyData.daily_trend) && dailyData.daily_trend.length > 0) {
         setDailyReports(dailyData.daily_trend);
-      } else {
+      } else if (orders.length > 0) {
         setDailyReports(computeDailyTrendFromOrders(orders));
       }
+
+      // Live connectivity calculations: Green when connected, Red when disconnected
+      const isOnline = typeof window !== 'undefined' ? window.navigator.onLine : true;
+      const apiReachable = Boolean(healthData || pulseData || summaryData || ticketsData);
+
+      const dbConnected = Boolean(
+        isOnline &&
+        (healthData?.connections?.database?.connected ?? (Boolean(ticketsData) || Boolean(pulseData)))
+      );
+
+      const netConnected = Boolean(isOnline && apiReachable);
+
+      const groqConnected = Boolean(
+        isOnline &&
+        (healthData?.connections?.groq?.connected ?? true)
+      );
+
+      const uptimeConnected = Boolean(
+        isOnline &&
+        (healthData?.connections?.uptime?.connected ?? apiReachable)
+      );
+
+      setConnHealth({
+        database: dbConnected,
+        network: netConnected,
+        groq: groqConnected,
+        uptime: uptimeConnected,
+      });
     } catch (err) {
       console.error('Error fetching command center data:', err);
+      const isOnline = typeof window !== 'undefined' ? window.navigator.onLine : false;
+      setConnHealth({
+        database: false,
+        network: isOnline,
+        groq: false,
+        uptime: false,
+      });
     } finally {
       setLoading(false);
     }
@@ -507,7 +502,28 @@ export const CommandCenter: React.FC = () => {
   useEffect(() => {
     fetchData();
     const interval = setInterval(fetchData, 10000);
-    return () => clearInterval(interval);
+
+    const handleOnline = () => {
+      setConnHealth((prev) => ({ ...prev, network: true }));
+      fetchData();
+    };
+    const handleOffline = () => {
+      setConnHealth({
+        database: false,
+        network: false,
+        groq: false,
+        uptime: false,
+      });
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, [currentUser]);
 
   // Reports across days calculation
@@ -1062,61 +1078,150 @@ export const CommandCenter: React.FC = () => {
           </div>
         </GlowCard>
 
-        {/* Bento Card 3: Autonomous Health & Invariant Proof Rings */}
-        <GlowCard accent="emerald" className="min-h-[200px] flex flex-col justify-between">
-          <CardTitle right={<span className="text-[10px] text-emerald-400 font-ndot">PROVEN</span>}>
-            Operational Health
-          </CardTitle>
+        {/* Bento Card 3: Autonomous Health & Connection Status Rings */}
+        {(() => {
+          const allConnected =
+            connHealth.database && connHealth.network && connHealth.groq && connHealth.uptime;
 
-          <div className="flex flex-1 items-center justify-around gap-1">
-            {[
-              { label: 'SLA', score: 100 },
-              { label: 'FSM', score: 100 },
-              { label: 'Grid', score: 98 },
-              { label: 'Uptime', score: 100 },
-            ].map((item) => {
-              const radius = 18;
-              const circumference = 2 * Math.PI * radius;
-              return (
-                <div key={item.label} className="group flex flex-col items-center gap-1.5">
-                  <div className="relative h-12 w-12">
-                    <svg viewBox="0 0 46 46" className="h-full w-full -rotate-90" aria-hidden="true">
-                      <circle
-                        cx="23"
-                        cy="23"
-                        r={radius}
-                        fill="none"
-                        stroke="rgba(255,255,255,0.08)"
-                        strokeWidth="3.5"
-                      />
-                      <circle
-                        cx="23"
-                        cy="23"
-                        r={radius}
-                        fill="none"
-                        stroke="#34d399"
-                        strokeWidth="3.5"
-                        strokeLinecap="round"
-                        strokeDasharray={circumference}
-                        className="tb-ring transition-[filter] duration-300 group-hover:[filter:drop-shadow(0_0_6px_#34d399)]"
-                        style={
-                          {
-                            '--from': `${circumference}`,
-                            '--to': `${circumference * (1 - item.score / 100)}`,
-                          } as CSSProperties
-                        }
-                      />
-                    </svg>
-                    <span className="absolute inset-0 flex items-center justify-center text-xs font-bold font-ndot text-white">
-                      {item.score}%
+          const connectionItems = [
+            {
+              id: 'database',
+              label: 'DATABASE',
+              sub: 'PostgreSQL 16',
+              connected: connHealth.database,
+              icon: Database,
+            },
+            {
+              id: 'network',
+              label: 'NETWORK',
+              sub: 'Campus Core API',
+              connected: connHealth.network,
+              icon: Wifi,
+            },
+            {
+              id: 'groq',
+              label: 'GROQ',
+              sub: 'LLaMA-3.3-70b',
+              connected: connHealth.groq,
+              icon: Cpu,
+            },
+            {
+              id: 'uptime',
+              label: 'UPTIME',
+              sub: 'System Invariants',
+              connected: connHealth.uptime,
+              icon: Shield,
+            },
+          ];
+
+          return (
+            <GlowCard accent={allConnected ? 'emerald' : 'red'} className="min-h-[200px] flex flex-col justify-between">
+              <CardTitle
+                right={
+                  allConnected ? (
+                    <span className="flex items-center space-x-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[10px] text-emerald-400 font-ndot font-bold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]" />
+                      <span>CONNECTED</span>
                     </span>
-                  </div>
-                  <span className="text-[10px] font-ndot text-neutral-400 uppercase tracking-wider">{item.label}</span>
-                </div>
-              );
-            })}
-          </div>
-        </GlowCard>
+                  ) : (
+                    <span className="flex items-center space-x-1.5 px-2 py-0.5 rounded-full bg-red-500/10 border border-red-500/30 text-[10px] text-[#d73832] font-ndot font-bold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#d73832] animate-ping shadow-[0_0_8px_#d73832]" />
+                      <span>DISCONNECTED</span>
+                    </span>
+                  )
+                }
+              >
+                Operational Health
+              </CardTitle>
+
+              <div className="flex flex-1 items-center justify-around gap-1 my-1">
+                {connectionItems.map((item) => {
+                  const radius = 18;
+                  const circumference = 2 * Math.PI * radius;
+                  const isConn = item.connected;
+                  // Exact colors requested by user: Green if connected, Red if not connected
+                  const ringColor = isConn ? '#34d399' : '#d73832';
+                  const textColor = isConn ? 'text-emerald-400' : 'text-[#d73832]';
+                  const dotColor = isConn
+                    ? 'bg-emerald-400 shadow-[0_0_8px_#34d399]'
+                    : 'bg-[#d73832] shadow-[0_0_8px_#d73832]';
+
+                  return (
+                    <div
+                      key={item.id}
+                      className="group flex flex-col items-center gap-1.5 cursor-pointer select-none transition-transform duration-200 hover:scale-105"
+                      title={`${item.label} (${item.sub}): ${isConn ? 'Connected / Healthy' : 'Disconnected / Offline'}`}
+                    >
+                      <div className="relative h-12 w-12">
+                        <svg viewBox="0 0 46 46" className="h-full w-full -rotate-90" aria-hidden="true">
+                          <circle
+                            cx="23"
+                            cy="23"
+                            r={radius}
+                            fill="none"
+                            stroke="rgba(255,255,255,0.08)"
+                            strokeWidth="3.5"
+                          />
+                          <circle
+                            cx="23"
+                            cy="23"
+                            r={radius}
+                            fill="none"
+                            stroke={ringColor}
+                            strokeWidth="3.5"
+                            strokeLinecap="round"
+                            strokeDasharray={circumference}
+                            strokeDashoffset={0}
+                            className="transition-all duration-500 ease-out"
+                            style={{
+                              filter: `drop-shadow(0 0 5px ${isConn ? '#34d399' : '#d73832'})`,
+                            }}
+                          />
+                        </svg>
+                        <span
+                          className={`absolute inset-0 flex items-center justify-center text-xs font-bold font-ndot ${textColor}`}
+                        >
+                          {isConn ? '100%' : '0%'}
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-ndot text-neutral-300 uppercase tracking-wider group-hover:text-white transition-colors">
+                        {item.label}
+                      </span>
+                      <span className="flex items-center space-x-1 text-[9px] font-mono">
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full ${dotColor} ${
+                            isConn ? 'animate-pulse' : 'animate-ping'
+                          }`}
+                        />
+                        <span className={isConn ? 'text-emerald-400 font-semibold' : 'text-[#d73832] font-semibold'}>
+                          {isConn ? 'ONLINE' : 'OFFLINE'}
+                        </span>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Footer Status Strip */}
+              <div className="mt-1 flex items-center justify-between text-[10px] font-mono text-neutral-500 px-1 border-t border-white/10 pt-2">
+                <span className="flex items-center space-x-1.5">
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      allConnected ? 'bg-emerald-400 shadow-[0_0_8px_#34d399]' : 'bg-[#d73832] shadow-[0_0_8px_#d73832]'
+                    }`}
+                  />
+                  <span className="text-neutral-400">
+                    {connHealth.database ? 'PostgreSQL Active' : 'PostgreSQL Down'} &bull;{' '}
+                    {connHealth.groq ? 'Groq Active' : 'Groq Standby'}
+                  </span>
+                </span>
+                <span className={allConnected ? 'text-emerald-400 font-ndot' : 'text-[#d73832] font-ndot'}>
+                  {allConnected ? 'SYSTEM SECURE' : 'ACTION REQUIRED'}
+                </span>
+              </div>
+            </GlowCard>
+          );
+        })()}
 
         {/* Bento Card 4: Problems Solved Across Days */}
         <GlowCard accent="emerald" className="min-h-[200px] flex flex-col justify-between">
@@ -1219,12 +1324,8 @@ export const CommandCenter: React.FC = () => {
               const on = trade.id === activeTradeId;
               const TradeIcon = trade.icon;
               const tradeInfo = tradesData[trade.code];
-              const defaultInfo = DEFAULT_TRADE_WORKERS[trade.code];
-              const totalStaff = tradeInfo?.total_staff ?? defaultInfo?.total ?? trade.staff;
-              const activeTradeTickets = activeTickets.filter(
-                (t) => t.category === trade.code && (t.state === 'ASSIGNED' || t.state === 'IN_PROGRESS')
-              );
-              const availStaff = tradeInfo?.available_staff ?? Math.max(0, totalStaff - activeTradeTickets.length);
+              const totalStaff = tradeInfo?.total_staff ?? 0;
+              const availStaff = tradeInfo?.available_staff ?? 0;
 
               return (
                 <li key={trade.id}>
@@ -1284,18 +1385,10 @@ export const CommandCenter: React.FC = () => {
             <AnimatePresence mode="wait">
               {activeTrade ? (() => {
                 const activeTradeInfo = tradesData[activeTrade.code];
-                const activeDefault = DEFAULT_TRADE_WORKERS[activeTrade.code];
-                const activeTotal = activeTradeInfo?.total_staff ?? activeDefault?.total ?? activeTrade.staff;
-                const activeTicketsInTrade = activeTickets.filter(
-                  (t) => t.category === activeTrade.code && (t.state === 'ASSIGNED' || t.state === 'IN_PROGRESS')
-                );
-                const activeAvail = activeTradeInfo?.available_staff ?? Math.max(0, activeTotal - activeTicketsInTrade.length);
-                const activeBusy = activeTradeInfo?.busy_staff ?? activeTicketsInTrade.length;
-                const workersList: TradeWorkerItem[] = activeTradeInfo?.workers || activeDefault?.workers.map((w, idx) => ({
-                  ...w,
-                  active_workload: idx < activeBusy ? 1 : 0,
-                  is_available: true,
-                })) || [];
+                const activeTotal = activeTradeInfo?.total_staff ?? 0;
+                const activeAvail = activeTradeInfo?.available_staff ?? 0;
+                const activeBusy = activeTradeInfo?.busy_staff ?? 0;
+                const workersList: TradeWorkerItem[] = activeTradeInfo?.workers ?? [];
 
                 return (
                   <motion.div

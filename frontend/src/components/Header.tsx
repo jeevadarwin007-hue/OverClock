@@ -161,7 +161,7 @@ export const Header: React.FC<HeaderProps> = ({
             )}
             <span className="relative z-10 flex items-center space-x-1">
               <GraduationCap className="w-3 h-3" />
-              <span className="hidden 2xl:inline">Staff</span>
+              <span className="hidden 2xl:inline">Students</span>
             </span>
           </motion.button>
         </div>

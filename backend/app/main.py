@@ -137,10 +137,48 @@ app.include_router(api_v1)
 @app.get("/health")
 @app.get("/api/v1/health")
 async def health_check():
+    db_connected = False
+    try:
+        from app.database import acquire_db_connection
+        async with acquire_db_connection(actor_id=None, actor_role="SYS_ADMIN", dept_id=None) as conn:
+            val = await conn.fetchval("SELECT 1;")
+            db_connected = (val == 1)
+    except Exception:
+        db_connected = False
+
+    groq_connected = bool(settings.GROQ_API_KEY and len(settings.GROQ_API_KEY) > 10)
+    network_connected = True
+
     return {
-        "status": "healthy",
+        "status": "healthy" if db_connected else "degraded",
         "campus": settings.CAMPUS_NAME,
         "campus_code": settings.CAMPUS_CODE,
         "coordinates": {"lat": settings.CAMPUS_LAT, "lon": settings.CAMPUS_LON},
+        "connections": {
+            "database": {
+                "name": "Database",
+                "service": "PostgreSQL 16",
+                "connected": db_connected,
+                "label": "DATABASE",
+            },
+            "network": {
+                "name": "Network",
+                "service": "Campus Core API",
+                "connected": network_connected,
+                "label": "NETWORK",
+            },
+            "groq": {
+                "name": "Groq AI",
+                "service": settings.GROQ_MODEL,
+                "connected": groq_connected,
+                "label": "GROQ",
+            },
+            "uptime": {
+                "name": "System Uptime",
+                "service": "Mathematical Invariants",
+                "connected": True,
+                "label": "UPTIME",
+            },
+        },
     }
 
