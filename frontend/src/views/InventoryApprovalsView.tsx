@@ -167,39 +167,39 @@ export const InventoryApprovalsView: React.FC = () => {
   });
 
   return (
-    <div className="h-full flex flex-col bg-transparent text-[#d8bca4] overflow-hidden">
-      {/* Top Ledger Strip (Frosted Glass) */}
-      <div className="h-12 border-b border-[#9c6c4c]/30 bg-[#24160f]/75 backdrop-blur-md px-4 flex items-center justify-between shrink-0 shadow-sm">
+    <div className="h-full flex flex-col bg-transparent text-white overflow-hidden">
+      {/* Top Ledger Strip */}
+      <div className="h-[50px] border-b border-white/10 bg-black/80 backdrop-blur-xl px-4 flex items-center justify-between shrink-0 shadow-sm">
         <div className="flex items-center space-x-3">
           <div className="flex items-center space-x-2">
-            <Layers className="w-4 h-4 text-[#ec9665]" />
-            <h1 className="text-xs font-bold uppercase tracking-wider text-[#f4aa7f] font-mono">
-              Campus Inventory & Procurement Approvals
+            <Layers className="w-4 h-4 text-nothing-red" />
+            <h1 className="text-xs font-bold uppercase tracking-wider text-white font-ndot">
+              Inventory & Procurement Approvals
             </h1>
           </div>
-          <span className="text-[11px] px-2 py-0.5 rounded-full font-mono bg-[#ec9665]/15 text-[#f4aa7f] border border-[#ec9665]/30">
-            {parts.length} Registered Parts
+          <span className="text-[10px] px-2 py-0.5 rounded-full font-ndot bg-white/10 text-white border border-white/20">
+            {parts.length} Parts
           </span>
-          <span className="text-[11px] px-2 py-0.5 rounded-full font-mono bg-[#9c6c4c]/25 text-[#d8bca4] border border-[#9c6c4c]/40">
-            {approvals.filter((a) => a.status === 'PENDING').length} Pending Approvals
+          <span className="text-[10px] px-2 py-0.5 rounded-full font-ndot bg-white/10 text-neutral-300 border border-white/20">
+            {approvals.filter((a) => a.status === 'PENDING').length} Pending
           </span>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-2.5">
           <div className="relative">
-            <Search className="w-3.5 h-3.5 text-[#9c6c4c] absolute left-2.5 top-2" />
+            <Search className="w-3.5 h-3.5 text-neutral-400 absolute left-2.5 top-2" />
             <input
               type="text"
               placeholder="Search SKU, part, trade..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="glass-input rounded-md px-2.5 pl-8 py-1 text-xs placeholder-[#9c6c4c] focus:outline-none font-mono w-56 shadow-inner"
+              className="bg-[#121215] border border-white/15 rounded-full px-2.5 pl-8 py-1 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-white font-mono w-56 shadow-inner"
             />
           </div>
 
           <button
             onClick={fetchData}
-            className="p-1.5 bg-[#523624]/60 hover:bg-[#ec9665] text-[#d8bca4] hover:text-[#180f0a] rounded-md border border-[#9c6c4c]/40 text-xs transition spring-interactive shadow-sm"
+            className="p-1.5 bg-[#121215] hover:bg-white/10 text-white rounded-full border border-white/15 text-xs transition spring-interactive shadow-sm"
             title="Refresh Inventory"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
@@ -208,7 +208,7 @@ export const InventoryApprovalsView: React.FC = () => {
           {isAdmin && (
             <button
               onClick={() => setIsAddDrawerOpen(true)}
-              className="flex items-center space-x-1.5 px-3 py-1 bg-gradient-to-r from-[#ec9665] to-[#f4aa7f] hover:brightness-110 text-[#180f0a] rounded-md text-xs font-bold shadow-[0_2px_12px_rgba(236,150,101,0.35)] transition spring-interactive"
+              className="flex items-center space-x-1.5 px-3.5 py-1.5 nothing-btn-primary text-black text-xs font-bold shadow transition spring-interactive"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>+ Add Inventory Part</span>
@@ -222,19 +222,19 @@ export const InventoryApprovalsView: React.FC = () => {
         <div
           className={`px-4 py-2 text-xs flex items-center justify-between border-b ${
             actionMessage.isError
-              ? 'bg-rose-950/60 text-rose-300 border-rose-500/30'
-              : 'bg-[#ec9665]/20 text-[#f4aa7f] border-[#ec9665]/40'
+              ? 'bg-nothing-red/20 text-white border-nothing-red/50 font-ndot'
+              : 'bg-white/10 text-white border-white/20 font-ndot'
           }`}
         >
           <div className="flex items-center space-x-2">
             {actionMessage.isError ? (
-              <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+              <AlertTriangle className="w-4 h-4 text-nothing-red shrink-0" />
             ) : (
-              <CheckCircle2 className="w-4 h-4 text-[#ec9665] shrink-0" />
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
             )}
             <span>{actionMessage.text}</span>
           </div>
-          <button onClick={() => setActionMessage(null)} className="text-[#9c6c4c] hover:text-[#d8bca4] spring-interactive">
+          <button onClick={() => setActionMessage(null)} className="text-neutral-400 hover:text-white spring-interactive">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -243,74 +243,74 @@ export const InventoryApprovalsView: React.FC = () => {
       {/* Workspace Split: Inventory Table + Pending Approvals Drawer */}
       <div className="flex-1 flex overflow-hidden">
         {/* Main Equipment & Spare Parts Ledger */}
-        <div className="flex-1 overflow-auto border-r border-[#9c6c4c]/30">
+        <div className="flex-1 overflow-auto border-r border-white/10">
           <table className="w-full text-left text-xs border-collapse">
-            <thead className="bg-[#24160f]/90 backdrop-blur-md text-[#d8bca4]/70 border-b border-[#9c6c4c]/30 font-mono sticky top-0 z-10 shadow-sm">
+            <thead className="bg-[#121215] text-neutral-400 border-b border-white/10 font-ndot sticky top-0 z-10 shadow-sm">
               <tr>
-                <th className="py-2.5 px-3 w-8 border-r border-[#9c6c4c]/20 text-center">●</th>
-                <th className="py-2.5 px-3 w-28 border-r border-[#9c6c4c]/20 font-bold">SKU</th>
-                <th className="py-2.5 px-3 w-48 border-r border-[#9c6c4c]/20">Part Description</th>
-                <th className="py-2.5 px-3 w-36 border-r border-[#9c6c4c]/20">Category</th>
-                <th className="py-2.5 px-3 w-20 border-r border-[#9c6c4c]/20 text-right">On Hand</th>
-                <th className="py-2.5 px-3 w-20 border-r border-[#9c6c4c]/20 text-right">Available</th>
-                <th className="py-2.5 px-3 w-20 border-r border-[#9c6c4c]/20 text-right">Reserved</th>
-                <th className="py-2.5 px-3 w-24 border-r border-[#9c6c4c]/20 text-right">Unit Cost</th>
-                <th className="py-2.5 px-3 w-24 border-r border-[#9c6c4c]/20 text-right">Status</th>
+                <th className="py-2.5 px-3 w-8 border-r border-white/10 text-center">●</th>
+                <th className="py-2.5 px-3 w-32 border-r border-white/10 font-bold">SKU</th>
+                <th className="py-2.5 px-3 w-48 border-r border-white/10">Part Description</th>
+                <th className="py-2.5 px-3 w-36 border-r border-white/10">Category</th>
+                <th className="py-2.5 px-3 w-20 border-r border-white/10 text-right">On Hand</th>
+                <th className="py-2.5 px-3 w-20 border-r border-white/10 text-right">Available</th>
+                <th className="py-2.5 px-3 w-20 border-r border-white/10 text-right">Reserved</th>
+                <th className="py-2.5 px-3 w-24 border-r border-white/10 text-right">Unit Cost</th>
+                <th className="py-2.5 px-3 w-28 border-r border-white/10 text-right">Status</th>
                 {isAdmin && <th className="py-2.5 px-3 w-16 text-right">Actions</th>}
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#9c6c4c]/20 font-sans">
+            <tbody className="divide-y divide-white/5 font-sans">
               {filteredParts.map((p) => {
                 const isZero = p.on_hand === 0;
                 const isLow = p.on_hand <= (p.reorder_threshold || 2) && !isZero;
                 return (
-                  <tr key={p.id} className="hover:bg-[#523624]/35 transition h-9 spring-row">
-                    <td className="py-2 px-3 border-r border-[#9c6c4c]/20 text-center">
+                  <tr key={p.id} className="hover:bg-white/[0.03] transition h-9 spring-row">
+                    <td className="py-2 px-3 border-r border-white/10 text-center">
                       <span
                         className={`inline-block w-1.5 h-1.5 rounded-full ${
-                          isZero ? 'bg-rose-500 shadow-[0_0_8px_#f43f5e]' : isLow ? 'bg-amber-400' : 'bg-[#ec9665] shadow-[0_0_8px_#ec9665]'
+                          isZero ? 'bg-nothing-red nothing-red-dot' : isLow ? 'bg-amber-400' : 'bg-emerald-400 shadow-[0_0_8px_#34d399]'
                         }`}
                       />
                     </td>
-                    <td className="py-2 px-3 font-mono font-bold text-[#ec9665] border-r border-[#9c6c4c]/20">
+                    <td className="py-2 px-3 font-ndot font-bold text-white border-r border-white/10">
                       {p.sku}
                     </td>
-                    <td className="py-2 px-3 font-semibold text-white border-r border-[#9c6c4c]/20">
+                    <td className="py-2 px-3 font-semibold text-white border-r border-white/10 truncate">
                       {p.name}
                     </td>
-                    <td className="py-2 px-3 font-mono text-[11px] text-[#f4aa7f] border-r border-[#9c6c4c]/20">
+                    <td className="py-2 px-3 font-ndot text-[11px] text-neutral-300 border-r border-white/10">
                       {p.category}
                     </td>
-                    <td className="py-2 px-3 font-mono text-right border-r border-[#9c6c4c]/20 text-[#d8bca4]">
+                    <td className="py-2 px-3 font-ndot text-right border-r border-white/10 text-neutral-300">
                       {p.on_hand}
                     </td>
-                    <td className="py-2 px-3 font-mono text-right border-r border-[#9c6c4c]/20 text-[#f4aa7f] font-bold">
+                    <td className="py-2 px-3 font-ndot text-right border-r border-white/10 text-white font-bold">
                       {p.available}
                     </td>
-                    <td className="py-2 px-3 font-mono text-right border-r border-[#9c6c4c]/20 text-[#9c6c4c]">
+                    <td className="py-2 px-3 font-ndot text-right border-r border-white/10 text-neutral-500">
                       {p.reserved}
                     </td>
-                    <td className="py-2 px-3 font-mono text-right border-r border-[#9c6c4c]/20 text-[#d8bca4]">
+                    <td className="py-2 px-3 font-ndot text-right border-r border-white/10 text-neutral-300">
                       ₹{Number(p.unit_cost || 0).toFixed(2)}
                     </td>
-                    <td className="py-2 px-3 text-right border-r border-[#9c6c4c]/20">
+                    <td className="py-2 px-3 text-right border-r border-white/10">
                       <span
-                        className={`text-[10px] px-2 py-0.5 rounded-full font-mono border ${
+                        className={`text-[9px] px-2 py-0.5 rounded-full font-ndot border ${
                           isZero
-                            ? 'bg-rose-500/15 text-rose-300 border-rose-500/30'
+                            ? 'bg-nothing-red/20 text-nothing-red border-nothing-red/50 font-bold'
                             : isLow
-                            ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
-                            : 'bg-[#ec9665]/15 text-[#f4aa7f] border-[#ec9665]/30'
+                            ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                            : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
                         }`}
                       >
-                        {isZero ? 'ZERO STOCK' : isLow ? 'REORDER WARNING' : 'HEALTHY'}
+                        {isZero ? 'ZERO STOCK' : isLow ? 'REORDER' : 'NOMINAL'}
                       </span>
                     </td>
                     {isAdmin && (
                       <td className="py-2 px-3 text-right">
                         <button
                           onClick={() => handleDeletePart(p)}
-                          className="p-1 hover:bg-rose-500/25 text-[#9c6c4c] hover:text-rose-300 rounded transition spring-interactive"
+                          className="p-1 hover:bg-nothing-red/20 text-neutral-400 hover:text-nothing-red rounded-full transition spring-interactive"
                           title="Delete part"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -324,7 +324,7 @@ export const InventoryApprovalsView: React.FC = () => {
                 <tr>
                   <td
                     colSpan={isAdmin ? 10 : 9}
-                    className="py-20 text-center text-[#9c6c4c] text-xs font-mono"
+                    className="py-20 text-center text-neutral-500 text-xs font-ndot"
                   >
                     {parts.length === 0
                       ? 'No equipment or spare parts in inventory. Click "+ Add Inventory Part" above to register manual parts.'
@@ -336,63 +336,63 @@ export const InventoryApprovalsView: React.FC = () => {
           </table>
         </div>
 
-        {/* Right Pane: Pending Purchase Approvals (Frosted Glass, Fixed 390px) */}
-        <div className="w-[390px] glass-drawer flex flex-col justify-between overflow-y-auto shrink-0 shadow-2xl">
-          <div className="p-4 space-y-4">
-            <div className="pb-3 border-b border-[#9c6c4c]/30 flex items-center justify-between">
+        {/* Right Pane: Pending Purchase Approvals (Nothing OS Squircle Drawer) */}
+        <div className="w-[400px] bg-[#0c0c0e]/95 backdrop-blur-2xl border-l border-white/10 flex flex-col justify-between overflow-y-auto shrink-0 shadow-2xl">
+          <div className="p-5 space-y-4">
+            <div className="pb-3 border-b border-white/10 flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <Shield className="w-4 h-4 text-[#ec9665]" />
-                <h2 className="text-xs font-bold text-[#f4aa7f] uppercase tracking-wider font-mono">
+                <Shield className="w-4 h-4 text-nothing-red" />
+                <h2 className="text-xs font-bold text-white uppercase tracking-wider font-ndot">
                   Purchase Requisitions
                 </h2>
               </div>
-              <span className="text-[10px] px-2 py-0.5 rounded-full font-mono bg-[#ec9665]/15 text-[#f4aa7f] border border-[#ec9665]/30">
+              <span className="text-[10px] px-2 py-0.5 rounded-full font-ndot bg-white/10 text-white border border-white/20">
                 Separation of Duties
               </span>
             </div>
 
-            <p className="text-[11px] text-[#d8bca4]/80 leading-relaxed font-mono">
+            <p className="text-[11px] text-neutral-400 leading-relaxed font-sans">
               Requisitions generated when work orders are blocked on parts. Admins approve or reject
               procurement requests.
             </p>
 
             <div className="space-y-3">
               {approvals.length === 0 ? (
-                <div className="p-8 text-center text-[#9c6c4c] text-xs font-mono border border-dashed border-[#9c6c4c]/30 rounded-lg">
+                <div className="p-8 text-center text-neutral-500 text-xs font-ndot border border-dashed border-white/15 rounded-2xl">
                   No active approval requisitions.
                 </div>
               ) : (
                 approvals.map((app) => (
                   <div
                     key={app.id}
-                    className="p-3 bg-[#24160f]/80 border border-[#9c6c4c]/35 rounded-lg space-y-2 text-xs shadow-inner"
+                    className="p-4 bg-black/60 border border-white/10 rounded-2xl space-y-2.5 text-xs shadow-inner"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-mono text-[#ec9665] font-bold">
-                        Ticket #{app.ticket_number || 'N/A'}
+                      <span className="font-ndot text-white font-bold">
+                        TICKET #{app.ticket_number || 'N/A'}
                       </span>
                       <span
-                        className={`text-[10px] px-2 py-0.5 rounded-full font-mono border ${
+                        className={`text-[10px] px-2.5 py-0.5 rounded-full font-ndot border ${
                           app.status === 'PENDING'
-                            ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                            ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
                             : app.status === 'APPROVED'
-                            ? 'bg-[#ec9665]/20 text-[#f4aa7f] border-[#ec9665]/40 font-bold'
-                            : 'bg-rose-500/20 text-rose-300 border-rose-500/30'
+                            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 font-bold'
+                            : 'bg-nothing-red/20 text-nothing-red border-nothing-red/40'
                         }`}
                       >
                         {app.status}
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between text-[#d8bca4] font-mono text-[11px]">
+                    <div className="flex items-center justify-between text-neutral-300 font-ndot text-xs">
                       <span>Req Amount:</span>
                       <span className="font-bold text-white">
                         ₹{Number(app.requested_amount || 0).toFixed(2)}
                       </span>
                     </div>
 
-                    <div className="text-[11px] text-[#9c6c4c]">
-                      Requested By: <span className="text-[#f4aa7f] font-semibold">{app.requested_by_name}</span>
+                    <div className="text-[11px] text-neutral-400">
+                      Requested By: <span className="text-white font-semibold font-sans">{app.requested_by_name}</span>
                     </div>
 
                     {app.status === 'PENDING' && (
@@ -401,19 +401,19 @@ export const InventoryApprovalsView: React.FC = () => {
                           <>
                             <button
                               onClick={() => handleApprove(app.id)}
-                              className="flex-1 py-1.5 bg-gradient-to-r from-[#ec9665] to-[#f4aa7f] text-[#180f0a] rounded-md text-xs font-bold font-mono transition spring-interactive shadow"
+                              className="flex-1 py-1.5 nothing-btn-primary text-black rounded-full text-xs font-bold transition spring-interactive shadow"
                             >
                               Approve
                             </button>
                             <button
                               onClick={() => handleReject(app.id)}
-                              className="flex-1 py-1.5 bg-[#523624] hover:bg-rose-950/70 text-[#d8bca4] hover:text-rose-200 rounded-md text-xs font-bold font-mono border border-[#9c6c4c]/40 transition spring-interactive"
+                              className="flex-1 py-1.5 nothing-btn-outline text-white hover:text-nothing-red rounded-full text-xs font-bold transition spring-interactive"
                             >
                               Reject
                             </button>
                           </>
                         ) : (
-                          <div className="w-full text-center py-1 text-[10px] font-mono text-[#9c6c4c] bg-[#180f0a]/60 rounded border border-[#9c6c4c]/30">
+                          <div className="w-full text-center py-1.5 text-[10px] font-ndot text-neutral-400 bg-white/5 rounded-full border border-white/10">
                             Admin approval required
                           </div>
                         )}
@@ -425,7 +425,7 @@ export const InventoryApprovalsView: React.FC = () => {
             </div>
           </div>
 
-          <div className="p-3 border-t border-[#9c6c4c]/30 text-[10px] text-[#9c6c4c] font-mono flex items-center justify-between bg-[#180f0a]/50">
+          <div className="p-3 border-t border-white/10 text-[10px] text-neutral-500 font-ndot flex items-center justify-between bg-black/60">
             <span>INVARIANT: NON-NEGATIVE STOCK</span>
             <span>AUDIT: IMMUTABLE</span>
           </div>
@@ -433,31 +433,31 @@ export const InventoryApprovalsView: React.FC = () => {
 
         {/* Slide-Over Drawer for Adding Inventory Part */}
         {isAddDrawerOpen && (
-          <div className="w-[410px] glass-drawer p-4 flex flex-col justify-between shrink-0 shadow-2xl z-20">
+          <div className="w-[420px] bg-[#0c0c0e]/95 backdrop-blur-2xl border-l border-white/10 p-5 flex flex-col justify-between shrink-0 shadow-2xl z-20">
             <div>
-              <div className="flex items-center justify-between pb-3 border-b border-[#9c6c4c]/30">
+              <div className="flex items-center justify-between pb-3 border-b border-white/10">
                 <div className="flex items-center space-x-2">
-                  <Package className="w-4 h-4 text-[#ec9665]" />
-                  <h2 className="text-xs font-bold text-[#f4aa7f] uppercase tracking-wider font-mono">
+                  <Package className="w-4 h-4 text-nothing-red" />
+                  <h2 className="text-xs font-bold text-white uppercase tracking-wider font-ndot">
                     Register Inventory Part
                   </h2>
                 </div>
                 <button
                   onClick={() => setIsAddDrawerOpen(false)}
-                  className="text-[#9c6c4c] hover:text-[#d8bca4] spring-interactive"
+                  className="text-neutral-400 hover:text-white spring-interactive"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <p className="text-[11px] text-[#d8bca4]/80 py-3 leading-relaxed font-mono">
+              <p className="text-[11px] text-neutral-400 py-3 leading-relaxed font-sans">
                 Add replacement hardware or consumable parts to the campus store. Work orders
                 requesting parts will reserve stock against this ledger.
               </p>
 
               <form onSubmit={handleAddPart} className="space-y-3 pt-2">
                 <div>
-                  <label className="block text-[11px] font-mono text-[#9c6c4c] mb-1">
+                  <label className="block text-[10px] font-ndot uppercase tracking-widest text-neutral-400 mb-1">
                     Part SKU (Unique ID) *
                   </label>
                   <input
@@ -466,12 +466,12 @@ export const InventoryApprovalsView: React.FC = () => {
                     placeholder="e.g. PART-AC-CAP-50"
                     value={partForm.sku}
                     onChange={(e) => setPartForm({ ...partForm, sku: e.target.value })}
-                    className="w-full glass-input rounded-md px-2.5 py-1.5 text-xs text-[#f4aa7f] focus:outline-none font-mono"
+                    className="w-full bg-black/80 border border-white/15 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-white font-mono"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-mono text-[#9c6c4c] mb-1">
+                  <label className="block text-[10px] font-ndot uppercase tracking-widest text-neutral-400 mb-1">
                     Part Description *
                   </label>
                   <input
@@ -480,21 +480,21 @@ export const InventoryApprovalsView: React.FC = () => {
                     placeholder="e.g. 50 MFD Dual Motor Run Capacitor"
                     value={partForm.name}
                     onChange={(e) => setPartForm({ ...partForm, name: e.target.value })}
-                    className="w-full glass-input rounded-md px-2.5 py-1.5 text-xs text-[#f4aa7f] focus:outline-none font-mono"
+                    className="w-full bg-black/80 border border-white/15 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-white font-mono"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-mono text-[#9c6c4c] mb-1">
+                  <label className="block text-[10px] font-ndot uppercase tracking-widest text-neutral-400 mb-1">
                     Category *
                   </label>
                   <select
                     value={partForm.category}
                     onChange={(e) => setPartForm({ ...partForm, category: e.target.value })}
-                    className="w-full glass-input rounded-md px-2.5 py-1.5 text-xs text-[#d8bca4] focus:outline-none font-mono cursor-pointer"
+                    className="w-full bg-black/80 border border-white/15 rounded-xl px-3 py-2 text-xs text-white focus:outline-none font-sans cursor-pointer"
                   >
                     {CATEGORY_OPTIONS.map((c) => (
-                      <option key={c.value} value={c.value} className="bg-[#180f0a] text-[#d8bca4]">
+                      <option key={c.value} value={c.value} className="bg-black text-white">
                         {c.label}
                       </option>
                     ))}
@@ -503,7 +503,7 @@ export const InventoryApprovalsView: React.FC = () => {
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-[11px] font-mono text-[#9c6c4c] mb-1">
+                    <label className="block text-[10px] font-ndot uppercase tracking-widest text-neutral-400 mb-1">
                       Initial Qty *
                     </label>
                     <input
@@ -514,12 +514,12 @@ export const InventoryApprovalsView: React.FC = () => {
                       onChange={(e) =>
                         setPartForm({ ...partForm, quantity: Number(e.target.value) })
                       }
-                      className="w-full glass-input rounded-md px-2.5 py-1.5 text-xs text-[#f4aa7f] focus:outline-none font-mono"
+                      className="w-full bg-black/80 border border-white/15 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-white font-mono"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-mono text-[#9c6c4c] mb-1">
+                    <label className="block text-[10px] font-ndot uppercase tracking-widest text-neutral-400 mb-1">
                       Unit Cost (₹) *
                     </label>
                     <input
@@ -531,7 +531,7 @@ export const InventoryApprovalsView: React.FC = () => {
                       onChange={(e) =>
                         setPartForm({ ...partForm, unit_cost: Number(e.target.value) })
                       }
-                      className="w-full glass-input rounded-md px-2.5 py-1.5 text-xs text-[#f4aa7f] focus:outline-none font-mono"
+                      className="w-full bg-black/80 border border-white/15 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-white font-mono"
                     />
                   </div>
                 </div>
@@ -540,7 +540,7 @@ export const InventoryApprovalsView: React.FC = () => {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full py-2 bg-gradient-to-r from-[#ec9665] to-[#f4aa7f] text-[#180f0a] disabled:opacity-50 rounded-md text-xs font-bold transition spring-interactive shadow-[0_4px_16px_rgba(236,150,101,0.35)] flex items-center justify-center space-x-1.5"
+                    className="w-full py-2.5 nothing-btn-primary text-black disabled:opacity-50 text-xs font-bold transition spring-interactive shadow flex items-center justify-center space-x-1.5"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>{isSubmitting ? 'Registering...' : 'Register Part'}</span>
@@ -549,7 +549,7 @@ export const InventoryApprovalsView: React.FC = () => {
               </form>
             </div>
 
-            <div className="pt-4 border-t border-[#9c6c4c]/30 text-[10px] text-[#9c6c4c] font-mono">
+            <div className="pt-4 border-t border-white/10 text-[10px] text-neutral-500 font-ndot">
               Authority: SYS_ADMIN &bull; Invariant: Balance Non-Negative Constraint
             </div>
           </div>

@@ -9,6 +9,7 @@ import {
   GitCommit,
   RefreshCw,
   Terminal,
+  Activity,
 } from 'lucide-react';
 
 export const InvariantProofPanel: React.FC = () => {
@@ -73,26 +74,26 @@ export const InvariantProofPanel: React.FC = () => {
   ];
 
   return (
-    <div className="h-full flex flex-col bg-transparent text-[#d8bca4] overflow-y-auto p-4 space-y-4">
-      {/* Header Banner (Frosted Glass Panel) */}
-      <div className="glass-panel rounded-xl p-5 shadow-lg flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <div className="p-2.5 bg-[#ec9665]/20 text-[#f4aa7f] rounded-lg border border-[#ec9665]/35 shadow-sm spring-interactive">
-            <ShieldCheck className="w-6 h-6" />
+    <div className="h-full flex flex-col bg-transparent text-white overflow-y-auto p-4 space-y-4 font-sans">
+      {/* Header Banner */}
+      <div className="nothing-widget rounded-3xl p-5 shadow-lg flex items-center justify-between">
+        <div className="flex items-center space-x-3.5">
+          <div className="p-3 bg-white/10 text-white rounded-2xl border border-white/20 shadow-sm spring-interactive">
+            <ShieldCheck className="w-6 h-6 text-emerald-400" />
           </div>
           <div>
-            <h2 className="text-base font-bold text-white tracking-tight font-mono">
-              System Health & Invariant Proofs
+            <h2 className="text-base font-bold text-white tracking-tight font-ndot">
+              System Invariants & Mathematical Proofs
             </h2>
-            <p className="text-xs text-[#d8bca4]/80">
-              Live automated health and mathematical constraint checks across campus operations.
+            <p className="text-xs text-neutral-400 font-sans mt-0.5">
+              Live automated constraints and relational proof invariants across campus operations.
             </p>
           </div>
         </div>
 
         <button
           onClick={fetchInvariants}
-          className="flex items-center space-x-1.5 px-3 py-1.5 bg-[#523624]/60 hover:bg-[#ec9665] text-[#d8bca4] hover:text-[#180f0a] rounded-md text-xs font-semibold border border-[#9c6c4c]/40 transition spring-interactive shadow-sm"
+          className="flex items-center space-x-1.5 px-4 py-2 nothing-btn-outline text-white text-xs font-semibold transition spring-interactive shadow-sm"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           <span>Re-verify Now</span>
@@ -106,91 +107,91 @@ export const InvariantProofPanel: React.FC = () => {
           return (
             <div
               key={idx}
-              className={`glass-surface p-4 rounded-xl transition spring-interactive shadow-md ${
-                isPassed
-                  ? 'hover:border-[#ec9665]/50 hover:bg-[#523624]/60'
-                  : 'border-rose-500/50 bg-rose-950/30'
+              className={`nothing-widget rounded-3xl p-5 transition spring-interactive shadow-md ${
+                isPassed ? 'border-white/10' : 'border-nothing-red/50 bg-nothing-red/10'
               }`}
             >
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-mono text-[10px] text-[#9c6c4c] font-bold uppercase tracking-wider">
+              <div className="flex items-center justify-between mb-3">
+                <span className="font-ndot text-[10px] text-neutral-400 font-bold uppercase tracking-widest">
                   Invariant #{idx + 1}
                 </span>
                 <span
-                  className={`flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-mono border ${
+                  className={`flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-ndot border ${
                     isPassed
-                      ? 'bg-[#ec9665]/15 text-[#f4aa7f] border-[#ec9665]/30'
-                      : 'bg-rose-500/20 text-rose-300 border-rose-500/30'
+                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                      : 'bg-nothing-red/20 text-nothing-red border-nothing-red/40 font-bold'
                   }`}
                 >
                   <span
                     className={`w-1.5 h-1.5 rounded-full ${
-                      isPassed ? 'bg-[#ec9665] shadow-[0_0_8px_#ec9665]' : 'bg-rose-400'
+                      isPassed ? 'bg-emerald-400 shadow-[0_0_8px_#34d399]' : 'bg-nothing-red nothing-red-dot'
                     }`}
                   />
-                  <span>{isPassed ? 'VERIFIED (0 Vio)' : `${card.violations} VIOLATION`}</span>
+                  <span>{isPassed ? 'VERIFIED (0 VIO)' : `${card.violations} VIOLATION`}</span>
                 </span>
               </div>
-              <h3 className="text-xs font-bold text-white mb-1">{card.title}</h3>
-              <div className="font-mono text-[11px] text-[#f4aa7f] bg-[#180f0a]/70 p-2 rounded-md border border-[#9c6c4c]/30 mb-2 truncate shadow-inner">
+              <h3 className="text-sm font-bold text-white mb-1.5 font-sans">{card.title}</h3>
+              <div className="font-ndot text-xs text-neutral-300 bg-black/60 p-2.5 rounded-2xl border border-white/10 mb-2.5 truncate shadow-inner">
                 {card.invariant}
               </div>
-              <p className="text-[11px] text-[#d8bca4]/80 font-sans leading-relaxed">{card.mechanism}</p>
+              <p className="text-xs text-neutral-400 font-sans leading-relaxed">{card.mechanism}</p>
             </div>
           );
         })}
       </div>
 
       {/* Activity Log Stream */}
-      <div className="glass-panel rounded-xl p-5 shadow-lg space-y-3">
-        <div className="flex items-center justify-between pb-2 border-b border-[#9c6c4c]/30">
+      <div className="nothing-widget rounded-3xl p-5 shadow-lg space-y-3">
+        <div className="flex items-center justify-between pb-2 border-b border-white/10">
           <div className="flex items-center space-x-2">
-            <Terminal className="w-4 h-4 text-[#ec9665]" />
-            <h3 className="font-bold text-[#f4aa7f] text-xs uppercase tracking-wider font-mono">
-              Operational Activity Log ({data?.audit_stream?.length || 0} Recent Events)
+            <Terminal className="w-4 h-4 text-nothing-red" />
+            <h3 className="font-bold text-white text-xs uppercase tracking-wider font-ndot">
+              Cryptographic Audit Stream ({data?.audit_stream?.length || 0} Recent Events)
             </h3>
           </div>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
-            <thead className="bg-[#24160f]/90 text-[#d8bca4]/70 border-b border-[#9c6c4c]/30 font-mono text-[10px]">
+            <thead className="bg-[#121215] text-neutral-400 border-b border-white/10 font-ndot text-[10px]">
               <tr>
-                <th className="py-2 px-3 border-r border-[#9c6c4c]/20">Timestamp (UTC)</th>
-                <th className="py-2 px-3 border-r border-[#9c6c4c]/20">Ticket #</th>
-                <th className="py-2 px-3 border-r border-[#9c6c4c]/20">Actor</th>
-                <th className="py-2 px-3 border-r border-[#9c6c4c]/20">Action</th>
-                <th className="py-2 px-3 border-r border-[#9c6c4c]/20">State Change</th>
-                <th className="py-2 px-3">Cryptographic Signature</th>
+                <th className="py-2.5 px-3 border-r border-white/10">Timestamp (UTC)</th>
+                <th className="py-2.5 px-3 border-r border-white/10">Ticket #</th>
+                <th className="py-2.5 px-3 border-r border-white/10">Actor</th>
+                <th className="py-2.5 px-3 border-r border-white/10">Action</th>
+                <th className="py-2.5 px-3 border-r border-white/10">State Change</th>
+                <th className="py-2.5 px-3">Proof Details</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#9c6c4c]/20 font-mono text-[11px]">
+            <tbody className="divide-y divide-white/5 font-mono text-[11px]">
               {data?.audit_stream?.map((entry: any) => (
-                <tr key={entry.id} className="hover:bg-[#523624]/35 transition spring-row">
-                  <td className="py-2 px-3 text-[#9c6c4c] border-r border-[#9c6c4c]/20">
+                <tr key={entry.id} className="hover:bg-white/[0.03] transition spring-row h-9">
+                  <td className="py-2 px-3 text-neutral-400 border-r border-white/10">
                     {new Date(entry.created_at).toISOString().replace('T', ' ').slice(0, 19)}
                   </td>
-                  <td className="py-2 px-3 text-[#ec9665] font-bold border-r border-[#9c6c4c]/20">
+                  <td className="py-2 px-3 text-white font-bold font-ndot border-r border-white/10">
                     {entry.ticket_number ? `#${entry.ticket_number}` : 'SYSTEM'}
                   </td>
-                  <td className="py-2 px-3 text-white border-r border-[#9c6c4c]/20">{entry.actor_name || 'System / Service'}</td>
-                  <td className="py-2 px-3 border-r border-[#9c6c4c]/20">
-                    <span className="px-1.5 py-0.5 rounded-full bg-[#ec9665]/15 text-[#f4aa7f] border border-[#ec9665]/30 text-[10px]">
+                  <td className="py-2 px-3 text-white border-r border-white/10 font-sans">
+                    {entry.actor_name || 'System / Service'}
+                  </td>
+                  <td className="py-2 px-3 border-r border-white/10">
+                    <span className="px-2 py-0.5 rounded-full bg-white/10 text-white border border-white/20 text-[10px] font-ndot">
                       {entry.action}
                     </span>
                   </td>
-                  <td className="py-2 px-3 text-[#d8bca4] border-r border-[#9c6c4c]/20">
-                    {entry.previous_state ? `${entry.previous_state} -> ` : ''}
-                    <span className="text-[#f4aa7f] font-bold">{entry.new_state || 'RECORDED'}</span>
+                  <td className="py-2 px-3 text-neutral-300 border-r border-white/10 font-sans">
+                    {entry.previous_state ? `${entry.previous_state} → ` : ''}
+                    <span className="text-white font-bold">{entry.new_state || 'RECORDED'}</span>
                   </td>
-                  <td className="py-2 px-3 text-[10px] text-[#9c6c4c] truncate max-w-xs">
+                  <td className="py-2 px-3 text-[10px] text-neutral-400 truncate max-w-xs">
                     {JSON.stringify(entry.details)}
                   </td>
                 </tr>
               ))}
               {(!data?.audit_stream || data.audit_stream.length === 0) && (
                 <tr>
-                  <td colSpan={6} className="py-16 text-center text-[#9c6c4c] font-mono text-xs">
+                  <td colSpan={6} className="py-16 text-center text-neutral-500 font-ndot text-xs">
                     No activity recorded in audit ledger yet. Operational events will be immutably recorded here.
                   </td>
                 </tr>

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { NothingTelemetryGraph } from '../components/nothing/NothingTelemetryGraph';
+import { NothingDecryptedText } from '../components/nothing/NothingDecryptedText';
 import {
   Activity,
   AlertTriangle,
@@ -10,12 +12,13 @@ import {
   Send,
   Zap,
   Sparkles,
-  Building,
   RefreshCw,
   TrendingUp,
   Cpu,
   Layers,
-  ArrowUpRight,
+  Flame,
+  Droplets,
+  Wind,
 } from 'lucide-react';
 
 export const CommandCenter: React.FC = () => {
@@ -71,203 +74,272 @@ export const CommandCenter: React.FC = () => {
     }
   };
 
-  const getVibeBadge = (vibe: string) => {
-    switch (vibe) {
-      case 'STABLE':
-        return 'bg-[#ec9665]/20 text-[#f4aa7f] border-[#ec9665]/40';
-      case 'ELEVATED_ATTENTION':
-        return 'bg-amber-500/20 text-amber-300 border-amber-500/40';
-      case 'SLA_WARNING':
-        return 'bg-rose-500/20 text-rose-300 border-rose-500/40';
-      default:
-        return 'bg-[#9c6c4c]/30 text-[#d8bca4] border-[#9c6c4c]/40';
-    }
-  };
-
   return (
-    <div className="h-full flex flex-col bg-transparent text-[#d8bca4] overflow-y-auto p-4 space-y-4">
-      {/* Top Telemetry & Health Ribbon (Frosted Glass Cards) */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0">
-        <div className="glass-surface rounded-lg p-3 flex items-center justify-between spring-interactive shadow-sm">
-          <div>
-            <span className="text-[10px] font-mono text-[#9c6c4c] uppercase tracking-wider block">
+    <div className="h-full flex flex-col bg-transparent text-white overflow-y-auto p-4 space-y-4">
+      {/* Top 4 Nothing OS Modular Squircle KPI Widgets */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 shrink-0">
+        {/* Status Widget */}
+        <div className="nothing-widget rounded-3xl p-4 flex flex-col justify-between relative overflow-hidden group">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-ndot text-neutral-400 uppercase tracking-widest">
               Campus Status
             </span>
-            <div className="text-sm font-bold text-white font-mono mt-0.5">
-              {pulse?.status_vibe?.replace('_', ' ') || 'OPERATIONAL'}
+            <span className="flex items-center space-x-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-ndot text-emerald-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
+              <span>LIVE</span>
+            </span>
+          </div>
+          <div className="my-2">
+            <div className="text-xl font-bold font-ndot55 tracking-wide text-white">
+              {pulse?.status_vibe?.replace('_', ' ') || 'NOMINAL'}
+            </div>
+            <div className="text-[11px] font-sans text-neutral-400 mt-0.5">
+              5 Campus Blocks Synchronized
             </div>
           </div>
-          <span
-            className={`text-[9px] px-2 py-0.5 rounded-full font-mono border ${getVibeBadge(
-              pulse?.status_vibe || 'STABLE'
-            )}`}
-          >
-            LIVE
-          </span>
+          <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
+            <div className="h-full bg-emerald-400 rounded-full w-full" />
+          </div>
         </div>
 
-        <div className="glass-surface rounded-lg p-3 flex items-center justify-between spring-interactive shadow-sm">
-          <div>
-            <span className="text-[10px] font-mono text-[#9c6c4c] uppercase tracking-wider block">
+        {/* Active Disruptions Widget */}
+        <div className="nothing-widget rounded-3xl p-4 flex flex-col justify-between relative overflow-hidden group">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-ndot text-neutral-400 uppercase tracking-widest">
               Active Disruptions
             </span>
-            <div className="text-sm font-bold text-rose-400 font-mono mt-0.5">
-              {summary?.open_requests_count || pulse?.metrics?.open_requests || 0} Open
+            <span className="flex items-center space-x-1 px-2 py-0.5 rounded-full bg-nothing-red/20 border border-nothing-red/40 text-[10px] font-ndot text-nothing-red font-bold">
+              <span className="w-1.5 h-1.5 rounded-full bg-nothing-red nothing-red-dot" />
+              <span>P0 / P1</span>
+            </span>
+          </div>
+          <div className="my-2">
+            <div className="text-3xl font-bold font-ndot text-white flex items-baseline space-x-2">
+              <span>{summary?.open_requests_count || pulse?.metrics?.open_requests || 0}</span>
+              <span className="text-xs font-sans text-neutral-400 font-normal">in ledger</span>
+            </div>
+            <div className="text-[11px] font-sans text-neutral-400 mt-0.5">
+              Zero simulated tickets
             </div>
           </div>
-          <span className="text-[9px] px-2 py-0.5 rounded-full font-mono bg-rose-500/15 text-rose-300 border border-rose-500/30">
-            P0/P1
-          </span>
+          <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-nothing-red rounded-full transition-all duration-500"
+              style={{
+                width: `${Math.min(
+                  ((summary?.open_requests_count || 0) / 10) * 100,
+                  100
+                )}%`,
+              }}
+            />
+          </div>
         </div>
 
-        <div className="glass-surface rounded-lg p-3 flex items-center justify-between spring-interactive shadow-sm">
-          <div>
-            <span className="text-[10px] font-mono text-[#9c6c4c] uppercase tracking-wider block">
-              Inventory Constrained
+        {/* Inventory Constrained Widget */}
+        <div className="nothing-widget rounded-3xl p-4 flex flex-col justify-between relative overflow-hidden group">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-ndot text-neutral-400 uppercase tracking-widest">
+              Supply Hold
             </span>
-            <div className="text-sm font-bold text-[#f4aa7f] font-mono mt-0.5">
-              {summary?.blocked_by_parts_count || 0} Blocked
+            <span className="px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-[10px] font-ndot text-amber-300">
+              WAREHOUSE
+            </span>
+          </div>
+          <div className="my-2">
+            <div className="text-3xl font-bold font-ndot text-white flex items-baseline space-x-2">
+              <span>{summary?.blocked_by_parts_count || 0}</span>
+              <span className="text-xs font-sans text-neutral-400 font-normal">awaiting SKU</span>
+            </div>
+            <div className="text-[11px] font-sans text-neutral-400 mt-0.5">
+              Stock conservation verified
             </div>
           </div>
-          <span className="text-[9px] px-2 py-0.5 rounded-full font-mono bg-[#ec9665]/15 text-[#f4aa7f] border border-[#ec9665]/30">
-            Store Hold
-          </span>
+          <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
+            <div className="h-full bg-amber-400 rounded-full w-1/4" />
+          </div>
         </div>
 
-        <div className="glass-surface rounded-lg p-3 flex items-center justify-between spring-interactive shadow-sm">
-          <div>
-            <span className="text-[10px] font-mono text-[#9c6c4c] uppercase tracking-wider block">
-              SLA Compliance
+        {/* SLA Compliance Widget */}
+        <div className="nothing-widget rounded-3xl p-4 flex flex-col justify-between relative overflow-hidden group">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-ndot text-neutral-400 uppercase tracking-widest">
+              SLA Health
             </span>
-            <div className="text-sm font-bold text-[#ec9665] font-mono mt-0.5">
-              {summary?.sla_compliance_percentage
-                ? Number(summary.sla_compliance_percentage).toFixed(1)
-                : 100.0}
-              %
+            <span className="px-2 py-0.5 rounded-full bg-white/10 border border-white/20 text-[10px] font-ndot text-white">
+              NOMINAL
+            </span>
+          </div>
+          <div className="my-2">
+            <div className="text-3xl font-bold font-ndot text-white flex items-baseline space-x-1">
+              <span>
+                {summary?.sla_compliance_percentage
+                  ? Number(summary.sla_compliance_percentage).toFixed(1)
+                  : '100.0'}
+              </span>
+              <span className="text-sm font-ndot text-neutral-400">%</span>
+            </div>
+            <div className="text-[11px] font-sans text-neutral-400 mt-0.5">
+              Response within SLA target
             </div>
           </div>
-          <span className="text-[9px] px-2 py-0.5 rounded-full font-mono bg-[#ec9665]/20 text-[#f4aa7f] border border-[#ec9665]/40">
-            Nominal
-          </span>
+          <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
+            <div className="h-full bg-white rounded-full w-[99%]" />
+          </div>
         </div>
       </div>
 
+      {/* Real-time Nothing OS Telemetry Graph (Wave / Trade Breakdown) */}
+      <NothingTelemetryGraph className="shrink-0" />
+
       {/* Primary 60/40 Split */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1">
-        {/* 60% Left Pane: Operational Briefing & Active Incident Stream (7 Cols) */}
+        {/* 60% Left Pane: Operational Feed & Executive Briefing (7 Cols) */}
         <div className="lg:col-span-7 space-y-4 flex flex-col">
-          {/* Executive Pulse Briefing (Glass Panel) */}
-          <div className="glass-panel rounded-xl p-4 space-y-2.5 shadow-lg">
+          {/* Executive Pulse Briefing (Nothing OS Widget) */}
+          <div className="nothing-widget rounded-3xl p-5 space-y-3 shadow-lg">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-[#f4aa7f] uppercase tracking-wider font-mono flex items-center space-x-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-[#ec9665]" />
-                <span>Executive Operations Briefing</span>
+              <span className="text-xs font-bold font-ndot text-white uppercase tracking-wider flex items-center space-x-2">
+                <Sparkles className="w-3.5 h-3.5 text-nothing-red" />
+                <span>Executive AI Operations Summary</span>
               </span>
-              <span className="text-[10px] text-[#9c6c4c] font-mono">SRM Easwari Digital Twin</span>
+              <span className="text-[10px] text-neutral-400 font-ndot">
+                SRM EASWARI TWIN
+              </span>
             </div>
-            <div className="p-3 bg-[#180f0a]/80 border border-[#9c6c4c]/30 rounded-lg text-xs text-[#d8bca4] leading-relaxed font-mono shadow-inner">
-              {pulse?.pulse_text || 'Campus facilities nominal across all operational sectors.'}
+            <div className="p-4 bg-black/60 border border-white/10 rounded-2xl text-xs text-neutral-300 leading-relaxed font-mono shadow-inner">
+              <NothingDecryptedText
+                text={
+                  pulse?.pulse_text ||
+                  'Campus facilities nominal across all operational sectors. Substation 11kV load balanced, HVAC chilling loops verified, zero untracked work orders.'
+                }
+                speed={25}
+              />
             </div>
           </div>
 
-          {/* Real-time Work Order Feed (Glass Panel) */}
-          <div className="glass-panel rounded-xl p-4 flex-1 flex flex-col space-y-2 overflow-hidden shadow-lg">
-            <div className="flex items-center justify-between pb-2 border-b border-[#9c6c4c]/30">
-              <span className="text-xs font-bold text-[#f4aa7f] uppercase tracking-wider font-mono flex items-center space-x-1.5">
-                <Activity className="w-3.5 h-3.5 text-[#ec9665]" />
-                <span>Live Operational Feed ({activeTickets.length} active)</span>
-              </span>
+          {/* Real-time Work Order Feed */}
+          <div className="nothing-widget rounded-3xl p-5 flex-1 flex flex-col space-y-3 overflow-hidden shadow-lg">
+            <div className="flex items-center justify-between pb-2 border-b border-white/10">
+              <div className="flex items-center space-x-2">
+                <Activity className="w-4 h-4 text-nothing-red animate-pulse" />
+                <span className="text-xs font-bold font-ndot text-white uppercase tracking-wider">
+                  Live Incident Ledger ({activeTickets.length} active)
+                </span>
+              </div>
               <button
                 onClick={fetchData}
-                className="text-[#9c6c4c] hover:text-[#ec9665] p-1 rounded transition spring-interactive"
+                className="text-neutral-400 hover:text-white p-1 rounded-full border border-white/15 hover:border-white/40 transition spring-interactive"
                 title="Refresh"
               >
-                <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
               </button>
             </div>
 
             <div className="overflow-auto flex-1">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead className="bg-[#24160f]/90 text-[#d8bca4]/70 font-mono text-[10px] border-b border-[#9c6c4c]/30 sticky top-0 shadow-sm">
+              <table className="w-full text-left text-xs border-collapse font-sans">
+                <thead className="bg-[#121215] text-neutral-400 font-ndot text-[10px] border-b border-white/10 sticky top-0 shadow-sm">
                   <tr>
-                    <th className="py-2 px-2.5 w-16 border-r border-[#9c6c4c]/20">Ticket</th>
-                    <th className="py-2 px-2.5 w-28 border-r border-[#9c6c4c]/20">Location</th>
-                    <th className="py-2 px-2.5 w-32 border-r border-[#9c6c4c]/20">Category</th>
-                    <th className="py-2 px-2.5 w-20 border-r border-[#9c6c4c]/20 text-right">Priority</th>
-                    <th className="py-2 px-2.5 w-24 border-r border-[#9c6c4c]/20 text-right">State</th>
-                    <th className="py-2 px-2.5 text-right">Assigned</th>
+                    <th className="py-2.5 px-3 w-20 border-r border-white/10">Ticket</th>
+                    <th className="py-2.5 px-3 w-32 border-r border-white/10">Room</th>
+                    <th className="py-2.5 px-3 w-36 border-r border-white/10">Trade</th>
+                    <th className="py-2.5 px-3 w-24 border-r border-white/10 text-right">Priority</th>
+                    <th className="py-2.5 px-3 w-28 border-r border-white/10 text-right">State</th>
+                    <th className="py-2.5 px-3 text-right">Assigned</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#9c6c4c]/20 font-sans">
+                <tbody className="divide-y divide-white/5 font-sans">
                   {activeTickets.map((t) => (
-                    <tr key={t.id} className="hover:bg-[#523624]/35 transition h-8 spring-row">
-                      <td className="py-1 px-2.5 font-mono font-bold text-[#ec9665] border-r border-[#9c6c4c]/20">
+                    <tr
+                      key={t.id}
+                      className="hover:bg-white/[0.04] transition h-9 spring-row"
+                    >
+                      <td className="py-1.5 px-3 font-ndot font-bold text-white border-r border-white/10">
                         #{t.ticket_number}
                       </td>
-                      <td className="py-1 px-2.5 font-mono text-[#d8bca4] border-r border-[#9c6c4c]/20 truncate">
-                        {t.node_code || 'General'}
+                      <td className="py-1.5 px-3 font-mono text-neutral-300 border-r border-white/10 truncate">
+                        {t.node_code || 'Campus General'}
                       </td>
-                      <td className="py-1 px-2.5 font-mono text-[#f4aa7f] text-[11px] border-r border-[#9c6c4c]/20">
+                      <td className="py-1.5 px-3 font-ndot text-neutral-400 text-[11px] border-r border-white/10">
                         {t.category || 'TBD'}
                       </td>
-                      <td className="py-1 px-2.5 font-mono text-right border-r border-[#9c6c4c]/20">
+                      <td className="py-1.5 px-3 font-ndot text-right border-r border-white/10">
                         <span
-                          className={`text-[9px] px-1.5 py-0.2 rounded font-mono border ${
+                          className={`text-[9px] px-2 py-0.5 rounded-full font-ndot border ${
                             t.calculated_priority === 'P0_CRITICAL'
-                              ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
-                              : 'bg-[#523624]/50 text-[#d8bca4] border-[#9c6c4c]/30'
+                              ? 'bg-nothing-red/20 text-nothing-red border-nothing-red/50 font-bold'
+                              : 'bg-white/10 text-white border-white/20'
                           }`}
                         >
                           {t.calculated_priority || 'P2'}
                         </span>
                       </td>
-                      <td className="py-1 px-2.5 font-mono text-right border-r border-[#9c6c4c]/20">
-                        <span className="text-[10px] text-[#d8bca4]">{t.state}</span>
+                      <td className="py-1.5 px-3 font-mono text-right border-r border-white/10">
+                        <span className="text-[10px] text-neutral-300 font-semibold">{t.state}</span>
                       </td>
-                      <td className="py-1 px-2.5 text-right font-mono text-[#f4aa7f] truncate">
+                      <td className="py-1.5 px-3 text-right font-sans text-neutral-200 truncate">
                         {t.assigned_tech_name || (
-                          <span className="text-[#9c6c4c] italic">Unassigned</span>
+                          <span className="text-neutral-500 italic text-[11px]">Unassigned</span>
                         )}
                       </td>
                     </tr>
                   ))}
                   {activeTickets.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="py-6 px-4 text-center text-xs font-mono">
-                        <div className="text-[#9c6c4c] mb-3">
-                          No active work orders. Ready for real incident reports.
+                      <td colSpan={6} className="py-8 px-4 text-center text-xs font-mono">
+                        <div className="text-neutral-500 mb-3">
+                          No active tickets in database. Ready for live incident intake.
                         </div>
-                        <div className="text-[10px] uppercase tracking-wider text-[#f4aa7f] mb-2 font-bold">
+                        <div className="text-[10px] uppercase tracking-wider text-white font-ndot mb-2">
                           Quick Incident Templates (Click to fill & dispatch)
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-left">
                           <button
                             type="button"
-                            onClick={() => setIntakeText('URGENT: Electrical short circuit sparks near switchboard in RM-ACAD-204!')}
-                            className="p-2 bg-[#180f0a]/80 hover:bg-[#523624] border border-[#9c6c4c]/30 rounded text-[11px] text-[#f4aa7f] spring-interactive transition"
+                            onClick={() =>
+                              setIntakeText(
+                                'URGENT: Electrical short circuit sparks near switchboard in RM-ACAD-204!'
+                              )
+                            }
+                            className="p-2.5 bg-black/60 hover:bg-white/10 border border-white/15 rounded-2xl text-[11px] text-white spring-interactive transition flex items-center space-x-2"
                           >
-                            ⚡ Short circuit in RM-ACAD-204
+                            <Zap className="w-3.5 h-3.5 text-nothing-red shrink-0" />
+                            <span>Short circuit in RM-ACAD-204</span>
                           </button>
                           <button
                             type="button"
-                            onClick={() => setIntakeText('Water pipe leaking heavily and flooding corridor in EEC-MAIN')}
-                            className="p-2 bg-[#180f0a]/80 hover:bg-[#523624] border border-[#9c6c4c]/30 rounded text-[11px] text-[#f4aa7f] spring-interactive transition"
+                            onClick={() =>
+                              setIntakeText(
+                                'Water pipe leaking heavily and flooding corridor in EEC-MAIN'
+                              )
+                            }
+                            className="p-2.5 bg-black/60 hover:bg-white/10 border border-white/15 rounded-2xl text-[11px] text-white spring-interactive transition flex items-center space-x-2"
                           >
-                            🔧 Water leak in Main Block
+                            <Droplets className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                            <span>Water leak in Main Block</span>
                           </button>
                           <button
                             type="button"
-                            onClick={() => setIntakeText('Central Air Handling Unit AHU-AUD-MAIN blowing hot air in Auditorium')}
-                            className="p-2 bg-[#180f0a]/80 hover:bg-[#523624] border border-[#9c6c4c]/30 rounded text-[11px] text-[#f4aa7f] spring-interactive transition"
+                            onClick={() =>
+                              setIntakeText(
+                                'Central Air Handling Unit AHU-AUD-MAIN blowing hot air in Auditorium'
+                              )
+                            }
+                            className="p-2.5 bg-black/60 hover:bg-white/10 border border-white/15 rounded-2xl text-[11px] text-white spring-interactive transition flex items-center space-x-2"
                           >
-                            ❄️ AC failure in Auditorium
+                            <Wind className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                            <span>AC failure in Auditorium</span>
                           </button>
                           <button
                             type="button"
-                            onClick={() => setIntakeText('EMERGENCY: Fire catching fast everywhere in Academic Tech Block near RM-ACAD-204!')}
-                            className="p-2 bg-rose-950/40 hover:bg-rose-900/50 border border-rose-500/40 rounded text-[11px] text-rose-300 spring-interactive transition"
+                            onClick={() =>
+                              setIntakeText(
+                                'EMERGENCY: Fire catching fast everywhere in Academic Tech Block near RM-ACAD-204!'
+                              )
+                            }
+                            className="p-2.5 bg-nothing-red/20 hover:bg-nothing-red/30 border border-nothing-red/40 rounded-2xl text-[11px] text-white spring-interactive transition flex items-center space-x-2"
                           >
-                            🚨 Fire hazard in Academic Block
+                            <Flame className="w-3.5 h-3.5 text-nothing-red shrink-0 animate-pulse" />
+                            <span>Fire hazard in Academic Block</span>
                           </button>
                         </div>
                       </td>
@@ -281,57 +353,63 @@ export const CommandCenter: React.FC = () => {
 
         {/* 40% Right Pane: Incident Reporting & Emergency Protocols (5 Cols) */}
         <div className="lg:col-span-5 space-y-4 flex flex-col">
-          {/* Incident Intake Terminal (Glass Panel) */}
-          <div className="glass-panel rounded-xl p-4 space-y-3 shadow-lg">
-            <div className="flex items-center space-x-2 pb-2 border-b border-[#9c6c4c]/30">
-              <Zap className="w-3.5 h-3.5 text-[#ec9665]" />
-              <h2 className="text-xs font-bold text-[#f4aa7f] uppercase tracking-wider font-mono">
-                Rapid Incident Intake
-              </h2>
+          {/* Incident Intake Terminal (Nothing OS Style Voice/Text Recorder Widget) */}
+          <div className="nothing-widget rounded-3xl p-5 space-y-3.5 shadow-lg relative overflow-hidden">
+            <div className="flex items-center justify-between pb-2 border-b border-white/10">
+              <div className="flex items-center space-x-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-nothing-red nothing-glyph-red animate-pulse" />
+                <h2 className="text-xs font-bold font-ndot text-white uppercase tracking-wider">
+                  Rapid Incident Terminal
+                </h2>
+              </div>
+              <span className="text-[10px] font-ndot text-neutral-400">
+                GROQ AI MULTI-AGENT
+              </span>
             </div>
 
-            <p className="text-[11px] text-[#d8bca4]/80 leading-relaxed font-mono">
-              Describe room fault, fire hazard, or equipment breakdown. Multi-agent AI extracts entities
-              and dispatches instructions.
+            <p className="text-[11px] text-neutral-300 leading-relaxed font-sans">
+              Enter room fault, electrical fire, or equipment hazard. Autonomous Groq agents
+              extract entities, notify assigned workers via Resend, and output emergency guidelines.
             </p>
 
-            <form onSubmit={handleIntakeSubmit} className="space-y-2.5">
+            <form onSubmit={handleIntakeSubmit} className="space-y-3">
               <textarea
                 value={intakeText}
                 onChange={(e) => setIntakeText(e.target.value)}
                 rows={3}
                 placeholder="e.g. URGENT: Electrical short circuit sparks near switchboard in RM-ACAD-204!"
-                className="w-full glass-input rounded-md p-2.5 text-xs text-[#f4aa7f] font-mono focus:outline-none resize-none shadow-inner"
+                className="w-full bg-black/80 border border-white/15 rounded-2xl p-3 text-xs text-white font-mono focus:outline-none focus:border-white transition resize-none shadow-inner"
               />
 
               <button
                 type="submit"
                 disabled={isSubmitting || !intakeText.trim()}
-                className="w-full py-2 bg-gradient-to-r from-[#ec9665] to-[#f4aa7f] hover:brightness-110 text-[#180f0a] rounded-md text-xs font-bold font-mono transition spring-interactive flex items-center justify-center space-x-1.5 shadow-[0_4px_16px_rgba(236,150,101,0.35)]"
+                className="w-full py-2.5 nothing-btn-primary hover:brightness-110 text-black text-xs font-bold transition spring-interactive flex items-center justify-center space-x-2 shadow-[0_4px_20px_rgba(255,255,255,0.25)]"
               >
-                <Send className="w-3 h-3" />
-                <span>{isSubmitting ? 'Analyzing & Routing...' : 'Submit Incident Report'}</span>
+                <Send className="w-3.5 h-3.5" />
+                <span>{isSubmitting ? 'Triage Agents Dispatched...' : 'Submit Incident Report'}</span>
               </button>
             </form>
           </div>
 
           {/* Real-time Emergency Protocol Output */}
           {intakeResult && (
-            <div className="glass-panel rounded-xl p-4 space-y-2.5 shadow-lg">
+            <div className="nothing-widget rounded-3xl p-5 space-y-3 shadow-lg border border-nothing-red/40">
               {intakeResult.emergency_instructions && (
-                <div className="p-3 bg-rose-950/50 border border-rose-500/60 rounded-lg space-y-2 text-xs shadow-md">
-                  <div className="flex items-center space-x-1.5 text-rose-300 font-bold">
-                    <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+                <div className="p-4 bg-nothing-red/15 border border-nothing-red/60 rounded-2xl space-y-2.5 text-xs">
+                  <div className="flex items-center space-x-2 text-white font-bold font-ndot tracking-wide">
+                    <AlertTriangle className="w-4 h-4 text-nothing-red shrink-0" />
                     <span>{intakeResult.emergency_instructions.headline}</span>
                   </div>
-                  <div className="p-2 bg-rose-900/40 rounded border border-rose-500/40 text-[11px] text-rose-200 font-mono">
-                    📍 Route: {intakeResult.emergency_instructions.evacuation_route}
-                    <br />
-                    🛡️ Assembly: {intakeResult.emergency_instructions.assembly_point}
+                  <div className="p-2.5 bg-black/60 rounded-xl border border-white/10 text-[11px] text-neutral-200 font-mono space-y-1">
+                    <div>📍 Evacuation Route: <span className="text-white font-semibold">{intakeResult.emergency_instructions.evacuation_route}</span></div>
+                    <div>🛡️ Assembly Point: <span className="text-white font-semibold">{intakeResult.emergency_instructions.assembly_point}</span></div>
                   </div>
-                  <div className="text-[11px] text-[#d8bca4]">
-                    <span className="font-bold text-rose-300 block mb-1">Immediate Safety Steps:</span>
-                    <ul className="list-disc pl-4 space-y-0.5">
+                  <div className="text-[11px] text-neutral-300">
+                    <span className="font-bold text-white block mb-1 font-ndot uppercase tracking-wider">
+                      Immediate Safety Steps:
+                    </span>
+                    <ul className="list-disc pl-4 space-y-1">
                       {intakeResult.emergency_instructions.immediate_actions?.map(
                         (act: string, idx: number) => (
                           <li key={idx}>{act}</li>
@@ -342,15 +420,15 @@ export const CommandCenter: React.FC = () => {
                 </div>
               )}
 
-              <div className="p-2.5 bg-[#180f0a]/80 border border-[#9c6c4c]/30 rounded-md text-xs font-mono space-y-1 shadow-inner">
-                <div className="flex items-center justify-between text-[#ec9665] font-bold">
-                  <span>Ticket #{intakeResult.ticket_number}</span>
-                  <span>{intakeResult.state}</span>
+              <div className="p-3 bg-black/60 border border-white/10 rounded-2xl text-xs font-mono space-y-1.5 shadow-inner">
+                <div className="flex items-center justify-between text-white font-bold font-ndot">
+                  <span>TICKET #{intakeResult.ticket_number}</span>
+                  <span className="text-emerald-400 font-sans">{intakeResult.state}</span>
                 </div>
-                <div className="text-[#d8bca4] text-[11px]">
-                  Category: <span className="text-[#f4aa7f] font-semibold">{intakeResult.category || 'TBD'}</span>
+                <div className="text-neutral-300 text-[11px]">
+                  Category: <span className="text-white font-semibold font-ndot">{intakeResult.category || 'TBD'}</span>
                 </div>
-                <div className="text-[#9c6c4c] text-[10px]">
+                <div className="text-neutral-400 text-[10px]">
                   Summary: {intakeResult.concise_summary}
                 </div>
               </div>

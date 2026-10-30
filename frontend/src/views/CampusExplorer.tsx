@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import { api } from '../api/client';
+import { NothingTopologicalGraph } from '../components/nothing/NothingTopologicalGraph';
 import {
   Layers,
   Eye,
@@ -11,12 +12,15 @@ import {
   Wrench,
   CheckCircle,
   Compass,
+  GitBranch,
+  Box,
 } from 'lucide-react';
 
 export const CampusExplorer: React.FC = () => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
 
+  const [activeMode, setActiveMode] = useState<'3d-map' | 'dag-graph'>('3d-map');
   const [is3D, setIs3D] = useState(true);
   const [mapStatus, setMapStatus] = useState<any>(null);
   const [selectedBlock, setSelectedBlock] = useState<any>(null);
@@ -47,7 +51,7 @@ export const CampusExplorer: React.FC = () => {
   };
 
   useEffect(() => {
-    if (!mapContainer.current) return;
+    if (activeMode !== '3d-map' || !mapContainer.current) return;
 
     const map = new maplibregl.Map({
       container: mapContainer.current,
@@ -96,208 +100,242 @@ export const CampusExplorer: React.FC = () => {
         type: 'line',
         source: 'easwari-buildings',
         paint: {
-          'line-color': '#93c5fd',
+          'line-color': '#ffffff',
           'line-width': 1.5,
-          'line-opacity': 0.6,
+          'line-opacity': 0.4,
         },
       });
 
-      // Click event for building inspection drawer
-      map.on('click', 'buildings-extrusion', async (e: any) => {
+      // Click to inspect building
+      map.on('click', 'buildings-extrusion', async (e) => {
         if (!e.features || e.features.length === 0) return;
-        const feat = e.features[0];
-        const bCode = feat.properties.building_code;
-        handleBlockClick(bCode);
+        const bCode = e.features[0].properties?.building_code;
+        if (bCode) {
+          setSelectedBlock(bCode);
+          setLoadingDetails(true);
+          try {
+            const details = await api.get(`/campus/blocks/${bCode}`);
+            setBlockDetails(details);
+          } catch (err) {
+            console.error('Failed to load block details:', err);
+          } finally {
+            setLoadingDetails(false);
+          }
+        }
       });
 
       map.on('mouseenter', 'buildings-extrusion', () => {
         map.getCanvas().style.cursor = 'pointer';
       });
-
       map.on('mouseleave', 'buildings-extrusion', () => {
         map.getCanvas().style.cursor = '';
       });
 
-      // Update colors from live database
       fetchStatus();
     });
 
     return () => {
       map.remove();
     };
-  }, []);
-
-  const handleBlockClick = async (bCode: string) => {
-    setSelectedBlock(bCode);
-    setLoadingDetails(true);
-    try {
-      const details = await api.get(`/campus/blocks/${bCode}`);
-      setBlockDetails(details);
-    } catch (err) {
-      console.error('Error fetching block details:', err);
-    } finally {
-      setLoadingDetails(false);
-    }
-  };
+  }, [activeMode]);
 
   const togglePitch = () => {
     if (!mapRef.current) return;
     if (is3D) {
-      mapRef.current.easeTo({ pitch: 0, bearing: 0, duration: 800 });
+      mapRef.current.easeTo({ pitch: 0, bearing: 0, duration: 1000 });
       setIs3D(false);
     } else {
-      mapRef.current.easeTo({ pitch: 58, bearing: -22, duration: 800 });
+      mapRef.current.easeTo({ pitch: 58, bearing: -22, duration: 1000 });
       setIs3D(true);
     }
   };
 
   return (
-    <div className="relative h-[calc(100vh-140px)] w-full rounded-xl overflow-hidden border border-[#9c6c4c]/30 shadow-2xl bg-[#180f0a]">
-      {/* Map Container */}
-      <div ref={mapContainer} className="h-full w-full" />
-
-      {/* Floating Controls & Legend */}
-      <div className="absolute top-4 left-4 z-10 space-y-3">
-        {/* Pitch Toggle Pill */}
-        <div className="glass-panel bg-[#24160f]/85 backdrop-blur-xl border border-[#9c6c4c]/40 p-1.5 rounded-lg flex items-center space-x-1 shadow-lg">
-          <button
-            onClick={togglePitch}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-semibold spring-interactive transition ${
-              is3D ? 'bg-gradient-to-r from-[#ec9665] to-[#f4aa7f] text-[#180f0a] font-bold shadow-md shadow-[#ec9665]/20' : 'text-[#d8bca4]/70 hover:text-[#d8bca4]'
-            }`}
-          >
-            <Compass className="w-3.5 h-3.5" />
-            <span>3D View</span>
-          </button>
-          <button
-            onClick={togglePitch}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-semibold spring-interactive transition ${
-              !is3D ? 'bg-gradient-to-r from-[#ec9665] to-[#f4aa7f] text-[#180f0a] font-bold shadow-md shadow-[#ec9665]/20' : 'text-[#d8bca4]/70 hover:text-[#d8bca4]'
-            }`}
-          >
-            <Eye className="w-3.5 h-3.5" />
-            <span>2D View</span>
-          </button>
-        </div>
-
-        {/* Live Map Legend */}
-        <div className="glass-panel bg-[#24160f]/85 backdrop-blur-xl border border-[#9c6c4c]/40 p-3 rounded-lg shadow-lg text-xs space-y-2">
-          <div className="text-[11px] font-bold text-[#f4aa7f] uppercase tracking-wider">
-            Building Status
-          </div>
-          <div className="flex items-center space-x-2">
-            <span className="w-3 h-3 rounded bg-rose-500 shadow-sm" />
-            <span className="text-[#d8bca4]">Critical Alert</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <span className="w-3 h-3 rounded bg-[#ec9665] shadow-sm" />
-            <span className="text-[#d8bca4]">Waiting on Parts</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <span className="w-3 h-3 rounded bg-[#f4aa7f] shadow-sm" />
-            <span className="text-[#d8bca4]">Under Maintenance</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <span className="w-3 h-3 rounded bg-emerald-500 shadow-sm" />
-            <span className="text-[#d8bca4]">Operational</span>
-          </div>
-        </div>
+    <div className="relative w-full h-full bg-black overflow-hidden select-none">
+      {/* Top Segmented Mode Switcher (Nothing OS Style) */}
+      <div className="absolute top-4 left-4 z-20 flex items-center space-x-1 bg-black/80 backdrop-blur-xl p-1 rounded-full border border-white/20 shadow-2xl">
+        <button
+          onClick={() => setActiveMode('3d-map')}
+          className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full text-xs font-ndot transition spring-interactive ${
+            activeMode === '3d-map'
+              ? 'bg-white text-black font-bold shadow'
+              : 'text-neutral-400 hover:text-white'
+          }`}
+        >
+          <Box className="w-3.5 h-3.5" />
+          <span>3D Geospatial Map</span>
+        </button>
+        <button
+          onClick={() => setActiveMode('dag-graph')}
+          className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full text-xs font-ndot transition spring-interactive ${
+            activeMode === 'dag-graph'
+              ? 'bg-white text-black font-bold shadow'
+              : 'text-neutral-400 hover:text-white'
+          }`}
+        >
+          <GitBranch className="w-3.5 h-3.5 text-nothing-red" />
+          <span>Topological DAG Graph</span>
+        </button>
       </div>
 
-      {/* Building Inspector Slide-Over Drawer */}
-      {selectedBlock && (
-        <div className="absolute top-0 right-0 h-full w-96 glass-drawer bg-[#24160f]/95 backdrop-blur-2xl border-l border-[#9c6c4c]/40 shadow-2xl z-20 p-5 overflow-y-auto space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-[#9c6c4c]/30">
-            <div className="flex items-center space-x-2">
-              <Building className="w-5 h-5 text-[#ec9665]" />
-              <div>
-                <h3 className="font-bold text-[#d8bca4] text-sm">{blockDetails?.metadata?.name || selectedBlock}</h3>
-                <span className="text-[11px] font-mono text-[#d8bca4]/60">Code: {selectedBlock}</span>
-              </div>
-            </div>
+      {/* Render Active View */}
+      {activeMode === 'dag-graph' ? (
+        <div className="w-full h-full pt-14 p-4">
+          <NothingTopologicalGraph className="w-full h-full" />
+        </div>
+      ) : (
+        <>
+          {/* Map Container */}
+          <div ref={mapContainer} className="w-full h-full" />
+
+          {/* Map Floating HUD Controls */}
+          <div className="absolute top-4 right-4 z-10 flex items-center space-x-2">
             <button
-              onClick={() => setSelectedBlock(null)}
-              className="p-1 rounded-md text-[#d8bca4]/60 hover:text-[#d8bca4] hover:bg-[#523624]/40 spring-interactive"
+              onClick={togglePitch}
+              className="flex items-center space-x-1.5 px-3 py-1.5 bg-black/80 backdrop-blur-xl border border-white/20 rounded-full text-xs font-ndot text-white hover:bg-white/10 transition spring-interactive shadow-lg"
             >
-              <X className="w-4 h-4" />
+              <Compass className="w-3.5 h-3.5 text-nothing-red" />
+              <span>{is3D ? '2D View' : '3D Extrusion'}</span>
             </button>
           </div>
 
-          {loadingDetails ? (
-            <div className="text-xs text-[#d8bca4]/60 text-center py-10 font-mono">Loading building topology...</div>
-          ) : (
-            <>
-              {/* Building Structural Stats */}
-              <div className="grid grid-cols-2 gap-2 text-xs font-mono">
-                <div className="bg-[#180f0a]/60 p-2.5 rounded-lg border border-[#9c6c4c]/30">
-                  <span className="text-[#d8bca4]/50 block">Floors</span>
-                  <span className="text-[#d8bca4] font-bold">{blockDetails?.metadata?.floors} Stories</span>
+          {/* Real-time Status Legend Overlay */}
+          <div className="absolute bottom-4 left-4 z-10 bg-black/80 backdrop-blur-xl border border-white/20 rounded-3xl p-3.5 text-xs font-ndot text-white space-y-2 shadow-2xl">
+            <div className="font-bold uppercase tracking-wider text-[10px] text-neutral-400">
+              Live Block Health Status
+            </div>
+            <div className="flex items-center space-x-4 text-[11px] font-sans">
+              <div className="flex items-center space-x-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-nothing-red nothing-red-dot" />
+                <span className="text-white">Active P0 Disruption</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
+                <span className="text-white">Nominal</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Building Inspector Slide-Over Drawer */}
+          {selectedBlock && (
+            <div className="absolute top-0 right-0 h-full w-[420px] bg-[#0c0c0e]/95 backdrop-blur-2xl border-l border-white/10 shadow-2xl z-20 p-5 overflow-y-auto space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                <div className="flex items-center space-x-2">
+                  <Building className="w-5 h-5 text-nothing-red" />
+                  <div>
+                    <h3 className="font-bold text-white text-sm font-ndot">
+                      {blockDetails?.metadata?.name || selectedBlock}
+                    </h3>
+                    <span className="text-[11px] font-mono text-neutral-400">
+                      Code: {selectedBlock}
+                    </span>
+                  </div>
                 </div>
-                <div className="bg-[#180f0a]/60 p-2.5 rounded-lg border border-[#9c6c4c]/30">
-                  <span className="text-[#d8bca4]/50 block">Height</span>
-                  <span className="text-[#d8bca4] font-bold">{blockDetails?.metadata?.height_m}m</span>
-                </div>
+                <button
+                  onClick={() => setSelectedBlock(null)}
+                  className="p-1 rounded-full text-neutral-400 hover:text-white hover:bg-white/10 spring-interactive"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
 
-              {/* Active Incidents inside this block */}
-              <div>
-                <h4 className="text-xs font-bold text-[#f4aa7f] uppercase tracking-wider mb-2 flex items-center space-x-1.5">
-                  <AlertTriangle className="w-3.5 h-3.5 text-[#ec9665]" />
-                  <span>Active Disruption Tickets ({blockDetails?.active_work_orders?.length || 0})</span>
-                </h4>
-                {blockDetails?.active_work_orders?.length === 0 ? (
-                  <div className="text-xs text-[#d8bca4]/60 bg-[#180f0a]/60 p-3 rounded-lg border border-[#9c6c4c]/30 font-mono">
-                    No active maintenance tickets in this block.
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {blockDetails?.active_work_orders?.map((wo: any) => (
-                      <div key={wo.id} className="p-2.5 bg-[#180f0a]/60 border border-[#9c6c4c]/30 rounded-lg text-xs space-y-1 spring-interactive">
-                        <div className="flex items-center justify-between">
-                          <span className="font-mono text-[#ec9665] font-bold">#{wo.ticket_number} ({wo.node_code})</span>
-                          <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${
-                            wo.calculated_priority === 'P0_CRITICAL' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'bg-[#ec9665]/20 text-[#f4aa7f] border border-[#ec9665]/30'
-                          }`}>
-                            {wo.state}
-                          </span>
-                        </div>
-                        <p className="text-[#d8bca4]/70 text-[11px] truncate">{wo.raw_description}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Campus Nodes / Rooms list */}
-              <div>
-                <h4 className="text-xs font-bold text-[#f4aa7f] uppercase tracking-wider mb-2 flex items-center space-x-1.5">
-                  <Wrench className="w-3.5 h-3.5 text-[#ec9665]" />
-                  <span>Rooms & Key Equipment ({blockDetails?.nodes?.length || 0})</span>
-                </h4>
-                <div className="space-y-1.5 max-h-60 overflow-y-auto">
-                  {blockDetails?.nodes?.map((n: any) => (
-                    <div
-                      key={n.id}
-                      className="p-2 bg-[#180f0a]/60 border border-[#9c6c4c]/30 rounded-lg flex items-center justify-between text-xs spring-interactive"
-                    >
-                      <div>
-                        <div className="font-mono font-bold text-[#d8bca4]">{n.node_code}</div>
-                        <div className="text-[10px] text-[#d8bca4]/60">{n.name} &bull; Floor {n.floor_number}</div>
-                      </div>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
-                        n.is_operational ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                      }`}>
-                        {n.is_operational ? 'OPERATIONAL' : 'OFFLINE'}
+              {loadingDetails ? (
+                <div className="text-xs text-neutral-400 text-center py-10 font-ndot">
+                  Loading building topology...
+                </div>
+              ) : (
+                <>
+                  {/* Building Structural Stats */}
+                  <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                    <div className="bg-black/60 p-3 rounded-2xl border border-white/10">
+                      <span className="text-neutral-500 block font-ndot text-[10px]">Floors</span>
+                      <span className="text-white font-bold font-ndot text-base">
+                        {blockDetails?.metadata?.floors} Stories
                       </span>
                     </div>
-                  ))}
-                </div>
-              </div>
-            </>
+                    <div className="bg-black/60 p-3 rounded-2xl border border-white/10">
+                      <span className="text-neutral-500 block font-ndot text-[10px]">Height</span>
+                      <span className="text-white font-bold font-ndot text-base">
+                        {blockDetails?.metadata?.height_m}m
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Active Incidents inside this block */}
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-bold text-white uppercase tracking-wider font-ndot flex items-center space-x-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5 text-nothing-red" />
+                      <span>Active Incidents ({blockDetails?.active_work_orders?.length || 0})</span>
+                    </h4>
+                    {blockDetails?.active_work_orders?.length === 0 ? (
+                      <div className="text-xs text-neutral-400 bg-black/60 p-3 rounded-2xl border border-white/10 font-mono">
+                        No active maintenance tickets in this block.
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {blockDetails?.active_work_orders?.map((wo: any) => (
+                          <div
+                            key={wo.id}
+                            className="p-3 bg-black/60 border border-white/10 rounded-2xl text-xs space-y-1 spring-interactive"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-ndot text-white font-bold">
+                                #{wo.ticket_number} ({wo.node_code})
+                              </span>
+                              <span
+                                className={`text-[9px] px-2 py-0.5 rounded-full font-ndot ${
+                                  wo.calculated_priority === 'P0_CRITICAL'
+                                    ? 'bg-nothing-red/20 text-nothing-red border border-nothing-red/50'
+                                    : 'bg-white/10 text-white border border-white/20'
+                                }`}
+                              >
+                                {wo.state}
+                              </span>
+                            </div>
+                            <p className="text-neutral-300 text-[11px] truncate">{wo.raw_description}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Campus Nodes / Rooms list */}
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-bold text-white uppercase tracking-wider font-ndot flex items-center space-x-1.5">
+                      <Wrench className="w-3.5 h-3.5 text-white" />
+                      <span>Rooms & Key Equipment ({blockDetails?.nodes?.length || 0})</span>
+                    </h4>
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {blockDetails?.nodes?.map((n: any) => (
+                        <div
+                          key={n.id}
+                          className="p-2.5 bg-black/60 border border-white/10 rounded-2xl flex items-center justify-between text-xs spring-interactive"
+                        >
+                          <div>
+                            <div className="font-ndot font-bold text-white">{n.node_code}</div>
+                            <div className="text-[10px] text-neutral-400">
+                              {n.name} &bull; Floor {n.floor_number}
+                            </div>
+                          </div>
+                          <span
+                            className={`text-[9px] px-2 py-0.5 rounded-full font-ndot ${
+                              n.is_operational
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                : 'bg-nothing-red/20 text-nothing-red border border-nothing-red/50'
+                            }`}
+                          >
+                            {n.is_operational ? 'OPERATIONAL' : 'OFFLINE'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           )}
-        </div>
+        </>
       )}
     </div>
   );
 };
-

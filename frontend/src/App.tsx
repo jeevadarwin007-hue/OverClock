@@ -42,12 +42,12 @@ export const AppContent: React.FC = () => {
     <div
       data-theme={theme}
       className={`h-screen w-screen overflow-hidden flex flex-col font-sans select-none transition-colors duration-300 ${
-        theme === 'monochrome'
-          ? 'bg-[#09090b] text-[#e4e4e7] selection:bg-white selection:text-black'
-          : 'bg-[#180f0a] text-[#d8bca4] selection:bg-[#ec9665] selection:text-[#180f0a]'
+        theme === 'mocha'
+          ? 'bg-[#180f0a] text-[#d8bca4] selection:bg-[#ec9665] selection:text-[#180f0a]'
+          : 'bg-black text-white selection:bg-white selection:text-black'
       }`}
     >
-      {/* Zone 1: Top Utility & Context Strip (Fixed 52px, Glassmorphic) */}
+      {/* Zone 1: Top Utility & Context Strip */}
       <Header
         activeTab={activeTab}
         onTabChange={setActiveTab}
@@ -65,28 +65,28 @@ export const AppContent: React.FC = () => {
         {activeTab === 'invariants' && <InvariantProofPanel />}
       </main>
 
-      {/* Zone 4: Persistent Invariant & Telemetry Footer (Fixed 28px, Frosted Glass) */}
-      <footer className="h-[28px] border-t border-[#9c6c4c]/30 bg-[#24160f]/80 backdrop-blur-xl px-3 flex items-center justify-between text-[11px] font-mono text-[#d8bca4]/70 shrink-0 z-50">
+      {/* Zone 4: Persistent Invariant & Telemetry Footer (Fixed 28px, Nothing OS OLED Bar) */}
+      <footer className="h-[28px] border-t border-white/10 bg-black/90 backdrop-blur-xl px-4 flex items-center justify-between text-[11px] font-ndot text-neutral-400 shrink-0 z-50">
         <div className="flex items-center space-x-4">
           {/* Live DB Connectivity */}
-          <div className="flex items-center space-x-1.5 text-[#d8bca4]">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#ec9665] shadow-[0_0_8px_#ec9665]" />
-            <span>DB: PostgreSQL 16 (Connected)</span>
+          <div className="flex items-center space-x-1.5 text-white">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
+            <span>DB: POSTGRESQL 16 (ONLINE)</span>
           </div>
 
-          <div className="h-3 w-px bg-[#9c6c4c]/30" />
+          <div className="h-3 w-px bg-white/15" />
 
           {/* Invariant Proof Indicators */}
           <div className="flex items-center space-x-2">
             <span
               className={`w-1.5 h-1.5 rounded-full ${
-                allInvariantsPass ? 'bg-[#f4aa7f]' : 'bg-rose-400'
+                allInvariantsPass ? 'bg-emerald-400 shadow-[0_0_8px_#34d399]' : 'bg-nothing-red nothing-red-dot'
               }`}
             />
-            <span className={allInvariantsPass ? 'text-[#f4aa7f]' : 'text-rose-400 font-bold'}>
-              {allInvariantsPass ? 'Invariants: 6/6 PASS' : 'Invariant Alert'}
+            <span className={allInvariantsPass ? 'text-emerald-400' : 'text-nothing-red font-bold'}>
+              {allInvariantsPass ? 'INVARIANTS: 6/6 PASS' : 'INVARIANT ALERT'}
             </span>
-            <span className="text-[#9c6c4c] text-[10px]">
+            <span className="text-neutral-500 text-[10px] hidden md:inline font-sans">
               (No-Overlap GiST • Balance Non-Neg • DAG Acyclic • FSM Enforced)
             </span>
           </div>
@@ -94,22 +94,22 @@ export const AppContent: React.FC = () => {
 
         <div className="flex items-center space-x-4 text-[10px]">
           <div className="flex items-center space-x-1">
-            <span className="text-[#9c6c4c]">Outbox Queue:</span>
-            <span className="text-[#d8bca4] font-bold">0 pending</span>
+            <span className="text-neutral-500">QUEUE:</span>
+            <span className="text-white font-bold">0 PENDING</span>
           </div>
 
-          <div className="h-3 w-px bg-[#9c6c4c]/30" />
+          <div className="h-3 w-px bg-white/15" />
 
           <div className="flex items-center space-x-1">
-            <span className="text-[#9c6c4c]">Resend API:</span>
-            <span className="text-[#ec9665] font-semibold">READY</span>
+            <span className="text-neutral-500">RESEND:</span>
+            <span className="text-white font-semibold">ONLINE</span>
           </div>
 
-          <div className="h-3 w-px bg-[#9c6c4c]/30" />
+          <div className="h-3 w-px bg-white/15" />
 
           <div className="flex items-center space-x-1">
-            <span className="text-[#9c6c4c]">Last Synced:</span>
-            <span className="text-[#d8bca4]">{lastSyncTime}</span>
+            <span className="text-neutral-500">SYNC:</span>
+            <span className="text-white">{lastSyncTime}</span>
           </div>
         </div>
       </footer>
