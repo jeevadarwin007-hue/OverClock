@@ -41,16 +41,16 @@ export const Header: React.FC<HeaderProps> = ({
 
   const navItems: { id: TabType; label: string; icon: any; adminOnly?: boolean }[] = [
     { id: 'command-center', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'campus-explorer', label: 'Map', icon: Box },
+    { id: 'campus-explorer', label: 'Campus Map & DAG', icon: Box },
     { id: 'room-management', label: 'Rooms', icon: DoorOpen },
-    { id: 'work-orders', label: 'Orders', icon: ClipboardList },
-    { id: 'inventory-approvals', label: 'Inventory', icon: Layers },
-    { id: 'worker-roster', label: 'Roster', icon: Users, adminOnly: true },
-    { id: 'invariants', label: 'Status', icon: ShieldCheck },
+    { id: 'work-orders', label: 'Work Orders', icon: ClipboardList },
+    { id: 'inventory-approvals', label: 'Inventory & Approvals', icon: Layers },
+    { id: 'worker-roster', label: 'Worker Roster', icon: Users, adminOnly: true },
+    { id: 'invariants', label: 'System Status', icon: ShieldCheck },
   ];
 
   return (
-    <header className="h-[54px] bg-black/90 backdrop-blur-2xl border-b border-white/10 px-3 md:px-4 flex items-center gap-3 shrink-0 select-none z-50 shadow-[0_4px_30px_rgba(0,0,0,0.8)]">
+    <header className="h-[56px] bg-black/90 backdrop-blur-2xl border-b border-white/10 px-3 md:px-4 flex items-center gap-3 shrink-0 select-none z-50 shadow-[0_4px_30px_rgba(0,0,0,0.8)]">
       <div className="flex items-center gap-2 shrink-0">
         <div className="h-8 w-8 rounded-xl bg-[#141417] border border-white/20 flex items-center justify-center font-ndot font-bold text-white text-xs relative">
           <span>CO</span>
@@ -62,52 +62,59 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       <nav aria-label="Primary navigation" className="flex-1 min-w-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      <div className="w-max mx-auto flex items-center bg-[#121215] border border-white/15 rounded-full p-1 space-x-0.5 shadow-inner relative">
-        {navItems
-          .filter((item) => !item.adminOnly || isAdmin)
-          .map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            const isLoading = loadingTab === item.id;
-            return (
-              <motion.button
-                key={item.id}
-                onClick={() => onTabChange(item.id)}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.96 }}
-                transition={{ type: 'spring', stiffness: 450, damping: 30 }}
-                title={item.label}
-                className={`relative flex items-center space-x-1.5 px-2.5 xl:px-3 py-1.5 rounded-full text-xs font-sans transition-colors duration-150 ${
-                  isActive ? 'text-black font-semibold' : isLoading ? 'text-white' : 'text-neutral-400 hover:text-white'
-                }`}
-              >
-                {isActive && (
-                  <motion.div
-                    layoutId="headerActiveTab"
-                    className="absolute inset-0 bg-white rounded-full shadow-[0_2px_12px_rgba(255,255,255,0.35)]"
-                    transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+        <div className="w-max mx-auto flex items-center bg-[#0d0f17]/95 border border-white/15 backdrop-blur-2xl rounded-full p-1 space-x-0.5 shadow-2xl relative">
+          {navItems
+            .filter((item) => !item.adminOnly || isAdmin)
+            .map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              const isLoading = loadingTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => onTabChange(item.id)}
+                  title={item.label}
+                  className={`relative cursor-pointer text-xs font-semibold px-3 sm:px-4 py-2 rounded-full transition-colors flex items-center space-x-1.5 ${
+                    isActive
+                      ? 'text-white font-bold'
+                      : isLoading
+                      ? 'text-white'
+                      : 'text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  <Icon
+                    className={`w-3.5 h-3.5 transition-colors ${
+                      isActive ? 'text-nothing-red' : 'text-neutral-400'
+                    }`}
                   />
-                )}
-                <span className="relative z-10 flex items-center space-x-1.5">
-                  <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-black' : 'text-neutral-400'}`} />
-                  <motion.span
-                    key={isLoading ? 'loading' : 'label'}
-                    initial={isLoading ? { opacity: 0, y: 5, filter: 'blur(3px)' } : false}
-                    animate={isLoading ? { opacity: 1, y: 0, filter: 'blur(0px)' } : { opacity: 1 }}
-                    transition={{ duration: 0.22, ease: 'easeOut' }}
-                    style={isLoading ? { fontFamily: "Georgia, 'Times New Roman', serif" } : undefined}
-                    className={`${isLoading ? 'inline tracking-wide' : 'hidden xl:inline'}`}
-                  >
+                  <span className="hidden lg:inline font-ndot tracking-wide">
                     {isLoading ? 'Loading…' : item.label}
-                  </motion.span>
+                  </span>
+
+                  {/* Tubelight Lamp Beam & Halo Glow */}
                   {isActive && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-nothing-red" />
+                    <motion.div
+                      layoutId="tubelightLamp"
+                      className="absolute inset-0 w-full bg-white/[0.08] rounded-full -z-10"
+                      initial={false}
+                      transition={{
+                        type: 'spring',
+                        stiffness: 350,
+                        damping: 28,
+                      }}
+                    >
+                      <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-8 h-1 bg-nothing-red rounded-t-full shadow-[0_0_12px_#d73832]">
+                        <div className="absolute w-12 h-6 bg-nothing-red/35 rounded-full blur-md -top-2 -left-2 pointer-events-none" />
+                        <div className="absolute w-8 h-6 bg-nothing-red/45 rounded-full blur-md -top-1 pointer-events-none" />
+                        <div className="absolute w-4 h-4 bg-white/50 rounded-full blur-sm top-0 left-2 pointer-events-none" />
+                      </div>
+                    </motion.div>
                   )}
-                </span>
-              </motion.button>
-            );
-          })}
-      </div>
+                </button>
+              );
+            })}
+        </div>
       </nav>
 
       <div className="flex items-center shrink-0">
