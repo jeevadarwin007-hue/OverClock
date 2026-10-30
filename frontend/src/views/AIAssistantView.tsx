@@ -209,11 +209,11 @@ export const AIAssistantView: React.FC = () => {
       {/* Main Area — Two-column on md+ */}
       <div className="flex-1 w-full overflow-hidden flex flex-col md:flex-row relative z-10">
 
-        {/* LEFT: Orb column */}
-        <div className="flex-1 flex flex-col items-center overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden px-4 py-3">
+        {/* LEFT: Orb column — NO overflow-y-auto, so the pill captures pointer events */}
+        <div className="flex-1 flex flex-col items-center overflow-hidden px-4 pt-3">
 
-          {/* Quick Prompts */}
-          <div className="w-full max-w-3xl flex flex-wrap items-center justify-center gap-2 pt-2 pb-1 z-20">
+          {/* Quick Prompts — shrink-0 so they don't push orb out */}
+          <div className="w-full max-w-3xl flex flex-wrap items-center justify-center gap-2 pt-2 pb-1 shrink-0">
             <span className="text-[10px] font-ndot text-neutral-500 uppercase tracking-widest mr-1 flex items-center gap-1">
               <HelpCircle className="w-3 h-3 text-neutral-500" />
               Quick Prompts:
@@ -246,7 +246,7 @@ export const AIAssistantView: React.FC = () => {
                 initial={{ opacity: 0, y: -5 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -5 }}
-                className="text-[11px] font-mono text-neutral-400 bg-white/5 border border-white/10 px-3 py-1 rounded-xl flex items-center space-x-2 mt-1"
+                className="text-[11px] font-mono text-neutral-400 bg-white/5 border border-white/10 px-3 py-1 rounded-xl flex items-center space-x-2 mt-1 shrink-0"
               >
                 <span className="text-nothing-red font-bold font-ndot">PROMPT COPIED:</span>
                 <span className="text-white truncate max-w-xs">{selectedPrompt}</span>
@@ -255,16 +255,13 @@ export const AIAssistantView: React.FC = () => {
             )}
           </AnimatePresence>
 
-          {/* MorphOrb — fills remaining vertical space so homeDy() computes correctly */}
-          <div
-            className="w-full flex-1 relative"
-            style={{ minHeight: '480px' }}
-          >
+          {/* MorphOrb — flex-1 fills all remaining space, overflow:hidden keeps it contained */}
+          <div className="w-full flex-1 relative overflow-hidden">
             <MorphOrb onSubmit={handleAskAI} minThinkMs={1200} speed={1} />
           </div>
 
           {/* Bottom feature strip */}
-          <div className="w-full max-w-4xl border-t border-white/10 pt-3 pb-2 flex flex-col md:flex-row items-center justify-between text-[11px] text-neutral-500 font-ndot gap-2 shrink-0">
+          <div className="w-full max-w-4xl border-t border-white/10 pt-2 pb-2 flex flex-col md:flex-row items-center justify-between text-[11px] text-neutral-500 font-ndot gap-2 shrink-0">
             <div className="flex items-center space-x-2">
               <span className="w-2 h-2 rounded-full bg-nothing-red animate-pulse" />
               <span>NOTHING OS OLED INTERFACE • 3D DOTTED VECTOR VOLUMETRIC ENGINE</span>
