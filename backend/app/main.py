@@ -29,6 +29,26 @@ async def lifespan(app: FastAPI):
     logger.info("Initializing CampusOps database pool...")
     await init_db_pool()
 
+    # Synchronize FSM state transitions for Admin Approval and Resolution workflows
+    try:
+        from app.database import acquire_db_connection
+        async with acquire_db_connection(actor_id=None, actor_role="SYS_ADMIN", dept_id=None) as conn:
+            await conn.execute("""
+                INSERT INTO fsm_state_transitions (from_state, to_state, allowed_roles)
+                VALUES 
+                    ('ASSIGNED', 'RESOLVED', ARRAY['TECHNICIAN'::user_role, 'SYS_ADMIN'::user_role, 'FACILITIES_ADMIN'::user_role]),
+                    ('TRIAGED', 'RESOLVED', ARRAY['SYS_ADMIN'::user_role, 'FACILITIES_ADMIN'::user_role]),
+                    ('AWAITING_CLARIFICATION', 'RESOLVED', ARRAY['SYS_ADMIN'::user_role, 'FACILITIES_ADMIN'::user_role]),
+                    ('INGESTED', 'ASSIGNED', ARRAY['SYS_ADMIN'::user_role, 'FACILITIES_ADMIN'::user_role, 'DEPT_MANAGER'::user_role]),
+                    ('AWAITING_CLARIFICATION', 'ASSIGNED', ARRAY['SYS_ADMIN'::user_role, 'FACILITIES_ADMIN'::user_role, 'DEPT_MANAGER'::user_role]),
+                    ('IN_PROGRESS', 'RESOLVED', ARRAY['TECHNICIAN'::user_role, 'SYS_ADMIN'::user_role, 'FACILITIES_ADMIN'::user_role])
+                ON CONFLICT (from_state, to_state) DO UPDATE
+                SET allowed_roles = EXCLUDED.allowed_roles;
+            """)
+            logger.info("FSM state transitions successfully verified and synchronized.")
+    except Exception as e:
+        logger.warning(f"Could not synchronize FSM transitions at startup: {e}")
+
     logger.info("Starting background outbox worker...")
     stop_event = asyncio.Event()
     outbox_task = asyncio.create_task(

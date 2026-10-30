@@ -313,7 +313,7 @@ interface TradeItem {
   desc: string;
   staff: number;
   rgb: string;
-  icon: string;
+  icon: React.ElementType;
 }
 
 const TRADES_STACK: TradeItem[] = [
@@ -324,7 +324,7 @@ const TRADES_STACK: TradeItem[] = [
     desc: 'Distribution panels, MCB breakers, sub-stations, and PoE power feeds across all blocks.',
     staff: 5,
     rgb: '215, 56, 50',
-    icon: '⚡',
+    icon: Zap,
   },
   {
     id: 'hvac',
@@ -333,7 +333,7 @@ const TRADES_STACK: TradeItem[] = [
     desc: 'TRP Auditorium central AHU, chiller compressors, precision split units and ventilation.',
     staff: 3,
     rgb: '56, 189, 248',
-    icon: '❄️',
+    icon: Wind,
   },
   {
     id: 'network',
@@ -342,7 +342,7 @@ const TRADES_STACK: TradeItem[] = [
     desc: 'PoE switches (SW-CORE-ACAD-F3), 10Gbps optical backbone, and Wi-Fi access points.',
     staff: 4,
     rgb: '52, 211, 153',
-    icon: '🌐',
+    icon: Radio,
   },
   {
     id: 'plumbing',
@@ -351,7 +351,7 @@ const TRADES_STACK: TradeItem[] = [
     desc: 'Central water hydro-pneumatic pump, washroom distribution lines and drainage valves.',
     staff: 3,
     rgb: '129, 140, 248',
-    icon: '🔧',
+    icon: Droplets,
   },
   {
     id: 'av',
@@ -360,7 +360,7 @@ const TRADES_STACK: TradeItem[] = [
     desc: 'Smart classroom projectors, ceiling audio line-arrays, and auditorium stage lighting.',
     staff: 2,
     rgb: '232, 121, 249',
-    icon: '📽️',
+    icon: Cpu,
   },
   {
     id: 'safety',
@@ -369,7 +369,7 @@ const TRADES_STACK: TradeItem[] = [
     desc: 'Fire suppression, emergency exits, safety net cages, and building structural integrity.',
     staff: 2,
     rgb: '251, 191, 36',
-    icon: '🚨',
+    icon: Shield,
   },
 ];
 
@@ -391,10 +391,9 @@ export const CommandCenter: React.FC = () => {
   const [dailyReports, setDailyReports] = useState<DailyReportPoint[]>(() => computeDailyTrendFromOrders([]));
   const [hoverDayIdx, setHoverDayIdx] = useState<number | null>(null);
 
-  // Throughput animated bars
-  const [throughputBars, setThroughputBars] = useState<number[]>(() =>
-    Array.from({ length: 16 }, (_, i) => 1200 + Math.sin(i * 0.8) * 200 + ((i * 37) % 7) * 30)
-  );
+  // Solved across days telemetry state
+  const [hoverSolvedDayIdx, setHoverSolvedDayIdx] = useState<number | null>(null);
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
   // Selected trade state
   const [activeTradeId, setActiveTradeId] = useState<string | null>(null);
@@ -431,17 +430,6 @@ export const CommandCenter: React.FC = () => {
     return () => clearInterval(interval);
   }, [currentUser]);
 
-  // Throughput loop
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setThroughputBars((prev) => [
-        ...prev.slice(1),
-        clamp(prev[prev.length - 1] + (Math.random() - 0.48) * 280, 800, 2400),
-      ]);
-    }, TICK_INTERVAL);
-    return () => window.clearInterval(id);
-  }, []);
-
   // Reports across days calculation
   const totalReportsInRange = dailyReports.reduce((acc, d) => acc + d.total_reports, 0);
   const todayReports = dailyReports[dailyReports.length - 1]?.total_reports || 0;
@@ -449,6 +437,18 @@ export const CommandCenter: React.FC = () => {
   const peakDay = dailyReports.find((d) => d.total_reports === peakDailyReports);
   const avgDailyReports = (totalReportsInRange / Math.max(dailyReports.length, 1)).toFixed(1);
   const animatedTodayReports = useAnimatedNumber(todayReports, 400);
+
+  // Problems solved across days calculation
+  const totalSolvedInRange = dailyReports.reduce((acc, d) => acc + (d.resolved_count || 0), 0);
+  const totalResolvedTickets = activeTickets.filter(
+    (t) => t.state === 'RESOLVED' || t.state === 'CLOSED'
+  ).length;
+  const displayTotalSolved = Math.max(totalSolvedInRange, totalResolvedTickets);
+  const animatedTotalSolved = useAnimatedNumber(displayTotalSolved, 400);
+
+  const todaySolved = dailyReports[dailyReports.length - 1]?.resolved_count || 0;
+  const peakDailySolved = Math.max(...dailyReports.map((d) => d.resolved_count || 0), 0);
+  const maxSolvedScale = Math.max(peakDailySolved, 1);
 
   const maxScale = Math.max(peakDailyReports, 4);
   const points = dailyReports.map((d, i) => ({
@@ -469,9 +469,47 @@ export const CommandCenter: React.FC = () => {
     setHoverDayIdx(idx);
   };
 
-  const latestThroughput = throughputBars[throughputBars.length - 1];
-  const animatedThroughput = useAnimatedNumber(latestThroughput, 500);
-  const maxThroughput = Math.max(...throughputBars);
+  const isAdmin =
+    currentUser?.role === 'SYS_ADMIN' ||
+    currentUser?.role === 'FACILITIES_ADMIN' ||
+    currentUser?.role === 'CAMPUS_DEAN';
+
+  const handleApproveTicket = async (ticketId: string) => {
+    try {
+      setActionLoadingId(ticketId);
+      await api.post(`/work-orders/${ticketId}/approve`, {}).catch(async () => {
+        return await api.post(`/work-orders/${ticketId}/transition`, {
+          target_state: 'ASSIGNED',
+          reason: 'Admin approved work order for execution',
+        });
+      });
+      await fetchData();
+    } catch (err: any) {
+      alert(`Failed to approve work order: ${err.message || 'Error'}`);
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleResolveTicket = async (ticketId: string) => {
+    try {
+      setActionLoadingId(ticketId);
+      await api.post(`/work-orders/${ticketId}/resolve`, {
+        resolution_notes: 'Problem inspected and confirmed resolved by Admin.',
+      }).catch(async () => {
+        return await api.post(`/work-orders/${ticketId}/transition`, {
+          target_state: 'RESOLVED',
+          reason: 'Admin marked work order as resolved',
+          resolution_notes: 'Problem inspected and confirmed resolved by Admin.',
+        });
+      });
+      await fetchData();
+    } catch (err: any) {
+      alert(`Failed to resolve work order: ${err.message || 'Error'}`);
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
 
   const activeTrade = TRADES_STACK.find((t) => t.id === activeTradeId);
 
@@ -1000,30 +1038,93 @@ export const CommandCenter: React.FC = () => {
           </div>
         </GlowCard>
 
-        {/* Bento Card 4: Incident & Telemetry Throughput */}
-        <GlowCard accent="cyan" className="min-h-[200px] flex flex-col justify-between">
-          <CardTitle right={<LiveBadge label="STREAM" />}>
-            Events / Sec
+        {/* Bento Card 4: Problems Solved Across Days */}
+        <GlowCard accent="emerald" className="min-h-[200px] flex flex-col justify-between">
+          <CardTitle
+            right={
+              <span className="flex items-center space-x-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-ndot text-emerald-400 font-bold">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
+                <span>SOLVED &bull; 7 DAYS</span>
+              </span>
+            }
+          >
+            Problems Solved
           </CardTitle>
 
-          <div className="text-3xl font-bold font-ndot text-white [font-variant-numeric:tabular-nums]">
-            {Math.round(animatedThroughput).toLocaleString('en-US')}
+          <div className="flex items-baseline justify-between">
+            <div className="flex items-baseline space-x-2">
+              <span className="text-3xl font-bold font-ndot text-white [font-variant-numeric:tabular-nums]">
+                {Math.round(animatedTotalSolved)}
+              </span>
+              <span className="text-xs text-neutral-400 font-mono">problems solved</span>
+            </div>
+            <span className="text-[11px] font-mono text-emerald-400 font-semibold">
+              +{todaySolved} today
+            </span>
           </div>
 
-          <div className="mt-auto flex h-14 items-end gap-1" aria-hidden="true">
-            {throughputBars.map((v, i) => (
-              <motion.span
-                key={i}
-                animate={{ height: `${Math.max((v / maxThroughput) * 100, 10)}%` }}
-                transition={{ type: 'spring', stiffness: 260, damping: 22 }}
-                className={cx(
-                  'flex-1 rounded-sm',
-                  i === throughputBars.length - 1
-                    ? 'bg-cyan-300 shadow-[0_0_10px_rgba(103,232,249,0.8)]'
-                    : 'bg-cyan-400/25'
-                )}
-              />
-            ))}
+          <div className="mt-auto space-y-2 pt-2">
+            <div className="flex h-14 items-end gap-1.5 relative">
+              {dailyReports.map((d, i) => {
+                const count = d.resolved_count || 0;
+                const isToday = i === dailyReports.length - 1;
+                const heightPct = count > 0 ? Math.max((count / maxSolvedScale) * 100, 20) : 10;
+                const isHovered = hoverSolvedDayIdx === i;
+
+                return (
+                  <div
+                    key={d.date}
+                    className="flex-1 flex flex-col items-center h-full justify-end relative cursor-pointer group"
+                    onMouseEnter={() => setHoverSolvedDayIdx(i)}
+                    onMouseLeave={() => setHoverSolvedDayIdx(null)}
+                  >
+                    {/* Hover Tooltip */}
+                    <AnimatePresence>
+                      {isHovered && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 4, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 4, scale: 0.95 }}
+                          className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-xl border border-emerald-500/40 bg-black/95 px-2 py-0.5 text-[10px] font-mono text-white shadow-xl z-30"
+                        >
+                          <span className="text-emerald-400 font-bold">{count}</span> {count === 1 ? 'solved' : 'solved'} ({d.day_name})
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    <motion.span
+                      animate={{ height: `${heightPct}%` }}
+                      transition={{ type: 'spring', stiffness: 280, damping: 24 }}
+                      className={cx(
+                        'w-full rounded-sm transition-all',
+                        count > 0
+                          ? isToday
+                            ? 'bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.8)]'
+                            : 'bg-emerald-500/80 hover:bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.4)]'
+                          : isToday
+                          ? 'bg-white/20 hover:bg-white/30'
+                          : 'bg-white/10 hover:bg-white/20'
+                      )}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Days Labels */}
+            <div className="flex justify-between text-[9px] font-ndot uppercase tracking-wider text-neutral-400 px-0.5">
+              {dailyReports.map((d, i) => (
+                <span
+                  key={d.date}
+                  className={cx(
+                    'flex-1 text-center',
+                    i === dailyReports.length - 1 ? 'text-emerald-400 font-bold' : ''
+                  )}
+                >
+                  {d.day_name}
+                </span>
+              ))}
+            </div>
           </div>
         </GlowCard>
 
@@ -1036,6 +1137,7 @@ export const CommandCenter: React.FC = () => {
           <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
             {TRADES_STACK.map((trade) => {
               const on = trade.id === activeTradeId;
+              const TradeIcon = trade.icon;
               return (
                 <li key={trade.id}>
                   <motion.button
@@ -1056,7 +1158,9 @@ export const CommandCenter: React.FC = () => {
                       boxShadow: on ? `0 8px 24px -6px rgba(${trade.rgb}, 0.5)` : 'none',
                     }}
                   >
-                    <span className="text-xl">{trade.icon}</span>
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-current/20 bg-black/20">
+                      <TradeIcon className="h-4 w-4" strokeWidth={1.8} />
+                    </span>
                     <span className={cx('text-xs font-semibold tracking-wide font-ndot transition-colors duration-200', on ? 'text-white' : 'text-neutral-300')}>
                       {trade.name}
                     </span>
@@ -1124,12 +1228,13 @@ export const CommandCenter: React.FC = () => {
               <table className="w-full text-left text-xs border-collapse font-sans">
                 <thead className="bg-[#121215] text-neutral-400 font-ndot text-[10px] border-b border-white/10 sticky top-0 shadow-sm">
                   <tr>
-                    <th className="py-2.5 px-3 w-20 border-r border-white/10">Ticket</th>
-                    <th className="py-2.5 px-3 w-36 border-r border-white/10">Room / Floor</th>
-                    <th className="py-2.5 px-3 w-32 border-r border-white/10">Trade</th>
-                    <th className="py-2.5 px-3 w-24 border-r border-white/10 text-right">Priority</th>
+                    <th className="py-2.5 px-3 w-16 border-r border-white/10">Ticket</th>
+                    <th className="py-2.5 px-3 w-32 border-r border-white/10">Room / Floor</th>
+                    <th className="py-2.5 px-3 w-24 border-r border-white/10">Trade</th>
+                    <th className="py-2.5 px-3 w-20 border-r border-white/10 text-right">Priority</th>
                     <th className="py-2.5 px-3 w-28 border-r border-white/10 text-right">State</th>
-                    <th className="py-2.5 px-3 text-right">Assigned Worker</th>
+                    <th className="py-2.5 px-3 w-28 border-r border-white/10 text-right">Assigned</th>
+                    <th className="py-2.5 px-3 text-center w-36">Admin Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 font-sans">
@@ -1167,19 +1272,81 @@ export const CommandCenter: React.FC = () => {
                           </span>
                         </td>
                         <td className="py-1.5 px-3 font-mono text-right border-r border-white/10">
-                          <span className="text-[10px] text-neutral-300 font-semibold">{t.state}</span>
+                          <span
+                            className={cx(
+                              'text-[10px] px-2 py-0.5 rounded-full font-semibold border',
+                              t.state === 'RESOLVED' || t.state === 'CLOSED'
+                                ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                                : t.state === 'ASSIGNED' || t.state === 'IN_PROGRESS'
+                                ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30'
+                                : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                            )}
+                          >
+                            {t.state}
+                          </span>
                         </td>
-                        <td className="py-1.5 px-3 text-right font-sans text-neutral-200 truncate">
+                        <td className="py-1.5 px-3 text-right font-sans text-neutral-200 border-r border-white/10 truncate">
                           {t.assigned_tech_name || (
                             <span className="text-neutral-500 italic text-[11px]">Unassigned</span>
                           )}
+                        </td>
+                        <td className="py-1.5 px-3 text-center">
+                          <div className="flex items-center justify-center space-x-1.5">
+                            {/* Admin Approval Option */}
+                            {(t.state === 'TRIAGED' || t.state === 'INGESTED' || t.state === 'AWAITING_CLARIFICATION') && (
+                              isAdmin ? (
+                                <motion.button
+                                  type="button"
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
+                                  disabled={actionLoadingId === t.id}
+                                  onClick={() => handleApproveTicket(t.id)}
+                                  title="Approve work order & dispatch technician"
+                                  className="px-2.5 py-1 rounded-xl bg-white text-black hover:bg-neutral-200 text-[10px] font-ndot font-bold flex items-center space-x-1 shadow-[0_0_10px_rgba(255,255,255,0.3)] transition shrink-0"
+                                >
+                                  <Check className="w-3 h-3 text-black" />
+                                  <span>{actionLoadingId === t.id ? 'Approving...' : 'Approve'}</span>
+                                </motion.button>
+                              ) : (
+                                <span className="text-[10px] font-mono text-amber-400/80 italic">Awaiting Approval</span>
+                              )
+                            )}
+
+                            {/* Admin Mark Resolved Option */}
+                            {(t.state === 'ASSIGNED' || t.state === 'IN_PROGRESS' || t.state === 'TRIAGED') && (
+                              isAdmin ? (
+                                <motion.button
+                                  type="button"
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
+                                  disabled={actionLoadingId === t.id}
+                                  onClick={() => handleResolveTicket(t.id)}
+                                  title="Mark problem as resolved"
+                                  className="px-2.5 py-1 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/50 text-emerald-300 text-[10px] font-ndot font-bold flex items-center space-x-1 transition shadow-[0_0_10px_rgba(52,211,153,0.2)] shrink-0"
+                                >
+                                  <CheckCircle className="w-3 h-3 text-emerald-400" />
+                                  <span>{actionLoadingId === t.id ? 'Resolving...' : 'Mark Resolved'}</span>
+                                </motion.button>
+                              ) : (
+                                <span className="text-[10px] font-mono text-cyan-400">In Execution</span>
+                              )
+                            )}
+
+                            {/* Verified Resolved Badge */}
+                            {(t.state === 'RESOLVED' || t.state === 'CLOSED') && (
+                              <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-ndot font-bold">
+                                <Check className="w-3 h-3" />
+                                <span>Resolved</span>
+                              </span>
+                            )}
+                          </div>
                         </td>
                       </motion.tr>
                     ))}
                   </AnimatePresence>
                   {activeTickets.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="py-8 px-4 text-center text-xs font-mono">
+                      <td colSpan={7} className="py-8 px-4 text-center text-xs font-mono">
                         <div className="text-neutral-500 mb-3">
                           No active tickets in database. Ready for live incident intake.
                         </div>
@@ -1347,6 +1514,31 @@ export const CommandCenter: React.FC = () => {
                         <div className="text-[11px] text-emerald-400 flex items-center justify-between pt-1 border-t border-white/10 font-sans">
                           <span>Worker: <strong className="text-white">{intakeResult.assigned_tech_name}</strong> ({intakeResult.assigned_tech_role || 'Technician'})</span>
                           <span className="text-[10px] bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full text-emerald-400">✓ Notified via Email</span>
+                        </div>
+                      )}
+                      {intakeResult.recommended_tech_name && !intakeResult.assigned_tech_name && (
+                        <div className="text-[11px] text-neutral-400 flex items-center justify-between pt-1 border-t border-white/10 font-sans">
+                          <span>Recommended: <strong className="text-white">{intakeResult.recommended_tech_name}</strong> ({intakeResult.recommended_tech_role || 'Technician'})</span>
+                          <span className="text-[10px] bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full text-amber-300">Pending Approval</span>
+                        </div>
+                      )}
+                      {isAdmin && intakeResult.work_order_id && intakeResult.state !== 'RESOLVED' && intakeResult.state !== 'ASSIGNED' && (
+                        <div className="flex items-center justify-between pt-2 border-t border-white/10">
+                          <span className="text-[10px] text-amber-300 font-ndot flex items-center space-x-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                            <span>AWAITING ADMIN APPROVAL</span>
+                          </span>
+                          <motion.button
+                            type="button"
+                            whileHover={{ scale: 1.04 }}
+                            whileTap={{ scale: 0.96 }}
+                            disabled={actionLoadingId === intakeResult.work_order_id}
+                            onClick={() => handleApproveTicket(intakeResult.work_order_id)}
+                            className="px-3 py-1 rounded-xl bg-white text-black font-ndot text-[11px] font-bold hover:bg-neutral-200 transition shadow-[0_0_12px_rgba(255,255,255,0.4)] flex items-center space-x-1.5"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>{actionLoadingId === intakeResult.work_order_id ? 'Approving...' : 'Approve & Dispatch Now'}</span>
+                          </motion.button>
                         </div>
                       )}
                     </div>

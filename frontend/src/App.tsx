@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
@@ -15,10 +15,27 @@ import { Database, ShieldCheck, Activity, Cpu } from 'lucide-react';
 
 export const AppContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('command-center');
+  const [pendingTab, setPendingTab] = useState<TabType | null>(null);
   const [allInvariantsPass, setAllInvariantsPass] = useState<boolean>(true);
   const [lastSyncTime, setLastSyncTime] = useState<string>('Live');
+  const navigationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { currentUser } = useAuth();
   const { theme } = useTheme();
+
+  const handleTabChange = (nextTab: TabType) => {
+    if (nextTab === activeTab || pendingTab) return;
+
+    setPendingTab(nextTab);
+    navigationTimer.current = setTimeout(() => {
+      setActiveTab(nextTab);
+      setPendingTab(null);
+      navigationTimer.current = null;
+    }, 480);
+  };
+
+  useEffect(() => () => {
+    if (navigationTimer.current) clearTimeout(navigationTimer.current);
+  }, []);
 
   // Poll invariants status for global telemetry
   useEffect(() => {
@@ -51,8 +68,9 @@ export const AppContent: React.FC = () => {
       {/* Zone 1: Top Utility & Context Strip */}
       <Header
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={handleTabChange}
         allInvariantsPass={allInvariantsPass}
+        loadingTab={pendingTab}
       />
 
       {/* Zone 2: Primary Workspace Canvas (100% Height & Available Width, Edge-to-Edge) */}
@@ -75,6 +93,7 @@ export const AppContent: React.FC = () => {
             {activeTab === 'invariants' && <InvariantProofPanel />}
           </motion.div>
         </AnimatePresence>
+
       </main>
 
       {/* Zone 4: Persistent Invariant & Telemetry Footer (Fixed 28px, Nothing OS OLED Bar) */}

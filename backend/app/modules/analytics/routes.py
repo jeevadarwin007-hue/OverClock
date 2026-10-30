@@ -118,7 +118,7 @@ async def get_daily_reports(
     current_user: CurrentUser = Depends(get_current_user),
 ):
     """
-    Computes real work order incident report volume across days (reports * days).
+    Computes real work order incident report volume and solved problems across days (reports * days & solved * days).
     Queries live PostgreSQL work orders grouped by calendar date.
     """
     async with acquire_db_connection(
@@ -132,17 +132,21 @@ async def get_daily_reports(
                 d.day::date AS report_date,
                 TO_CHAR(d.day, 'Dy') AS day_name,
                 TO_CHAR(d.day, 'Mon DD') AS formatted_date,
-                COUNT(wo.id) AS total_reports,
-                COUNT(CASE WHEN wo.calculated_priority = 'P0_CRITICAL' THEN 1 END) AS critical_count,
-                COUNT(CASE WHEN wo.calculated_priority = 'P1_HIGH' THEN 1 END) AS high_count,
-                COUNT(CASE WHEN wo.calculated_priority IN ('P2_MEDIUM', 'P3_LOW') THEN 1 END) AS normal_count,
-                COUNT(CASE WHEN wo.state IN ('RESOLVED', 'CLOSED') THEN 1 END) AS resolved_count
+                COUNT(DISTINCT wo.id) AS total_reports,
+                COUNT(DISTINCT CASE WHEN wo.calculated_priority = 'P0_CRITICAL' THEN wo.id END) AS critical_count,
+                COUNT(DISTINCT CASE WHEN wo.calculated_priority = 'P1_HIGH' THEN wo.id END) AS high_count,
+                COUNT(DISTINCT CASE WHEN wo.calculated_priority IN ('P2_MEDIUM', 'P3_LOW') THEN wo.id END) AS normal_count,
+                COUNT(DISTINCT CASE WHEN wo_res.state IN ('RESOLVED', 'CLOSED') THEN wo_res.id END) AS resolved_count
             FROM generate_series(
                 CURRENT_DATE - ($1::int - 1) * INTERVAL '1 day',
                 CURRENT_DATE,
                 '1 day'::interval
             ) d(day)
             LEFT JOIN work_orders wo ON wo.created_at::date = d.day::date
+            LEFT JOIN work_orders wo_res ON (
+                COALESCE(wo_res.resolved_at, wo_res.updated_at, wo_res.created_at)::date = d.day::date
+                AND wo_res.state IN ('RESOLVED', 'CLOSED')
+            )
             GROUP BY d.day
             ORDER BY d.day ASC;
             """,
@@ -161,12 +165,18 @@ async def get_daily_reports(
                 "resolved_count": int(r["resolved_count"]),
             })
         total = sum(d["total_reports"] for d in data)
+        total_resolved = sum(d["resolved_count"] for d in data)
         peak = max((d["total_reports"] for d in data), default=0)
+        peak_resolved = max((d["resolved_count"] for d in data), default=0)
         avg = round(total / max(len(data), 1), 1)
+        today_resolved = data[-1]["resolved_count"] if data else 0
         return {
             "days_count": days,
             "total_reports_in_range": total,
+            "total_resolved_in_range": total_resolved,
+            "today_resolved_count": today_resolved,
             "peak_daily_reports": peak,
+            "peak_daily_resolved": peak_resolved,
             "avg_daily_reports": avg,
             "daily_trend": data,
         }

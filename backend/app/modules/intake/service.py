@@ -385,8 +385,9 @@ class IntakeService:
         if correlation_action == "MERGED_DUPLICATE":
             wo_state = "MERGED_DUPLICATE"
 
-        # Autonomous Worker Assignment & Groq-Generated Email Notification via Resend API
-        assigned_worker_res = None
+        # Pre-score eligible technician for Admin review & approval
+        # Incident remains in TRIAGED state pending Admin approval before proceeding to worker assignment
+        recommended_worker = None
         if wo_state != "MERGED_DUPLICATE":
             try:
                 candidates = await StaffingService.score_eligible_technicians(
@@ -402,32 +403,44 @@ class IntakeService:
                     )
 
                 if chosen_tech_id:
-                    assign_res = await StaffingService.assign_technician(
-                        conn,
-                        work_order_id=wo_id,
-                        technician_id=chosen_tech_id,
-                        actor_id=reporter_id
+                    tech_row = await conn.fetchrow(
+                        """
+                        SELECT u.full_name, u.email, sk.skill::text AS role
+                        FROM users u
+                        LEFT JOIN staff_skills sk ON sk.user_id = u.id
+                        WHERE u.id = $1 LIMIT 1;
+                        """,
+                        chosen_tech_id
                     )
-                    wo_state = assign_res.work_order_state
-                    assigned_worker_res = assign_res
+                    if tech_row:
+                        recommended_worker = {
+                            "id": str(chosen_tech_id),
+                            "name": tech_row["full_name"],
+                            "email": tech_row["email"],
+                            "role": tech_row["role"] or "Technician"
+                        }
+                        partial_slots["recommended_technician"] = recommended_worker
             except Exception as e:
                 import logging
-                logging.getLogger("intake").error(f"Worker auto-assignment error: {e}")
+                logging.getLogger("intake").error(f"Worker pre-scoring error: {e}")
 
         response_payload = {
             "work_order_id": str(wo_id),
             "ticket_number": ticket_num,
             "conversation_thread_id": thread_id,
             "state": wo_state,
+            "needs_admin_approval": True,
             "category": category,
             "target_node_code": node["node_code"],
             "target_node_name": node["name"],
             "room_code": node["node_code"],
             "floor_number": node["floor_number"],
-            "assigned_tech_name": assigned_worker_res.assigned_tech_name if assigned_worker_res else None,
-            "assigned_tech_email": assigned_worker_res.assigned_tech_email if assigned_worker_res else None,
-            "assigned_tech_role": assigned_worker_res.assigned_tech_role if assigned_worker_res else None,
-            "email_dispatched": assigned_worker_res.email_dispatched if assigned_worker_res else False,
+            "assigned_tech_name": None,
+            "assigned_tech_email": None,
+            "assigned_tech_role": None,
+            "recommended_tech_name": recommended_worker["name"] if recommended_worker else None,
+            "recommended_tech_role": recommended_worker["role"] if recommended_worker else None,
+            "email_dispatched": False,
             "clarification_needed": False,
             "clarification_question": None,
             "partial_slots": partial_slots,

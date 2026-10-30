@@ -91,3 +91,52 @@ async def transition_work_order(
                 actor_role=current_user.role,
             )
 
+
+@router.post("/{id}/approve", response_model=WorkOrderOut)
+async def approve_work_order(
+    id: UUID,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """
+    Admin approval endpoint: Approves a TRIAGED work order, assigns eligible worker,
+    notifies them via Groq generated email, and transitions ticket state to ASSIGNED.
+    """
+    async with acquire_db_connection(
+        actor_id=current_user.id,
+        actor_role=current_user.role,
+        dept_id=current_user.department_id,
+    ) as conn:
+        async with conn.transaction():
+            return await WorkOrderService.approve_work_order(
+                conn,
+                work_order_id=id,
+                actor_id=current_user.id,
+                actor_role=current_user.role,
+            )
+
+
+@router.post("/{id}/resolve", response_model=WorkOrderOut)
+async def resolve_work_order(
+    id: UUID,
+    notes: Optional[str] = Query("Problem inspected and confirmed resolved by Admin."),
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """
+    Admin resolve endpoint: Transitions an active work order to RESOLVED,
+    records resolution notes and timestamp, releases/consumes parts,
+    and decrements technician active workload.
+    """
+    async with acquire_db_connection(
+        actor_id=current_user.id,
+        actor_role=current_user.role,
+        dept_id=current_user.department_id,
+    ) as conn:
+        async with conn.transaction():
+            return await WorkOrderService.resolve_work_order(
+                conn,
+                work_order_id=id,
+                actor_id=current_user.id,
+                actor_role=current_user.role,
+                resolution_notes=notes,
+            )
+

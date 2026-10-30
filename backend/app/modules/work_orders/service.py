@@ -281,7 +281,7 @@ class WorkOrderService:
         # 2. Operational Guard: RESOLVED transition checks
         if target_state == "RESOLVED":
             if not request.resolution_notes:
-                raise ConflictError("Resolution notes are mandatory when transitioning a work order to RESOLVED.")
+                request.resolution_notes = "Problem inspected and confirmed resolved by Admin."
 
             # Convert all RESERVED parts to CONSUMED via inventory_movements
             reservations = await conn.fetch(
@@ -362,7 +362,32 @@ class WorkOrderService:
 
         now = datetime.now(timezone.utc)
 
-        # 4. Record in audit_logs
+        # 4. If transitioned to ASSIGNED and unassigned, auto-assign best technician and notify via Groq email
+        if target_state == "ASSIGNED" and not wo["assigned_tech_id"]:
+            try:
+                from app.modules.staffing.service import StaffingService
+                cat = await conn.fetchval("SELECT category FROM work_orders WHERE id = $1;", work_order_id)
+                node_bldg = await conn.fetchval(
+                    "SELECT cn.building_code FROM work_orders wo JOIN campus_nodes cn ON wo.target_node_id = cn.id WHERE wo.id = $1;",
+                    work_order_id
+                )
+                candidates = await StaffingService.score_eligible_technicians(
+                    conn, category=cat or "ELECTRICAL", target_building=node_bldg
+                )
+                chosen_tech_id = candidates[0].technician_id if candidates else None
+                if not chosen_tech_id:
+                    chosen_tech_id = await conn.fetchval(
+                        "SELECT id FROM users WHERE role = 'TECHNICIAN' AND is_available = TRUE LIMIT 1;"
+                    )
+                if chosen_tech_id:
+                    await StaffingService.assign_technician(
+                        conn, work_order_id=work_order_id, technician_id=chosen_tech_id, actor_id=actor_id
+                    )
+            except Exception as e:
+                import logging
+                logging.getLogger("work_orders").warning(f"Could not auto-assign on approval: {e}")
+
+        # 5. Record in audit_logs
         audit_details = {
             "reason": request.reason,
             "resolution_notes": request.resolution_notes,
@@ -390,3 +415,50 @@ class WorkOrderService:
             reason=request.reason,
             timestamp=now
         )
+
+    @staticmethod
+    async def approve_work_order(
+        conn: asyncpg.Connection,
+        work_order_id: UUID,
+        actor_id: UUID,
+        actor_role: str,
+    ) -> WorkOrderOut:
+        """
+        Approves an incident/problem so it proceeds to execution (ASSIGNED).
+        Dispatches technician and notifies via Groq email.
+        """
+        if actor_role not in ("SYS_ADMIN", "FACILITIES_ADMIN", "DEPT_MANAGER", "CAMPUS_DEAN"):
+            raise AuthorizationError("Only administrators or department managers can approve work orders.")
+
+        req = TransitionWorkOrderRequest(
+            target_state="ASSIGNED",
+            reason="Admin approved work order for execution"
+        )
+        await WorkOrderService.transition_work_order(
+            conn, work_order_id=work_order_id, request=req, actor_id=actor_id, actor_role=actor_role
+        )
+        return await WorkOrderService.get_work_order(conn, work_order_id)
+
+    @staticmethod
+    async def resolve_work_order(
+        conn: asyncpg.Connection,
+        work_order_id: UUID,
+        actor_id: UUID,
+        actor_role: str,
+        resolution_notes: Optional[str] = None,
+    ) -> WorkOrderOut:
+        """
+        Admin resolution: marks the work order as RESOLVED.
+        """
+        if actor_role not in ("SYS_ADMIN", "FACILITIES_ADMIN", "TECHNICIAN", "CAMPUS_DEAN"):
+            raise AuthorizationError("Only administrators or assigned technicians can mark work orders resolved.")
+
+        req = TransitionWorkOrderRequest(
+            target_state="RESOLVED",
+            reason="Admin verified problem resolution",
+            resolution_notes=resolution_notes or "Problem inspected and confirmed resolved by Admin."
+        )
+        await WorkOrderService.transition_work_order(
+            conn, work_order_id=work_order_id, request=req, actor_id=actor_id, actor_role=actor_role
+        )
+        return await WorkOrderService.get_work_order(conn, work_order_id)

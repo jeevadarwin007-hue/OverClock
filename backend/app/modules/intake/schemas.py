@@ -31,6 +31,7 @@ class IntakeResponse(BaseModel):
     ticket_number: Optional[int] = None
     conversation_thread_id: Optional[str] = None
     state: Optional[str] = None
+    needs_admin_approval: bool = False
     category: Optional[str] = None
     target_node_code: Optional[str] = None
     target_node_name: Optional[str] = None
@@ -39,6 +40,8 @@ class IntakeResponse(BaseModel):
     assigned_tech_name: Optional[str] = None
     assigned_tech_email: Optional[str] = None
     assigned_tech_role: Optional[str] = None
+    recommended_tech_name: Optional[str] = None
+    recommended_tech_role: Optional[str] = None
     email_dispatched: Optional[bool] = None
     clarification_needed: bool = False
     clarification_question: Optional[str] = None
