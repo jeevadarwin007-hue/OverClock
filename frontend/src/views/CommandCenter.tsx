@@ -28,6 +28,7 @@ import {
   User,
   Mail,
   Check,
+  FileText,
 } from 'lucide-react';
 
 /* ==========================================================================
@@ -257,33 +258,25 @@ const statusOfMs = (ms: number) =>
     : { dot: 'bg-rose-400', text: 'text-rose-300' };
 
 /* ==========================================================================
-   Operational Streaming Terminal Log Lines
+   Relative Time Formatting Helper
    ========================================================================== */
 
-interface TermLine {
-  type: LineType;
-  text: string;
+function formatRelativeTime(dateStr?: string): string {
+  if (!dateStr) return 'Recent';
+  try {
+    const diffMs = Date.now() - new Date(dateStr).getTime();
+    const diffSec = Math.floor(diffMs / 1000);
+    if (diffSec < 60) return 'Just now';
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHours = Math.floor(diffMin / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const d = new Date(dateStr);
+    return d.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return 'Recent';
+  }
 }
-
-const SCRIPT_LOGS: TermLine[] = [
-  { type: 'cmd', text: 'systemctl status campusops-agents' },
-  { type: 'ok', text: 'PostgreSQL 16 connection pool verified (30 conns)' },
-  { type: 'info', text: 'Groq LLM Llama-3.3-70b-versatile pipeline connected' },
-  { type: 'ok', text: 'Campus topology synchronized: 32 rooms & 5 blocks loaded' },
-  { type: 'ok', text: 'Mathematical invariants verified (Budget proofs: 100%)' },
-  { type: 'cmd', text: 'intake: listen on port 8000/api/v1' },
-  { type: 'info', text: 'Anti-Hallucination & Emergency Agent active' },
-  { type: 'ok', text: 'Technician auto-dispatch scoring engine ready' },
-  { type: 'url', text: 'Resend API webhook channel: verified (HTTP 200)' },
-  { type: 'ok', text: 'Audit trail: append-only cryptographic log synced' },
-];
-
-const LINE_STYLES: Record<LineType, { mark: string; markClass: string; textClass: string }> = {
-  cmd: { mark: '$', markClass: 'text-nothing-red font-bold', textClass: 'text-neutral-100' },
-  ok: { mark: '✓', markClass: 'text-emerald-400 font-bold', textClass: 'text-neutral-300' },
-  info: { mark: '›', markClass: 'text-neutral-500', textClass: 'text-neutral-400' },
-  url: { mark: '●', markClass: 'text-cyan-400', textClass: 'text-cyan-300 underline underline-offset-2' },
-};
 
 /* ==========================================================================
    Campus Maintenance Trades Stack
@@ -375,9 +368,6 @@ export const CommandCenter: React.FC = () => {
   const [pings, setPings] = useState<number[]>(() => CAMPUS_BLOCKS.map((b) => b.base));
   const [hoverLatency, setHoverLatency] = useState<number | null>(null);
 
-  // Streaming terminal state
-  const [termStep, setTermStep] = useState(1);
-
   // Throughput animated bars
   const [throughputBars, setThroughputBars] = useState<number[]>(() =>
     Array.from({ length: 16 }, (_, i) => 1200 + Math.sin(i * 0.8) * 200 + ((i * 37) % 7) * 30)
@@ -396,7 +386,8 @@ export const CommandCenter: React.FC = () => {
       ]);
       setPulse(pulseData);
       setSummary(summaryData);
-      setActiveTickets(ticketsData.slice(0, 10));
+      const orders = Array.isArray(ticketsData) ? ticketsData : (ticketsData as any)?.items || [];
+      setActiveTickets(orders);
     } catch (err) {
       console.error('Error fetching command center data:', err);
     } finally {
@@ -416,14 +407,6 @@ export const CommandCenter: React.FC = () => {
       setSeries((prev) => [...prev.slice(1), clamp(prev[prev.length - 1] + (Math.random() - 0.5) * 8, 12, 54)]);
       setPings(CAMPUS_BLOCKS.map((b) => Math.round(clamp(b.base + (Math.random() - 0.5) * 6, 10, 65))));
     }, TICK_INTERVAL);
-    return () => window.clearInterval(id);
-  }, []);
-
-  // Streaming terminal loop
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setTermStep((s) => (s >= SCRIPT_LOGS.length + 3 ? 1 : s + 1));
-    }, 950);
     return () => window.clearInterval(id);
   }, []);
 
@@ -456,10 +439,6 @@ export const CommandCenter: React.FC = () => {
     const ratio = clamp((e.clientX - rect.left) / rect.width, 0, 1);
     setHoverLatency(Math.round(ratio * (series.length - 1)));
   };
-
-  const printedLines = Math.min(termStep, SCRIPT_LOGS.length);
-  const firstLine = Math.max(0, printedLines - 8);
-  const visibleLines = SCRIPT_LOGS.slice(firstLine, printedLines);
 
   const latestThroughput = throughputBars[throughputBars.length - 1];
   const animatedThroughput = useAnimatedNumber(latestThroughput, 500);
@@ -764,53 +743,113 @@ export const CommandCenter: React.FC = () => {
           </ul>
         </GlowCard>
 
-        {/* Bento Card 2: Streaming Autonomous Incident & Dispatch Terminal (Span 1 Col x 2 Rows) */}
-        <GlowCard accent="fuchsia" className="lg:row-span-2 min-h-[420px] flex flex-col">
+        {/* Bento Card 2: Recent Activity (Real Incident Reports) (Span 1 Col x 2 Rows) */}
+        <GlowCard accent="red" className="lg:row-span-2 min-h-[420px] flex flex-col justify-between">
           <CardTitle
             right={
-              <span className="flex items-center gap-1.5" aria-hidden="true">
-                <span className="h-2 w-2 rounded-full bg-rose-500" />
-                <span className="h-2 w-2 rounded-full bg-amber-500" />
-                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              <span className="flex items-center space-x-1.5 px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-[10px] font-ndot text-neutral-300">
+                <span className="w-1.5 h-1.5 rounded-full bg-nothing-red nothing-red-dot" />
+                <span>{activeTickets.length} REPORTS</span>
               </span>
             }
           >
-            dispatch_agent.log
+            Recent Activity
           </CardTitle>
 
+          {/* Scrollable Feed of Real Recent Reports */}
           <div
-            className="flex flex-1 flex-col justify-end gap-1.5 overflow-hidden rounded-2xl border border-white/10 bg-black/60 p-3.5 font-mono text-xs leading-relaxed shadow-inner"
-            aria-label="Autonomous Dispatch Log"
-            role="log"
+            className="flex-1 overflow-y-auto space-y-2 pr-1 my-1 max-h-[330px] custom-scrollbar"
+            role="feed"
+            aria-label="Recent Incident Reports Feed"
           >
             <AnimatePresence initial={false}>
-              {visibleLines.map((line, i) => {
-                const style = LINE_STYLES[line.type];
-                const isLast = firstLine + i === printedLines - 1;
+              {activeTickets.slice(0, 10).map((t, idx) => {
+                const isCritical = t.calculated_priority === 'P0_CRITICAL';
+                const isHigh = t.calculated_priority === 'P1_HIGH';
                 return (
                   <motion.div
-                    key={`${firstLine + i}-${line.text}`}
+                    key={t.id || t.ticket_number || idx}
                     initial={{ opacity: 0, x: -8 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                    className="flex gap-2 text-[11px]"
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    whileHover={{ x: 3, backgroundColor: 'rgba(255,255,255,0.06)' }}
+                    transition={{ type: 'spring', stiffness: 450, damping: 28 }}
+                    className="p-3 rounded-2xl border border-white/10 bg-black/60 space-y-1.5 transition-colors cursor-pointer group"
                   >
-                    <span className={cx('w-3 shrink-0 text-center', style.markClass)}>{style.mark}</span>
-                    <span className={cx('min-w-0 break-words', style.textClass)}>
-                      {line.text}
-                      {isLast && printedLines < SCRIPT_LOGS.length && (
-                        <span className="tb-blink ml-1 inline-block h-3 w-1.5 translate-y-0.5 bg-nothing-red" />
-                      )}
-                    </span>
+                    {/* Header: Ticket #, Priority, and Relative Time */}
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center space-x-2">
+                        <span className="font-ndot font-bold text-white group-hover:text-nothing-red transition-colors">
+                          #{t.ticket_number}
+                        </span>
+                        <span
+                          className={`text-[9px] px-1.5 py-0.2 rounded-full font-ndot border ${
+                            isCritical
+                              ? 'bg-nothing-red/20 text-nothing-red border-nothing-red/50 font-bold'
+                              : isHigh
+                              ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                              : 'bg-white/10 text-neutral-300 border-white/20'
+                          }`}
+                        >
+                          {t.calculated_priority || 'P2'}
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-mono text-neutral-500">
+                        {formatRelativeTime(t.created_at)}
+                      </span>
+                    </div>
+
+                    {/* Summary / Description */}
+                    <div className="text-[11px] font-sans text-neutral-200 line-clamp-2 leading-snug">
+                      {t.ai_summary || t.raw_description || 'Incident report received'}
+                    </div>
+
+                    {/* Meta: Location, State & Worker */}
+                    <div className="flex items-center justify-between text-[10px] pt-1 border-t border-white/5 font-mono">
+                      <span className="text-neutral-400 truncate max-w-[130px] flex items-center space-x-1">
+                        <span className="w-1 h-1 rounded-full bg-neutral-500" />
+                        <span>{t.room_code || t.node_code || 'General'}</span>
+                        {t.floor_number !== undefined && t.floor_number !== null && (
+                          <span className="text-neutral-500 ml-1">Fl{t.floor_number}</span>
+                        )}
+                      </span>
+                      <span
+                        className={`font-semibold ${
+                          t.state === 'RESOLVED' || t.state === 'CLOSED'
+                            ? 'text-emerald-400'
+                            : t.state === 'ASSIGNED' || t.state === 'IN_PROGRESS'
+                            ? 'text-cyan-300'
+                            : t.state === 'AWAITING_CLARIFICATION'
+                            ? 'text-amber-400'
+                            : 'text-neutral-400'
+                        }`}
+                      >
+                        {t.state}
+                      </span>
+                    </div>
                   </motion.div>
                 );
               })}
             </AnimatePresence>
+
+            {activeTickets.length === 0 && (
+              <div className="h-full min-h-[220px] flex flex-col items-center justify-center p-6 text-center text-neutral-500 space-y-2 border border-white/5 rounded-2xl bg-black/40">
+                <FileText className="w-6 h-6 text-neutral-600" />
+                <div className="text-xs font-mono">No recent reports logged</div>
+                <div className="text-[10px] font-sans text-neutral-600">
+                  New incident reports submitted via the terminal will appear here in real-time.
+                </div>
+              </div>
+            )}
           </div>
 
-          <div className="mt-2.5 flex items-center justify-between text-[10px] font-mono text-neutral-500 px-1">
-            <span>Agent: Groq Multi-Agent</span>
-            <span className="text-emerald-400">Stream: Active</span>
+          {/* Footer Status Strip */}
+          <div className="mt-2 flex items-center justify-between text-[10px] font-mono text-neutral-500 px-1 border-t border-white/10 pt-2">
+            <span className="flex items-center space-x-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
+              <span className="text-neutral-400">PostgreSQL 16 Feed</span>
+            </span>
+            <span className="text-neutral-400">Live Sync</span>
           </div>
         </GlowCard>
 
