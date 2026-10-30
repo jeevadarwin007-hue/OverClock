@@ -112,6 +112,66 @@ async def get_recurring_incidents(current_user: CurrentUser = Depends(get_curren
         return [dict(r) for r in rows]
 
 
+@router.get("/analytics/daily-reports")
+async def get_daily_reports(
+    days: int = 7,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """
+    Computes real work order incident report volume across days (reports * days).
+    Queries live PostgreSQL work orders grouped by calendar date.
+    """
+    async with acquire_db_connection(
+        actor_id=current_user.id,
+        actor_role=current_user.role,
+        dept_id=current_user.department_id,
+    ) as conn:
+        rows = await conn.fetch(
+            """
+            SELECT 
+                d.day::date AS report_date,
+                TO_CHAR(d.day, 'Dy') AS day_name,
+                TO_CHAR(d.day, 'Mon DD') AS formatted_date,
+                COUNT(wo.id) AS total_reports,
+                COUNT(CASE WHEN wo.calculated_priority = 'P0_CRITICAL' THEN 1 END) AS critical_count,
+                COUNT(CASE WHEN wo.calculated_priority = 'P1_HIGH' THEN 1 END) AS high_count,
+                COUNT(CASE WHEN wo.calculated_priority IN ('P2_MEDIUM', 'P3_LOW') THEN 1 END) AS normal_count,
+                COUNT(CASE WHEN wo.state IN ('RESOLVED', 'CLOSED') THEN 1 END) AS resolved_count
+            FROM generate_series(
+                CURRENT_DATE - ($1::int - 1) * INTERVAL '1 day',
+                CURRENT_DATE,
+                '1 day'::interval
+            ) d(day)
+            LEFT JOIN work_orders wo ON wo.created_at::date = d.day::date
+            GROUP BY d.day
+            ORDER BY d.day ASC;
+            """,
+            days,
+        )
+        data = []
+        for r in rows:
+            data.append({
+                "date": str(r["report_date"]),
+                "day_name": r["day_name"],
+                "formatted_date": r["formatted_date"],
+                "total_reports": int(r["total_reports"]),
+                "critical_count": int(r["critical_count"]),
+                "high_count": int(r["high_count"]),
+                "normal_count": int(r["normal_count"]),
+                "resolved_count": int(r["resolved_count"]),
+            })
+        total = sum(d["total_reports"] for d in data)
+        peak = max((d["total_reports"] for d in data), default=0)
+        avg = round(total / max(len(data), 1), 1)
+        return {
+            "days_count": days,
+            "total_reports_in_range": total,
+            "peak_daily_reports": peak,
+            "avg_daily_reports": avg,
+            "daily_trend": data,
+        }
+
+
 @router.get("/invariants")
 async def get_live_invariants(current_user: CurrentUser = Depends(get_current_user)):
     """

@@ -223,23 +223,54 @@ function LiveBadge({ label = 'LIVE' }: { label?: string }) {
 }
 
 /* ==========================================================================
-   Campus Blocks & Telemetry Constants
+   Reports Across Days (Reports * Days) Types & Helpers
    ========================================================================== */
 
-const CAMPUS_BLOCKS = [
-  { name: 'EEC-ACAD (Academic Tech)', base: 22 },
-  { name: 'EEC-MAIN (Admin Block)', base: 18 },
-  { name: 'EEC-MECH-PG (Library Block)', base: 28 },
-  { name: 'EEC-ROBOTICS (ABB Centre)', base: 25 },
-  { name: 'EEC-AUD-FC (Auditorium)', base: 31 },
-];
-
-const SERIES_LEN = 35;
-const TICK_INTERVAL = 1400;
-
-function initialTelemetrySeries(): number[] {
-  return Array.from({ length: SERIES_LEN }, (_, i) => 24 + Math.sin(i * 0.5) * 6 + ((i * 19) % 5));
+interface DailyReportPoint {
+  date: string;
+  day_name: string;
+  formatted_date: string;
+  total_reports: number;
+  critical_count: number;
+  high_count: number;
+  normal_count: number;
+  resolved_count: number;
 }
+
+function computeDailyTrendFromOrders(orders: any[], daysCount = 7): DailyReportPoint[] {
+  const result: DailyReportPoint[] = [];
+  const now = new Date();
+
+  for (let i = daysCount - 1; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().split('T')[0];
+    const dayName = i === 0 ? 'Today' : d.toLocaleDateString('en-US', { weekday: 'short' });
+    const formattedDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+    const dayOrders = orders.filter((o) => {
+      if (!o.created_at) return false;
+      const orderDate = new Date(o.created_at).toISOString().split('T')[0];
+      return orderDate === dateStr;
+    });
+
+    result.push({
+      date: dateStr,
+      day_name: dayName,
+      formatted_date: formattedDate,
+      total_reports: dayOrders.length,
+      critical_count: dayOrders.filter((o) => o.calculated_priority === 'P0_CRITICAL').length,
+      high_count: dayOrders.filter((o) => o.calculated_priority === 'P1_HIGH').length,
+      normal_count: dayOrders.filter(
+        (o) => o.calculated_priority !== 'P0_CRITICAL' && o.calculated_priority !== 'P1_HIGH'
+      ).length,
+      resolved_count: dayOrders.filter((o) => o.state === 'RESOLVED' || o.state === 'CLOSED').length,
+    });
+  }
+  return result;
+}
+
+const TICK_INTERVAL = 1400;
 
 function toSmoothPath(points: Array<{ x: number; y: number }>): string {
   return points.reduce((d, p, i) => {
@@ -249,13 +280,6 @@ function toSmoothPath(points: Array<{ x: number; y: number }>): string {
     return `${d} C ${mid} ${prev.y}, ${mid} ${p.y}, ${p.x} ${p.y}`;
   }, '');
 }
-
-const statusOfMs = (ms: number) =>
-  ms < 30
-    ? { dot: 'bg-emerald-400', text: 'text-emerald-300' }
-    : ms < 50
-    ? { dot: 'bg-amber-400', text: 'text-amber-300' }
-    : { dot: 'bg-rose-400', text: 'text-rose-300' };
 
 /* ==========================================================================
    Relative Time Formatting Helper
@@ -363,10 +387,9 @@ export const CommandCenter: React.FC = () => {
   const [intakeResult, setIntakeResult] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  // Latency telemetry state
-  const [series, setSeries] = useState<number[]>(initialTelemetrySeries);
-  const [pings, setPings] = useState<number[]>(() => CAMPUS_BLOCKS.map((b) => b.base));
-  const [hoverLatency, setHoverLatency] = useState<number | null>(null);
+  // Reports across days telemetry state
+  const [dailyReports, setDailyReports] = useState<DailyReportPoint[]>(() => computeDailyTrendFromOrders([]));
+  const [hoverDayIdx, setHoverDayIdx] = useState<number | null>(null);
 
   // Throughput animated bars
   const [throughputBars, setThroughputBars] = useState<number[]>(() =>
@@ -379,15 +402,22 @@ export const CommandCenter: React.FC = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [pulseData, summaryData, ticketsData] = await Promise.all([
+      const [pulseData, summaryData, ticketsData, dailyData] = await Promise.all([
         api.get<any>('/pulse'),
         api.get<any>('/analytics/summary'),
         api.get<any[]>('/work-orders'),
+        api.get<any>('/analytics/daily-reports?days=7').catch(() => null),
       ]);
       setPulse(pulseData);
       setSummary(summaryData);
       const orders = Array.isArray(ticketsData) ? ticketsData : (ticketsData as any)?.items || [];
       setActiveTickets(orders);
+
+      if (dailyData?.daily_trend && Array.isArray(dailyData.daily_trend) && dailyData.daily_trend.length > 0) {
+        setDailyReports(dailyData.daily_trend);
+      } else {
+        setDailyReports(computeDailyTrendFromOrders(orders));
+      }
     } catch (err) {
       console.error('Error fetching command center data:', err);
     } finally {
@@ -401,15 +431,6 @@ export const CommandCenter: React.FC = () => {
     return () => clearInterval(interval);
   }, [currentUser]);
 
-  // Telemetry loop for latency curve & block pings
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setSeries((prev) => [...prev.slice(1), clamp(prev[prev.length - 1] + (Math.random() - 0.5) * 8, 12, 54)]);
-      setPings(CAMPUS_BLOCKS.map((b) => Math.round(clamp(b.base + (Math.random() - 0.5) * 6, 10, 65))));
-    }, TICK_INTERVAL);
-    return () => window.clearInterval(id);
-  }, []);
-
   // Throughput loop
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -421,23 +442,31 @@ export const CommandCenter: React.FC = () => {
     return () => window.clearInterval(id);
   }, []);
 
-  const latestLatency = Math.round(series[series.length - 1]);
-  const avgLatency = Math.round(series.reduce((a, b) => a + b, 0) / series.length);
-  const peakLatency = Math.round(Math.max(...series));
-  const animatedLatency = useAnimatedNumber(latestLatency, 500);
+  // Reports across days calculation
+  const totalReportsInRange = dailyReports.reduce((acc, d) => acc + d.total_reports, 0);
+  const todayReports = dailyReports[dailyReports.length - 1]?.total_reports || 0;
+  const peakDailyReports = Math.max(...dailyReports.map((d) => d.total_reports), 0);
+  const peakDay = dailyReports.find((d) => d.total_reports === peakDailyReports);
+  const avgDailyReports = (totalReportsInRange / Math.max(dailyReports.length, 1)).toFixed(1);
+  const animatedTodayReports = useAnimatedNumber(todayReports, 400);
 
-  const points = series.map((v, i) => ({
-    x: (i / (series.length - 1)) * 100,
-    y: 95 - (v / 60) * 85,
+  const maxScale = Math.max(peakDailyReports, 4);
+  const points = dailyReports.map((d, i) => ({
+    x: dailyReports.length > 1 ? (i / (dailyReports.length - 1)) * 100 : 50,
+    y: 92 - (d.total_reports / maxScale) * 75,
   }));
   const linePath = toSmoothPath(points);
   const areaPath = `${linePath} L 100 100 L 0 100 Z`;
-  const shownIdx = hoverLatency ?? series.length - 1;
+  const shownIdx = hoverDayIdx !== null ? hoverDayIdx : dailyReports.length - 1;
+  const activeDay = dailyReports[shownIdx];
+  const activePoint = points[shownIdx] || { x: 50, y: 50 };
 
   const handleChartMove = (e: MouseEvent<HTMLDivElement>) => {
+    if (dailyReports.length === 0) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const ratio = clamp((e.clientX - rect.left) / rect.width, 0, 1);
-    setHoverLatency(Math.round(ratio * (series.length - 1)));
+    const idx = Math.min(Math.round(ratio * (dailyReports.length - 1)), dailyReports.length - 1);
+    setHoverDayIdx(idx);
   };
 
   const latestThroughput = throughputBars[throughputBars.length - 1];
@@ -603,51 +632,62 @@ export const CommandCenter: React.FC = () => {
         animate="visible"
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 auto-rows-[220px]"
       >
-        {/* Bento Card 1: Server Latency & Campus Block Response (Span 2 Cols x 2 Rows) */}
-        <GlowCard accent="red" className="md:col-span-2 lg:row-span-2 min-h-[420px] flex flex-col">
-          <CardTitle right={<LiveBadge label="LIVE GRID" />}>
-            Campus Core Telemetry & Grid Response
+        {/* Bento Card 1: Reports Across Days (report * days) (Span 2 Cols x 2 Rows) */}
+        <GlowCard accent="red" className="md:col-span-2 lg:row-span-2 min-h-[420px] flex flex-col justify-between">
+          <CardTitle
+            right={
+              <span className="flex items-center space-x-1.5 px-2 py-0.5 rounded-full bg-nothing-red/10 border border-nothing-red/30 text-[10px] font-ndot text-nothing-red font-bold">
+                <span className="w-1.5 h-1.5 rounded-full bg-nothing-red nothing-red-dot" />
+                <span>REPORTS &bull; 7 DAYS</span>
+              </span>
+            }
+          >
+            Incident Reports Across Days
           </CardTitle>
 
           {/* Headline Metrics */}
-          <div className="mb-2 flex flex-wrap items-end gap-x-5 gap-y-1">
-            <div className="flex items-end gap-1.5">
+          <div className="mb-2 flex flex-wrap items-end justify-between gap-y-2">
+            <div className="flex items-end gap-2">
               <span className="text-4xl font-bold font-ndot text-white [font-variant-numeric:tabular-nums]">
-                {Math.round(animatedLatency)}
+                {Math.round(animatedTodayReports)}
               </span>
-              <span className="mb-1 text-xs text-neutral-400 font-mono">ms</span>
+              <span className="mb-1 text-xs text-neutral-400 font-mono">reports today</span>
             </div>
-            <div className="mb-1 flex gap-4 text-xs font-mono text-neutral-400">
+            <div className="flex gap-4 text-xs font-mono text-neutral-400">
               <span>
-                avg <b className="font-semibold text-white">{avgLatency}ms</b>
+                avg <b className="font-semibold text-white">{avgDailyReports}/day</b>
               </span>
               <span>
-                peak <b className="font-semibold text-nothing-red">{peakLatency}ms</b>
+                peak <b className="font-semibold text-nothing-red">{peakDailyReports} on {peakDay?.day_name || 'peak'}</b>
+              </span>
+              <span>
+                total <b className="font-semibold text-white">{totalReportsInRange} this week</b>
               </span>
             </div>
           </div>
 
-          {/* Interactive SVG Latency Curve with Hover Inspector */}
+          {/* Interactive SVG Reports Across Days Curve with Hover Inspector */}
           <div
-            className="relative min-h-[140px] flex-1 cursor-crosshair rounded-xl overflow-hidden"
+            className="relative min-h-[140px] flex-1 cursor-crosshair rounded-xl overflow-hidden my-1"
             onMouseMove={handleChartMove}
-            onMouseLeave={() => setHoverLatency(null)}
+            onMouseLeave={() => setHoverDayIdx(null)}
           >
             <svg
               viewBox="0 0 100 100"
               preserveAspectRatio="none"
               className="absolute inset-0 h-full w-full overflow-visible"
               role="img"
-              aria-label="Campus latency graph"
+              aria-label="Incident reports across days graph"
             >
               <defs>
-                <linearGradient id="campus-lat-fill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#d73832" stopOpacity="0.4" />
+                <linearGradient id="reports-days-fill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#d73832" stopOpacity="0.45" />
                   <stop offset="100%" stopColor="#d73832" stopOpacity="0.0" />
                 </linearGradient>
               </defs>
 
-              {[25, 50, 75].map((y) => (
+              {/* Reference Grid Lines */}
+              {[20, 45, 70, 95].map((y) => (
                 <line
                   key={y}
                   x1="0"
@@ -660,87 +700,138 @@ export const CommandCenter: React.FC = () => {
                 />
               ))}
 
-              <path d={areaPath} fill="url(#campus-lat-fill)" />
+              {/* Area & Stroke Paths */}
+              <path d={areaPath} fill="url(#reports-days-fill)" />
               <path
                 d={linePath}
                 fill="none"
                 stroke="#ff4a42"
-                strokeWidth="2.2"
+                strokeWidth="2.4"
                 strokeLinecap="round"
                 vectorEffect="non-scaling-stroke"
-                style={{ filter: 'drop-shadow(0 0 6px rgba(215,56,50,0.8))' }}
+                style={{ filter: 'drop-shadow(0 0 8px rgba(215,56,50,0.8))' }}
               />
 
-              {hoverLatency !== null && (
+              {/* Data points along curve */}
+              {points.map((pt, i) => (
+                <circle
+                  key={i}
+                  cx={pt.x}
+                  cy={pt.y}
+                  r="2"
+                  fill="#ffffff"
+                  stroke="#d73832"
+                  strokeWidth="1.5"
+                  vectorEffect="non-scaling-stroke"
+                />
+              ))}
+
+              {/* Vertical Crosshair Line */}
+              {hoverDayIdx !== null && activePoint && (
                 <line
-                  x1={points[hoverLatency].x}
-                  x2={points[hoverLatency].x}
+                  x1={activePoint.x}
+                  x2={activePoint.x}
                   y1="0"
                   y2="100"
-                  stroke="rgba(255,255,255,0.5)"
+                  stroke="rgba(255,255,255,0.4)"
                   strokeDasharray="3 3"
                   vectorEffect="non-scaling-stroke"
                 />
               )}
             </svg>
 
-            {/* Glowing Inspector Dot & Tooltip */}
-            <span
-              aria-hidden="true"
-              className="pointer-events-none absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-nothing-red shadow-[0_0_12px_#d73832]"
-              style={{
-                left: `${points[shownIdx].x}%`,
-                top: `${points[shownIdx].y}%`,
-              }}
-            />
+            {/* Glowing Inspector Dot */}
+            {activePoint && (
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-nothing-red shadow-[0_0_14px_#d73832] transition-all duration-150"
+                style={{
+                  left: `${activePoint.x}%`,
+                  top: `${activePoint.y}%`,
+                }}
+              />
+            )}
+
+            {/* Floating Tooltip */}
             <AnimatePresence>
-              {hoverLatency !== null && (
+              {hoverDayIdx !== null && activeDay && activePoint && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.92, y: 4 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.92, y: 4 }}
                   transition={{ duration: 0.15 }}
                   aria-hidden="true"
-                  className="pointer-events-none absolute -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-lg border border-white/15 bg-black/95 px-2.5 py-1 text-xs font-mono shadow-2xl backdrop-blur-md z-20"
+                  className="pointer-events-none absolute -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-2xl border border-white/20 bg-black/95 px-3 py-2 text-xs font-mono shadow-2xl backdrop-blur-xl z-20"
                   style={{
-                    left: `clamp(48px, ${points[hoverLatency].x}%, calc(100% - 48px))`,
-                    top: `calc(${points[hoverLatency].y}% - 12px)`,
+                    left: `clamp(60px, ${activePoint.x}%, calc(100% - 60px))`,
+                    top: `calc(${activePoint.y}% - 14px)`,
                   }}
                 >
-                  <div className="text-neutral-400 text-[10px]">
-                    {Math.round(((series.length - 1 - hoverLatency) * TICK_INTERVAL) / 1000)}s ago
+                  <div className="flex items-center space-x-1.5 text-neutral-400 text-[10px] uppercase font-ndot tracking-wider">
+                    <span>{activeDay.day_name}</span>
+                    <span>&bull;</span>
+                    <span>{activeDay.formatted_date}</span>
                   </div>
-                  <div className="font-bold text-white">{Math.round(series[hoverLatency])} ms</div>
+                  <div className="text-sm font-bold font-ndot text-white mt-0.5">
+                    {activeDay.total_reports} {activeDay.total_reports === 1 ? 'Report' : 'Reports'}
+                  </div>
+                  <div className="text-[10px] text-neutral-400 flex items-center space-x-2 mt-1 pt-1 border-t border-white/10">
+                    <span className="text-nothing-red font-semibold">{activeDay.critical_count} Critical</span>
+                    <span>&bull;</span>
+                    <span className="text-neutral-300">{activeDay.normal_count} Normal</span>
+                    <span>&bull;</span>
+                    <span className="text-emerald-400">{activeDay.resolved_count} Resolved</span>
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
 
           <div className="mt-1 flex justify-between text-[10px] font-mono text-neutral-500">
-            <span>{Math.round((SERIES_LEN * TICK_INTERVAL) / 1000)}s ago</span>
-            <span>now (synchronized)</span>
+            <span>7 days ago ({dailyReports[0]?.formatted_date || 'Start'})</span>
+            <span>Today ({dailyReports[dailyReports.length - 1]?.formatted_date || 'Live'})</span>
           </div>
 
-          {/* Regional Campus Block Latency Pings */}
-          <ul className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 border-t border-white/10 pt-2.5">
-            {CAMPUS_BLOCKS.map((block, i) => {
-              const status = statusOfMs(pings[i]);
+          {/* Daily Reports Breakdown Strip (Days * Reports) */}
+          <div className="mt-3 grid grid-cols-7 gap-1.5 border-t border-white/10 pt-2.5">
+            {dailyReports.map((d, i) => {
+              const isSelected = (hoverDayIdx !== null ? hoverDayIdx : dailyReports.length - 1) === i;
+              const isToday = i === dailyReports.length - 1;
               return (
-                <motion.li
-                  key={block.name}
-                  whileHover={{ x: 3 }}
-                  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                  className="flex items-center gap-2 rounded-lg px-2 py-1 text-xs transition-colors duration-200 hover:bg-white/[0.05]"
+                <motion.button
+                  key={d.date}
+                  type="button"
+                  onMouseEnter={() => setHoverDayIdx(i)}
+                  onMouseLeave={() => setHoverDayIdx(null)}
+                  whileHover={{ y: -2 }}
+                  whileTap={{ scale: 0.96 }}
+                  transition={{ type: 'spring', stiffness: 450, damping: 28 }}
+                  className={cx(
+                    'flex flex-col items-center justify-between p-2 rounded-xl border text-center transition-colors',
+                    isSelected
+                      ? 'bg-nothing-red/15 border-nothing-red/60 text-white shadow-[0_0_12px_rgba(215,56,50,0.3)]'
+                      : isToday
+                      ? 'bg-white/5 border-white/20 text-white'
+                      : 'bg-black/40 border-white/5 text-neutral-400 hover:text-white hover:bg-white/[0.04]'
+                  )}
                 >
-                  <span className={cx('h-1.5 w-1.5 shrink-0 rounded-full', status.dot)} />
-                  <span className="flex-1 font-mono text-neutral-300 truncate">{block.name}</span>
-                  <span className={cx('text-[11px] font-mono [font-variant-numeric:tabular-nums]', status.text)}>
-                    {pings[i]} ms
+                  <span className="text-[10px] font-ndot uppercase tracking-wider">
+                    {d.day_name}
                   </span>
-                </motion.li>
+                  <span className="text-base font-bold font-ndot my-0.5 [font-variant-numeric:tabular-nums]">
+                    {d.total_reports}
+                  </span>
+                  <span className="text-[9px] font-mono text-neutral-500">
+                    {d.critical_count > 0 ? (
+                      <span className="text-nothing-red font-bold">{d.critical_count} crit</span>
+                    ) : (
+                      'ok'
+                    )}
+                  </span>
+                </motion.button>
               );
             })}
-          </ul>
+          </div>
         </GlowCard>
 
         {/* Bento Card 2: Recent Activity (Real Incident Reports) (Span 1 Col x 2 Rows) */}
