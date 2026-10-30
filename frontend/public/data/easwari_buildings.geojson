@@ -1,0 +1,133 @@
+{
+  "type": "FeatureCollection",
+  "name": "easwari_buildings",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "building_code": "EEC-MAIN",
+        "name": "Main Administrative Block",
+        "floors": 4,
+        "height_m": 14.0,
+        "primary_departments": ["Administration", "Admissions", "Controller of Examinations", "Principal Office"],
+        "criticality_weight": 25,
+        "status": "OPERATIONAL"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [80.18025, 13.03325],
+            [80.18085, 13.03325],
+            [80.18085, 13.03285],
+            [80.18025, 13.03285],
+            [80.18025, 13.03325]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "building_code": "EEC-ACAD",
+        "name": "Academic Tech Block (CSE/IT/AI&DS/ECE)",
+        "floors": 5,
+        "height_m": 17.5,
+        "primary_departments": ["Computer Science & Engineering", "Information Technology", "AI & Data Science", "Electronics & Communication"],
+        "criticality_weight": 30,
+        "status": "OPERATIONAL"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [80.18125, 13.03310],
+            [80.18205, 13.03310],
+            [80.18205, 13.03255],
+            [80.18125, 13.03255],
+            [80.18125, 13.03310]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "building_code": "EEC-MECH-PG",
+        "name": "Mechanical, Civil & Central PG Library Block",
+        "floors": 4,
+        "height_m": 14.0,
+        "primary_departments": ["Mechanical Engineering", "Civil Engineering", "Central PG Library", "Digital Resource Centre"],
+        "criticality_weight": 20,
+        "status": "OPERATIONAL"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [80.18130, 13.03215],
+            [80.18210, 13.03215],
+            [80.18210, 13.03155],
+            [80.18130, 13.03155],
+            [80.18130, 13.03215]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "building_code": "EEC-ROBOTICS",
+        "name": "ABB Robotics Research & Automation Centre",
+        "floors": 2,
+        "height_m": 7.0,
+        "primary_departments": ["Robotics & Automation", "Centre for Industry 4.0", "Industrial IoT Lab"],
+        "criticality_weight": 18,
+        "status": "OPERATIONAL"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [80.18045, 13.03185],
+            [80.18105, 13.03185],
+            [80.18105, 13.03145],
+            [80.18045, 13.03145],
+            [80.18045, 13.03185]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "building_code": "EEC-AUD-FC",
+        "name": "TRP Auditorium & Central Food Court",
+        "floors": 2,
+        "height_m": 8.0,
+        "primary_departments": ["TRP Auditorium", "Central Food Court", "Student Activity Centre"],
+        "criticality_weight": 15,
+        "status": "OPERATIONAL"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [80.17970, 13.03250],
+            [80.18035, 13.03250],
+            [80.18035, 13.03195],
+            [80.17970, 13.03195],
+            [80.17970, 13.03250]
+          ]
+        ]
+      }
+    }
+  ]
+}
+
