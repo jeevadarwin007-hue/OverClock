@@ -27,10 +27,9 @@ logger = logging.getLogger("campusops")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Initializing CampusOps database pool...")
-    await init_db_pool()
-
-    # Synchronize FSM state transitions for Admin Approval and Resolution workflows
     try:
+        await init_db_pool()
+        # Synchronize FSM state transitions for Admin Approval and Resolution workflows
         from app.database import acquire_db_connection
         async with acquire_db_connection(actor_id=None, actor_role="SYS_ADMIN", dept_id=None) as conn:
             await conn.execute("""
@@ -52,26 +51,36 @@ async def lifespan(app: FastAPI):
             await StaffingService.ensure_seed_technicians(conn)
             logger.info("Campus maintenance workforce & trade specializations synchronized.")
     except Exception as e:
-        logger.warning(f"Could not synchronize FSM transitions or technicians at startup: {e}")
+        logger.warning(f"Could not connect to database pool at startup (PostgreSQL may be offline): {e}")
 
     logger.info("Starting background outbox worker...")
     stop_event = asyncio.Event()
-    outbox_task = asyncio.create_task(
-        run_outbox_loop(poll_interval=settings.OUTBOX_WORKER_POLL_INTERVAL, stop_event=stop_event)
-    )
+    outbox_task = None
+    try:
+        from app.database import _db_pool
+        if _db_pool is not None:
+            outbox_task = asyncio.create_task(
+                run_outbox_loop(poll_interval=settings.OUTBOX_WORKER_POLL_INTERVAL, stop_event=stop_event)
+            )
+    except Exception:
+        outbox_task = None
 
     yield
 
-    logger.info("Stopping background outbox worker...")
-    stop_event.set()
-    outbox_task.cancel()
-    try:
-        await outbox_task
-    except asyncio.CancelledError:
-        pass
+    if outbox_task:
+        logger.info("Stopping background outbox worker...")
+        stop_event.set()
+        outbox_task.cancel()
+        try:
+            await outbox_task
+        except asyncio.CancelledError:
+            pass
 
     logger.info("Closing database pool...")
-    await close_db_pool()
+    try:
+        await close_db_pool()
+    except Exception:
+        pass
 
 
 app = FastAPI(

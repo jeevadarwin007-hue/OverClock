@@ -10,23 +10,30 @@ _db_pool: Optional[asyncpg.Pool] = None
 async def init_db_pool() -> asyncpg.Pool:
     global _db_pool
     if _db_pool is None:
-        _db_pool = await asyncpg.create_pool(
-            host=settings.POSTGRES_HOST,
-            port=settings.POSTGRES_PORT,
-            user=settings.POSTGRES_USER,
-            password=settings.POSTGRES_PASSWORD,
-            database=settings.POSTGRES_DB,
-            min_size=5,
-            max_size=30,
-            command_timeout=60,
-        )
+        try:
+            _db_pool = await asyncpg.create_pool(
+                host=settings.POSTGRES_HOST,
+                port=settings.POSTGRES_PORT,
+                user=settings.POSTGRES_USER,
+                password=settings.POSTGRES_PASSWORD,
+                database=settings.POSTGRES_DB,
+                min_size=5,
+                max_size=30,
+                command_timeout=60,
+            )
+        except Exception:
+            _db_pool = None
+            raise
     return _db_pool
 
 
 async def close_db_pool() -> None:
     global _db_pool
     if _db_pool is not None:
-        await _db_pool.close()
+        try:
+            await _db_pool.close()
+        except Exception:
+            pass
         _db_pool = None
 
 
@@ -46,6 +53,13 @@ async def acquire_db_connection(
     Acquires an asyncpg connection from the pool and establishes the
     secure transaction context (set_secure_context) for role and SoD enforcement.
     """
+    global _db_pool
+    if _db_pool is None:
+        try:
+            await init_db_pool()
+        except Exception:
+            raise RuntimeError("Database connection pool is not initialized or PostgreSQL is offline.")
+
     pool = get_db_pool()
     async with pool.acquire() as conn:
         if actor_id is not None and actor_role is not None:
