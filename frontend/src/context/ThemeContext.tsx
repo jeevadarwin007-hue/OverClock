@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useEffect } from 'react';
 
-export type ThemeMode = 'mocha' | 'monochrome';
+export type ThemeMode = 'oled';
 
 interface ThemeContextType {
   theme: ThemeMode;
@@ -11,35 +11,24 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [theme, setThemeState] = useState<ThemeMode>(() => {
-    const saved = localStorage.getItem('campusops_theme') as ThemeMode;
-    return saved === 'monochrome' ? 'monochrome' : 'mocha';
-  });
-
-  const setTheme = (mode: ThemeMode) => {
-    setThemeState(mode);
-    localStorage.setItem('campusops_theme', mode);
-  };
-
-  const toggleTheme = () => {
-    const next = theme === 'mocha' ? 'monochrome' : 'mocha';
-    setTheme(next);
-  };
+  const theme: ThemeMode = 'oled';
 
   useEffect(() => {
     const root = document.documentElement;
-    root.setAttribute('data-theme', theme);
-    if (theme === 'monochrome') {
-      root.classList.add('theme-monochrome');
-      root.classList.remove('theme-mocha');
-    } else {
-      root.classList.add('theme-mocha');
-      root.classList.remove('theme-monochrome');
+    root.setAttribute('data-theme', 'oled');
+    root.classList.remove('theme-mocha', 'theme-monochrome');
+    root.classList.add('theme-oled', 'dark');
+    try {
+      localStorage.setItem('campusops_theme', 'oled');
+    } catch {
+      // noop
     }
-  }, [theme]);
+  }, []);
+
+  const noop = () => {};
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme, setTheme: noop, toggleTheme: noop }}>
       {children}
     </ThemeContext.Provider>
   );
@@ -52,4 +41,3 @@ export const useTheme = (): ThemeContextType => {
   }
   return context;
 };
-

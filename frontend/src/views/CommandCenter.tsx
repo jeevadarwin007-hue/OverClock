@@ -787,22 +787,39 @@ export const CommandCenter: React.FC = () => {
               </span>
               <span className="mb-1 text-xs text-neutral-400 font-mono">reports today</span>
             </div>
-            <div className="flex gap-4 text-xs font-mono text-neutral-400">
-              <span>
-                avg <b className="font-semibold text-white">{avgDailyReports}/day</b>
-              </span>
-              <span>
-                peak <b className="font-semibold text-nothing-red">{peakDailyReports} on {peakDay?.day_name || 'peak'}</b>
-              </span>
-              <span>
-                total <b className="font-semibold text-white">{totalReportsInRange} this week</b>
-              </span>
-            </div>
+            {hoverDayIdx !== null && activeDay ? (
+              <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
+                <span className="text-white font-ndot font-bold">
+                  {activeDay.day_name} &bull; {activeDay.formatted_date}:
+                </span>
+                <span className="text-nothing-red font-semibold">
+                  {activeDay.critical_count} critical
+                </span>
+                <span className="text-neutral-300">
+                  {activeDay.normal_count} normal
+                </span>
+                <span className="text-emerald-400">
+                  {activeDay.resolved_count} resolved
+                </span>
+              </div>
+            ) : (
+              <div className="flex gap-4 text-xs font-mono text-neutral-400">
+                <span>
+                  avg <b className="font-semibold text-white">{avgDailyReports}/day</b>
+                </span>
+                <span>
+                  peak <b className="font-semibold text-nothing-red">{peakDailyReports} on {peakDay?.day_name || 'peak'}</b>
+                </span>
+                <span>
+                  total <b className="font-semibold text-white">{totalReportsInRange} this week</b>
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Interactive SVG Reports Across Days Curve with Hover Inspector */}
           <div
-            className="relative min-h-[140px] flex-1 cursor-crosshair rounded-xl overflow-hidden my-1"
+            className="relative min-h-[140px] flex-1 cursor-crosshair rounded-xl overflow-visible my-1"
             onMouseMove={handleChartMove}
             onMouseLeave={() => setHoverDayIdx(null)}
           >
@@ -886,38 +903,44 @@ export const CommandCenter: React.FC = () => {
               />
             )}
 
-            {/* Floating Tooltip */}
+            {/* Floating Tooltip - Positioned safely above or below point without overlapping */}
             <AnimatePresence>
-              {hoverDayIdx !== null && activeDay && activePoint && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.92, y: 4 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.92, y: 4 }}
-                  transition={{ duration: 0.15 }}
-                  aria-hidden="true"
-                  className="pointer-events-none absolute -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-2xl border border-white/20 bg-black/95 px-3 py-2 text-xs font-mono shadow-2xl backdrop-blur-xl z-20"
-                  style={{
-                    left: `clamp(60px, ${activePoint.x}%, calc(100% - 60px))`,
-                    top: `calc(${activePoint.y}% - 14px)`,
-                  }}
-                >
-                  <div className="flex items-center space-x-1.5 text-neutral-400 text-[10px] uppercase font-ndot tracking-wider">
-                    <span>{activeDay.day_name}</span>
-                    <span>&bull;</span>
-                    <span>{activeDay.formatted_date}</span>
-                  </div>
-                  <div className="text-sm font-bold font-ndot text-white mt-0.5">
-                    {activeDay.total_reports} {activeDay.total_reports === 1 ? 'Report' : 'Reports'}
-                  </div>
-                  <div className="text-[10px] text-neutral-400 flex items-center space-x-2 mt-1 pt-1 border-t border-white/10">
-                    <span className="text-nothing-red font-semibold">{activeDay.critical_count} Critical</span>
-                    <span>&bull;</span>
-                    <span className="text-neutral-300">{activeDay.normal_count} Normal</span>
-                    <span>&bull;</span>
-                    <span className="text-emerald-400">{activeDay.resolved_count} Resolved</span>
-                  </div>
-                </motion.div>
-              )}
+              {hoverDayIdx !== null && activeDay && activePoint && (() => {
+                const isPointHigh = activePoint.y < 42;
+                return (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    aria-hidden="true"
+                    className="pointer-events-none absolute whitespace-nowrap rounded-xl border border-white/20 bg-black/95 px-3 py-1.5 text-xs font-mono shadow-[0_8px_32px_rgba(0,0,0,0.95)] backdrop-blur-xl z-30"
+                    style={{
+                      left: `clamp(80px, ${activePoint.x}%, calc(100% - 80px))`,
+                      transform: 'translateX(-50%)',
+                      ...(isPointHigh
+                        ? { top: `calc(${activePoint.y}% + 14px)` }
+                        : { bottom: `calc(${100 - activePoint.y}% + 14px)` }),
+                    }}
+                  >
+                    <div className="flex items-center space-x-1.5 text-neutral-400 text-[10px] uppercase font-ndot tracking-wider">
+                      <span className="text-white font-bold">{activeDay.day_name}</span>
+                      <span>&bull;</span>
+                      <span>{activeDay.formatted_date}</span>
+                    </div>
+                    <div className="text-xs font-bold font-ndot text-white mt-0.5 flex items-center justify-between gap-3">
+                      <span>
+                        {activeDay.total_reports} {activeDay.total_reports === 1 ? 'Report' : 'Reports'}
+                      </span>
+                      {activeDay.critical_count > 0 && (
+                        <span className="text-[9px] font-mono text-nothing-red font-semibold bg-nothing-red/10 px-1.5 py-0.2 rounded border border-nothing-red/30">
+                          {activeDay.critical_count} Crit
+                        </span>
+                      )}
+                    </div>
+                  </motion.div>
+                );
+              })()}
             </AnimatePresence>
           </div>
 
@@ -1267,10 +1290,11 @@ export const CommandCenter: React.FC = () => {
                     <AnimatePresence>
                       {isHovered && (
                         <motion.div
-                          initial={{ opacity: 0, y: 4, scale: 0.95 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: 4, scale: 0.95 }}
-                          className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-xl border border-emerald-500/40 bg-black/95 px-2 py-0.5 text-[10px] font-mono text-white shadow-xl z-30"
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.95 }}
+                          style={{ transform: 'translateX(-50%)' }}
+                          className="pointer-events-none absolute -top-8 left-1/2 whitespace-nowrap rounded-xl border border-emerald-500/40 bg-black/95 px-2 py-0.5 text-[10px] font-mono text-white shadow-xl z-30"
                         >
                           <span className="text-emerald-400 font-bold">{count}</span> {count === 1 ? 'solved' : 'solved'} ({d.day_name})
                         </motion.div>

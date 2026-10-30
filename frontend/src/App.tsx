@@ -58,12 +58,8 @@ export const AppContent: React.FC = () => {
 
   return (
     <div
-      data-theme={theme}
-      className={`h-screen w-screen overflow-hidden flex flex-col font-sans select-none transition-colors duration-300 ${
-        theme === 'mocha'
-          ? 'bg-[#180f0a] text-[#d8bca4] selection:bg-[#ec9665] selection:text-[#180f0a]'
-          : 'bg-black text-white selection:bg-white selection:text-black'
-      }`}
+      data-theme="oled"
+      className="h-screen w-screen overflow-hidden flex flex-col font-sans select-none bg-black text-white selection:bg-white selection:text-black"
     >
       {/* Zone 1: Top Utility & Context Strip */}
       <Header
