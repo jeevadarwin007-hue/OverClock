@@ -2,6 +2,8 @@ from typing import List, Optional, Tuple
 from uuid import UUID
 import asyncpg
 from app.core.exceptions import ResourceNotFoundError, ConflictError
+from app.modules.ai.agents import WorkerDispatchAgent, AntiHallucinationAgent
+from app.modules.integrations.resend_client import ResendEmailService
 from app.modules.staffing.schemas import (
     TechnicianScoreBreakdown,
     AssignTechnicianResponse,
@@ -124,8 +126,9 @@ class StaffingService:
         # 1. Fetch work order details
         wo = await conn.fetchrow(
             """
-            SELECT wo.id, wo.category, wo.state, wo.assigned_tech_id,
-                   wo.target_node_id, cn.building_code
+            SELECT wo.id, wo.ticket_number, wo.category, wo.state, wo.assigned_tech_id,
+                   wo.target_node_id, wo.raw_description, wo.calculated_priority,
+                   cn.building_code, cn.node_code, cn.name AS node_name
             FROM work_orders wo
             LEFT JOIN campus_nodes cn ON wo.target_node_id = cn.id
             WHERE wo.id = $1
@@ -337,18 +340,58 @@ class StaffingService:
             f'{{"assigned_tech_id": "{new_tech_id}", "tech_name": "{selected_tech["full_name"]}", "score": {score}, "explanation": "{explanation}"}}'
         )
 
-        # 5. Outbound notification to the technician
-        await conn.execute(
-            """
-            INSERT INTO outbound_notifications (recipient_user_id, recipient_email, subject, body, work_order_id)
-            VALUES ($1, $2, $3, $4, $5);
-            """,
-            new_tech_id,
-            selected_tech["email"],
-            f"Work Order Assigned: {category} Incident",
-            f"You have been assigned to work order {work_order_id}. Explanation: {explanation}",
-            work_order_id
-        )
+        # 5. Multi-Agent Worker Notification Pipeline via Groq & Resend API
+        email_dispatched = False
+        email_id = None
+        email_subject = None
+
+        if selected_tech.get("email"):
+            target_worker_email = selected_tech["email"]
+            target_worker_name = selected_tech["full_name"]
+            target_worker_role = selected_tech.get("role") or category or "TECHNICIAN"
+
+            # Agent 1: Generate tailored dispatch email
+            dispatch_draft = await WorkerDispatchAgent.generate_dispatch_email(
+                ticket_number=wo["ticket_number"] if wo["ticket_number"] else 0,
+                category=category or "GENERAL_MAINTENANCE",
+                raw_description=wo["raw_description"] or "Assigned campus maintenance ticket",
+                location_hint=wo["node_code"] if wo["node_code"] else None,
+                worker_name=target_worker_name,
+                worker_role=target_worker_role,
+                urgency=wo["calculated_priority"] if wo["calculated_priority"] else "P2_MEDIUM"
+            )
+
+            # Agent 3: Anti-Hallucination Grounding & Safety Audit
+            verified_dispatch = await AntiHallucinationAgent.verify_and_ground_dispatch(
+                dispatch_draft, worker_role=target_worker_role
+            )
+
+            # Send via Resend API
+            resend_result = await ResendEmailService.send_email(
+                to_email=target_worker_email,
+                subject=verified_dispatch.subject,
+                html_body=verified_dispatch.html_body,
+                text_body=verified_dispatch.text_body
+            )
+
+            email_dispatched = resend_result.get("success", False)
+            email_id = resend_result.get("id")
+            email_subject = verified_dispatch.subject
+
+            # Record in outbound_notifications table
+            delivery_status = "DELIVERED" if email_dispatched else "PENDING"
+            await conn.execute(
+                """
+                INSERT INTO outbound_notifications (recipient_user_id, recipient_email, channel, subject, body, work_order_id, delivery_status)
+                VALUES ($1, $2, 'RESEND_API', $3, $4, $5, $6);
+                """,
+                new_tech_id,
+                target_worker_email,
+                verified_dispatch.subject,
+                verified_dispatch.html_body,
+                work_order_id,
+                delivery_status
+            )
 
         return AssignTechnicianResponse(
             work_order_id=work_order_id,
@@ -358,7 +401,10 @@ class StaffingService:
             assigned_tech_role=selected_tech.get("role") or category,
             score=score,
             explanation=explanation,
-            work_order_state=new_state
+            work_order_state=new_state,
+            email_dispatched=email_dispatched,
+            email_dispatch_id=email_id,
+            email_subject=email_subject
         )
 
     @staticmethod

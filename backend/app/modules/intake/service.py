@@ -6,6 +6,7 @@ from typing import Dict, Any, Optional, Tuple, List
 import asyncpg
 from app.core.exceptions import ResourceNotFoundError, ConflictError
 from app.modules.ai.llm_client import extract_incident_entities
+from app.modules.ai.agents import InstructionAgent, AntiHallucinationAgent
 from app.modules.correlation.service import CorrelationService
 from app.modules.integrations.idempotency import claim_idempotency_key, complete_idempotency_key
 from app.modules.intake.schemas import InboundIntakeRequest, IntakeResponse
@@ -187,6 +188,22 @@ class IntakeService:
             else:
                 target_dept_id = await conn.fetchval("SELECT id FROM departments WHERE code = 'DEPT-ADMIN';")
 
+        # Multi-Agent Emergency & Instruction Safety Pipeline
+        emergency_instructions = None
+        is_emergency = InstructionAgent.is_emergency_incident(request.text) or extraction.safety_hazard_detected
+        if is_emergency:
+            urgency = "P0_CRITICAL"
+            b_code = node["building_code"] if node else None
+            r_code = node["node_code"] if node else None
+            raw_instructions = await InstructionAgent.generate_safety_instructions(
+                raw_description=request.text,
+                detected_building=b_code,
+                detected_room=r_code
+            )
+            grounded_instructions = await AntiHallucinationAgent.verify_and_ground_emergency(raw_instructions)
+            emergency_instructions = grounded_instructions.model_dump()
+            partial_slots["emergency_instructions"] = emergency_instructions
+
         # Phase 4: Atomic Operational Commit
         row = await conn.fetchrow(
             """
@@ -275,6 +292,7 @@ class IntakeService:
             "correlation_action": correlation_action,
             "concise_summary": extraction.concise_summary,
             "extractor_used": extraction.extractor_used,
+            "emergency_instructions": emergency_instructions,
             "created_at": created_at.isoformat()
         }
 
@@ -302,6 +320,7 @@ class IntakeService:
             correlation_action=correlation_action,
             concise_summary=extraction.concise_summary,
             extractor_used=extraction.extractor_used,
+            emergency_instructions=emergency_instructions,
             created_at=created_at
         )
 

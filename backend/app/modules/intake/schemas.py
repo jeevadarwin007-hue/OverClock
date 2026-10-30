@@ -37,5 +37,6 @@ class IntakeResponse(BaseModel):
     correlation_action: str
     concise_summary: str
     extractor_used: str
+    emergency_instructions: Optional[Dict[str, Any]] = None
     created_at: datetime
 

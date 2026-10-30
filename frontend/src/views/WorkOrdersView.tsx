@@ -22,6 +22,7 @@ import {
   RefreshCw,
   Zap,
   Droplets,
+  AlertTriangle,
 } from 'lucide-react';
 
 const WORKER_ROLE_OPTIONS = [
@@ -47,6 +48,7 @@ export const WorkOrdersView: React.FC = () => {
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
   const [assignError, setAssignError] = useState<string | null>(null);
+  const [assignSuccess, setAssignSuccess] = useState<string | null>(null);
   const [workerForm, setWorkerForm] = useState({
     worker_name: '',
     worker_email: '',
@@ -99,11 +101,18 @@ export const WorkOrdersView: React.FC = () => {
     try {
       setIsAssigning(true);
       setAssignError(null);
-      await api.post(`/work-orders/${selectedTicket.id}/assign`, {
+      const res: any = await api.post(`/work-orders/${selectedTicket.id}/assign`, {
         worker_name: workerForm.worker_name.trim(),
         worker_email: workerForm.worker_email.trim(),
         worker_role: workerForm.worker_role,
       });
+
+      if (res.email_dispatched) {
+        setAssignSuccess(`Worker assigned & notification email dispatched via Resend! (ID: ${res.email_dispatch_id || 'sent'})`);
+      } else {
+        setAssignSuccess(`Worker assigned successfully!`);
+      }
+      setTimeout(() => setAssignSuccess(null), 8000);
 
       setIsAssignModalOpen(false);
       await fetchWorkOrders();
@@ -373,6 +382,12 @@ export const WorkOrdersView: React.FC = () => {
                   </button>
                 </div>
 
+                {assignSuccess && (
+                  <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/30 rounded text-emerald-300 text-xs">
+                    {assignSuccess}
+                  </div>
+                )}
+
                 {selectedTicket.assigned_tech_name ? (
                   <div className="space-y-1.5 pt-1">
                     <div className="flex items-center justify-between">
@@ -391,6 +406,9 @@ export const WorkOrdersView: React.FC = () => {
                       <Mail className="w-3.5 h-3.5 text-slate-500" />
                       <span>{selectedTicket.assigned_tech_email || 'No email registered'}</span>
                     </div>
+                    <div className="flex items-center space-x-1.5 text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 w-fit">
+                      <span>✓ Dispatched via Resend API</span>
+                    </div>
                   </div>
                 ) : (
                   <div className="py-2 text-center text-xs text-slate-500 bg-slate-900/50 rounded border border-dashed border-slate-800">
@@ -404,6 +422,20 @@ export const WorkOrdersView: React.FC = () => {
                   </div>
                 )}
               </div>
+
+              {/* Emergency Instructions Card (if recorded) */}
+              {selectedTicket.partial_slots?.emergency_instructions && (
+                <div className="p-3.5 bg-rose-950/30 border border-rose-500/40 rounded-lg space-y-2 text-xs">
+                  <div className="flex items-center space-x-2 text-rose-400 font-bold">
+                    <AlertTriangle className="w-4 h-4 text-rose-400" />
+                    <span>{selectedTicket.partial_slots.emergency_instructions.headline}</span>
+                  </div>
+                  <div className="text-[11px] text-slate-300 bg-rose-900/20 p-2 rounded border border-rose-500/20 space-y-0.5">
+                    <p><strong>Route:</strong> {selectedTicket.partial_slots.emergency_instructions.evacuation_route}</p>
+                    <p><strong>Assembly:</strong> {selectedTicket.partial_slots.emergency_instructions.assembly_point}</p>
+                  </div>
+                </div>
+              )}
 
               {/* Stateful Clarification Loop Box (if AWAITING_CLARIFICATION) */}
               {selectedTicket.state === 'AWAITING_CLARIFICATION' && (

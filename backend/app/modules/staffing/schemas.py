@@ -32,6 +32,9 @@ class AssignTechnicianResponse(BaseModel):
     score: float
     explanation: str
     work_order_state: str
+    email_dispatched: bool = False
+    email_dispatch_id: Optional[str] = None
+    email_subject: Optional[str] = None
 
 
 class TechnicianSummary(BaseModel):

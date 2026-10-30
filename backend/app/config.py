@@ -41,6 +41,11 @@ class Settings(BaseSettings):
     LLM_TIMEOUT_SECONDS: float = Field(default=2.5)
     LLM_FALLBACK_MODE: str = Field(default="DETERMINISTIC_REGEX")
 
+    # Resend Email Integration
+    RESEND_API_KEY: str = Field(default="")
+    RESEND_API_URL: str = Field(default="https://api.resend.com/emails")
+    RESEND_FROM_EMAIL: str = Field(default="CampusOps Alerts <onboarding@resend.dev>")
+
     # Server Settings
     BACKEND_HOST: str = Field(default="0.0.0.0")
     BACKEND_PORT: int = Field(default=8000)

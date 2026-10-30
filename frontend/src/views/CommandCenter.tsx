@@ -217,27 +217,57 @@ export const CommandCenter: React.FC = () => {
 
           {/* Intake Response Card */}
           {intakeResult && (
-            <div className="mt-4 p-3.5 bg-slate-950 border border-slate-800 rounded-lg text-xs space-y-1.5 font-mono">
-              <div className="flex items-center justify-between">
-                <span className="text-emerald-400 font-bold">Ticket #{intakeResult.ticket_number}</span>
-                <span className="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[10px]">
-                  {intakeResult.state}
-                </span>
-              </div>
-              <div className="text-slate-300">
-                <span className="text-slate-500">Node:</span> {intakeResult.target_node_code || 'Unresolved'} &bull;{' '}
-                <span className="text-slate-500">Category:</span> {intakeResult.category}
-              </div>
-              {intakeResult.clarification_needed && (
-                <div className="text-amber-400 text-[11px] bg-amber-500/10 p-2 rounded border border-amber-500/20">
-                  {intakeResult.clarification_question}
+            <div className="mt-4 space-y-3 font-mono text-xs">
+              {/* Emergency Safety Instruction Banner (Instruction Agent + Anti-Hallucination Agent) */}
+              {intakeResult.emergency_instructions && (
+                <div className="p-4 bg-rose-950/40 border-2 border-rose-500/80 rounded-xl space-y-2.5 text-white font-sans shadow-lg shadow-rose-950/50 animate-pulse">
+                  <div className="flex items-center space-x-2 text-rose-400 font-bold text-sm">
+                    <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0" />
+                    <span>{intakeResult.emergency_instructions.headline}</span>
+                  </div>
+                  <div className="text-xs text-rose-200 bg-rose-900/40 p-2.5 rounded-lg border border-rose-500/30 space-y-1">
+                    <p className="font-semibold text-rose-300">
+                      📍 Evacuation Route: {intakeResult.emergency_instructions.evacuation_route}
+                    </p>
+                    <p className="font-semibold text-rose-300">
+                      🛡️ Designated Assembly Point: {intakeResult.emergency_instructions.assembly_point}
+                    </p>
+                  </div>
+                  <div className="space-y-1 text-xs text-slate-200">
+                    <span className="font-bold text-rose-300 block text-[11px] uppercase tracking-wider">
+                      Immediate Evacuation Actions for Students & Staff:
+                    </span>
+                    <ul className="list-disc pl-4 space-y-0.5 text-xs text-slate-200">
+                      {intakeResult.emergency_instructions.immediate_actions?.map((act: string, idx: number) => (
+                        <li key={idx}>{act}</li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
               )}
-              {intakeResult.correlation_action !== 'NONE' && (
-                <div className="text-purple-400 text-[10px]">
-                  Correlation: {intakeResult.correlation_action}
+
+              <div className="p-3.5 bg-slate-950 border border-slate-800 rounded-lg space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-emerald-400 font-bold">Ticket #{intakeResult.ticket_number}</span>
+                  <span className="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[10px]">
+                    {intakeResult.state}
+                  </span>
                 </div>
-              )}
+                <div className="text-slate-300">
+                  <span className="text-slate-500">Node:</span> {intakeResult.target_node_code || 'Unresolved'} &bull;{' '}
+                  <span className="text-slate-500">Category:</span> {intakeResult.category}
+                </div>
+                {intakeResult.clarification_needed && (
+                  <div className="text-amber-400 text-[11px] bg-amber-500/10 p-2 rounded border border-amber-500/20">
+                    {intakeResult.clarification_question}
+                  </div>
+                )}
+                {intakeResult.correlation_action !== 'NONE' && (
+                  <div className="text-purple-400 text-[10px]">
+                    Correlation: {intakeResult.correlation_action}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
