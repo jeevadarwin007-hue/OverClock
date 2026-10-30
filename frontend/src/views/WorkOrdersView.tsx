@@ -306,7 +306,9 @@ export const WorkOrdersView: React.FC = () => {
               {filteredTickets.length === 0 && (
                 <tr>
                   <td colSpan={7} className="py-16 text-center text-slate-500 text-xs font-mono">
-                    No work orders matching filter criteria.
+                    {workOrders.length === 0
+                      ? 'No work orders in ledger. New incident reports filed from Dashboard will be recorded here.'
+                      : 'No work orders matching filter criteria.'}
                   </td>
                 </tr>
               )}

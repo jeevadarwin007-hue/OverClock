@@ -183,6 +183,13 @@ export const InvariantProofPanel: React.FC = () => {
                   </td>
                 </tr>
               ))}
+              {(!data?.audit_stream || data.audit_stream.length === 0) && (
+                <tr>
+                  <td colSpan={6} className="py-12 text-center text-slate-500 font-mono text-xs">
+                    No activity recorded in audit ledger yet. Operational events will be immutably recorded here.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
