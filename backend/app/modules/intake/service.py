@@ -137,6 +137,32 @@ class IntakeService:
 
         thread_id = request.conversation_thread_id or f"thread-{uuid4().hex[:12]}"
 
+        # Groq Triage Decision: Check if input is a real problem or should reply with a question
+        if not extraction.is_problem or extraction.decision == "REPLY_QUESTION":
+            reply_q = extraction.reply_message or (
+                "Hello! Could you please describe the specific campus maintenance fault, equipment breakdown, or room needing repairs?"
+            )
+            return IntakeResponse(
+                is_ticket_created=False,
+                decision="REPLY_QUESTION",
+                reply_message=reply_q,
+                work_order_id=None,
+                ticket_number=None,
+                conversation_thread_id=thread_id,
+                state="AWAITING_INCIDENT",
+                category=None,
+                target_node_code=None,
+                target_node_name=None,
+                clarification_needed=True,
+                clarification_question=reply_q,
+                partial_slots={},
+                correlation_action="NONE",
+                concise_summary=extraction.concise_summary or "Non-incident query or conversational text.",
+                extractor_used=extraction.extractor_used,
+                emergency_instructions=None,
+                created_at=datetime.now(timezone.utc)
+            )
+
         # Phase 3: Location Resolution
         node, candidates, is_ambiguous = await IntakeService.resolve_campus_node(
             conn, extraction.extracted_room_or_node_hint
@@ -328,6 +354,9 @@ class IntakeService:
             )
 
         return IntakeResponse(
+            is_ticket_created=True,
+            decision="ADD_TICKET",
+            reply_message=None,
             work_order_id=wo_id,
             ticket_number=ticket_num,
             conversation_thread_id=thread_id,
@@ -432,6 +461,9 @@ class IntakeService:
             final_state = "MERGED_DUPLICATE" if correl_res.get("action") == "MERGED_DUPLICATE" else "TRIAGED"
 
             return IntakeResponse(
+                is_ticket_created=True,
+                decision="ADD_TICKET",
+                reply_message=None,
                 work_order_id=wo_id,
                 ticket_number=ticket_num,
                 conversation_thread_id=conversation_thread_id,
@@ -470,6 +502,9 @@ class IntakeService:
             )
 
             return IntakeResponse(
+                is_ticket_created=True,
+                decision="ADD_TICKET",
+                reply_message=None,
                 work_order_id=wo_id,
                 ticket_number=ticket_num,
                 conversation_thread_id=conversation_thread_id,

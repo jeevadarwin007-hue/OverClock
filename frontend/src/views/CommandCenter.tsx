@@ -66,7 +66,9 @@ export const CommandCenter: React.FC = () => {
       });
       setIntakeResult(res);
       setIntakeText('');
-      fetchData();
+      if (res.is_ticket_created) {
+        fetchData();
+      }
     } catch (err: any) {
       alert(`Intake failed: ${err.message || 'Error'}`);
     } finally {
@@ -392,47 +394,63 @@ export const CommandCenter: React.FC = () => {
             </form>
           </div>
 
-          {/* Real-time Emergency Protocol Output */}
+          {/* Groq AI Decision Output: Reply With Question vs Registered Ticket */}
           {intakeResult && (
-            <div className="nothing-widget rounded-3xl p-5 space-y-3 shadow-lg border border-nothing-red/40">
-              {intakeResult.emergency_instructions && (
-                <div className="p-4 bg-nothing-red/15 border border-nothing-red/60 rounded-2xl space-y-2.5 text-xs">
-                  <div className="flex items-center space-x-2 text-white font-bold font-ndot tracking-wide">
-                    <AlertTriangle className="w-4 h-4 text-nothing-red shrink-0" />
-                    <span>{intakeResult.emergency_instructions.headline}</span>
-                  </div>
-                  <div className="p-2.5 bg-black/60 rounded-xl border border-white/10 text-[11px] text-neutral-200 font-mono space-y-1">
-                    <div>📍 Evacuation Route: <span className="text-white font-semibold">{intakeResult.emergency_instructions.evacuation_route}</span></div>
-                    <div>🛡️ Assembly Point: <span className="text-white font-semibold">{intakeResult.emergency_instructions.assembly_point}</span></div>
-                  </div>
-                  <div className="text-[11px] text-neutral-300">
-                    <span className="font-bold text-white block mb-1 font-ndot uppercase tracking-wider">
-                      Immediate Safety Steps:
-                    </span>
-                    <ul className="list-disc pl-4 space-y-1">
-                      {intakeResult.emergency_instructions.immediate_actions?.map(
-                        (act: string, idx: number) => (
-                          <li key={idx}>{act}</li>
-                        )
-                      )}
-                    </ul>
-                  </div>
+            intakeResult.decision === 'REPLY_QUESTION' || !intakeResult.is_ticket_created ? (
+              <div className="nothing-widget rounded-3xl p-5 space-y-3 shadow-lg border border-sky-400/40">
+                <div className="flex items-center space-x-2 text-sky-300 font-bold font-ndot tracking-wide">
+                  <span className="w-2 h-2 rounded-full bg-sky-400 shadow-[0_0_8px_#38bdf8]" />
+                  <span>AI ASSISTANT CLARIFICATION</span>
                 </div>
-              )}
-
-              <div className="p-3 bg-black/60 border border-white/10 rounded-2xl text-xs font-mono space-y-1.5 shadow-inner">
-                <div className="flex items-center justify-between text-white font-bold font-ndot">
-                  <span>TICKET #{intakeResult.ticket_number}</span>
-                  <span className="text-emerald-400 font-sans">{intakeResult.state}</span>
+                <div className="p-3.5 bg-black/60 border border-white/10 rounded-2xl text-xs text-neutral-200 leading-relaxed font-sans shadow-inner">
+                  {intakeResult.reply_message || 'Hello! What campus maintenance or equipment issue can we help you resolve? Please specify the problem and room location.'}
                 </div>
-                <div className="text-neutral-300 text-[11px]">
-                  Category: <span className="text-white font-semibold font-ndot">{intakeResult.category || 'TBD'}</span>
-                </div>
-                <div className="text-neutral-400 text-[10px]">
-                  Summary: {intakeResult.concise_summary}
+                <div className="text-[10px] text-neutral-400 font-ndot uppercase tracking-widest flex items-center justify-between">
+                  <span>DECISION: QUESTION RETURNED</span>
+                  <span className="text-emerald-400">LEDGER UNTOUCHED</span>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="nothing-widget rounded-3xl p-5 space-y-3 shadow-lg border border-nothing-red/40">
+                {intakeResult.emergency_instructions && (
+                  <div className="p-4 bg-nothing-red/15 border border-nothing-red/60 rounded-2xl space-y-2.5 text-xs">
+                    <div className="flex items-center space-x-2 text-white font-bold font-ndot tracking-wide">
+                      <AlertTriangle className="w-4 h-4 text-nothing-red shrink-0" />
+                      <span>{intakeResult.emergency_instructions.headline}</span>
+                    </div>
+                    <div className="p-2.5 bg-black/60 rounded-xl border border-white/10 text-[11px] text-neutral-200 font-mono space-y-1">
+                      <div>📍 Evacuation Route: <span className="text-white font-semibold">{intakeResult.emergency_instructions.evacuation_route}</span></div>
+                      <div>🛡️ Assembly Point: <span className="text-white font-semibold">{intakeResult.emergency_instructions.assembly_point}</span></div>
+                    </div>
+                    <div className="text-[11px] text-neutral-300">
+                      <span className="font-bold text-white block mb-1 font-ndot uppercase tracking-wider">
+                        Immediate Safety Steps:
+                      </span>
+                      <ul className="list-disc pl-4 space-y-1">
+                        {intakeResult.emergency_instructions.immediate_actions?.map(
+                          (act: string, idx: number) => (
+                            <li key={idx}>{act}</li>
+                          )
+                        )}
+                      </ul>
+                    </div>
+                  </div>
+                )}
+
+                <div className="p-3 bg-black/60 border border-white/10 rounded-2xl text-xs font-mono space-y-1.5 shadow-inner">
+                  <div className="flex items-center justify-between text-white font-bold font-ndot">
+                    <span>TICKET #{intakeResult.ticket_number} REGISTERED</span>
+                    <span className="text-emerald-400 font-sans">{intakeResult.state}</span>
+                  </div>
+                  <div className="text-neutral-300 text-[11px]">
+                    Category: <span className="text-white font-semibold font-ndot">{intakeResult.category || 'TBD'}</span>
+                  </div>
+                  <div className="text-neutral-400 text-[10px]">
+                    Summary: {intakeResult.concise_summary}
+                  </div>
+                </div>
+              </div>
+            )
           )}
         </div>
       </div>

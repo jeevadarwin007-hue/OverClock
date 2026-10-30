@@ -9,16 +9,34 @@ from app.modules.ai.fallback_parser import extract_deterministic_fallback
 
 logger = logging.getLogger("groq_ai_client")
 
-EXTRACTION_SYSTEM_PROMPT = """You are the AI Incident Intelligence parser for SRM Easwari Engineering College CampusOps.
-Your task is to analyze user incident descriptions, chat complaints, or emails, and extract structured entity slots.
+EXTRACTION_SYSTEM_PROMPT = """You are the AI Incident Intelligence & Triage Agent for SRM Easwari Engineering College CampusOps.
+Your task is to analyze user text and determine whether it describes a genuine campus physical facility / maintenance / equipment problem to register, OR if it requires replying with a question.
+
+DECISION INSTRUCTIONS:
+1. "is_problem": boolean
+   - true: The user is reporting a real physical facility maintenance issue, breakdown, failure, or safety hazard (e.g. electrical short circuit, power outage, sparks, AC hot air/leak, water pipe burst, clogged drain, broken door/window, Wi-Fi down, network switch failure, projector not displaying, fire hazard, structural damage).
+   - false: The input is a greeting ("hello", "hello s", "hi", "hey"), chit-chat ("how are you", "what's up"), generic remark ("test", "ok", "asdf"), academic query, or describes NO physical facility malfunction.
+
+2. "decision": string
+   - "ADD_TICKET": When "is_problem" is true AND there is a physical problem to be resolved by facility workers.
+   - "REPLY_QUESTION": When "is_problem" is false OR there is no clear maintenance problem described.
+
+3. "reply_message": string or null
+   - When "decision" is "REPLY_QUESTION": Provide a polite, direct question asking the user what campus facility or equipment issue they need help with, or asking for the specific room and problem.
+     * For "hello" or "hello s": "Hello! What campus facility or equipment problem can we assist you with today? Please describe the issue and location."
+     * For vague phrases: "Could you specify what equipment or facility is broken and in which room or block?"
+   - When "decision" is "ADD_TICKET": null.
 
 Return ONLY a valid JSON object with the following fields:
-- "category": One of "ELECTRICAL", "HVAC", "NETWORK", "PLUMBING", "AV_EQUIPMENT", "STRUCTURAL_SAFETY", or null if unclear.
-- "extracted_room_or_node_hint": Room code (e.g. "RM-ACAD-204", "LAB-ACAD-301"), floor hint (e.g. "3rd floor lab"), or building name if mentioned, else null.
-- "extracted_asset_hint": Specific equipment mentioned (e.g. "projector", "breaker", "switch", "AC unit", "water pipe"), else null.
-- "reporter_urgency": One of "P0_CRITICAL", "P1_HIGH", "P2_MEDIUM", "P3_LOW". Set P0_CRITICAL if safety hazard or ongoing exam disruption is mentioned.
-- "safety_hazard_detected": boolean (true if sparks, fire, smoke, water flooding, live electrical wires, or structural collapse are mentioned).
-- "concise_summary": A factual, objective 1-sentence summary of what broke and where.
+- "is_problem": boolean
+- "decision": "ADD_TICKET" or "REPLY_QUESTION"
+- "reply_message": string or null
+- "category": One of "ELECTRICAL", "HVAC", "NETWORK", "PLUMBING", "AV_EQUIPMENT", "STRUCTURAL_SAFETY", or null
+- "extracted_room_or_node_hint": Room code (e.g. "RM-ACAD-204", "LAB-ACAD-301"), floor hint (e.g. "3rd floor lab"), or building name if mentioned, else null
+- "extracted_asset_hint": Specific equipment mentioned (e.g. "projector", "breaker", "switch", "AC unit", "water pipe"), else null
+- "reporter_urgency": One of "P0_CRITICAL", "P1_HIGH", "P2_MEDIUM", "P3_LOW"
+- "safety_hazard_detected": boolean (true if sparks, fire, smoke, water flooding, live electrical wires, or structural collapse are mentioned)
+- "concise_summary": A factual, objective 1-sentence summary of what broke and where, or a brief summary of user intent if not an incident
 
 DO NOT invent room numbers, assets, or details not present in the input text."""
 
@@ -34,7 +52,7 @@ async def _call_groq_model(client: httpx.AsyncClient, model: str, text: str, hea
         "model": model,
         "messages": [
             {"role": "system", "content": EXTRACTION_SYSTEM_PROMPT},
-            {"role": "user", "content": f"Incident Report:\n{text}"}
+            {"role": "user", "content": f"User Input:\n{text}"}
         ],
         "response_format": {"type": "json_object"},
         "temperature": 0.1,
@@ -45,7 +63,14 @@ async def _call_groq_model(client: httpx.AsyncClient, model: str, text: str, hea
         data = response.json()
         content = data["choices"][0]["message"]["content"]
         parsed = json.loads(content)
+        is_prob = bool(parsed.get("is_problem", True))
+        decision = parsed.get("decision", "ADD_TICKET" if is_prob else "REPLY_QUESTION")
+        reply_msg = parsed.get("reply_message")
+
         return IntakeExtractionSchema(
+            is_problem=is_prob,
+            decision=decision,
+            reply_message=reply_msg,
             category=parsed.get("category"),
             extracted_room_or_node_hint=parsed.get("extracted_room_or_node_hint"),
             extracted_asset_hint=parsed.get("extracted_asset_hint"),

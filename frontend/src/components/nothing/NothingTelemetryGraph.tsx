@@ -204,3 +204,4 @@ export const NothingTelemetryGraph: React.FC<{ className?: string }> = ({ classN
     </div>
   );
 };
+

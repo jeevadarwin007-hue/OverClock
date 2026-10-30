@@ -39,6 +39,11 @@ class ConflictError(CampusOpsException):
         super().__init__(message=message, status_code=409, details=details)
 
 
+class InvalidIncidentError(CampusOpsException):
+    def __init__(self, message: str = "No physical facility or maintenance problem detected in the report.", details: Optional[Any] = None):
+        super().__init__(message=message, status_code=400, details=details)
+
+
 class FSMTransitionError(CampusOpsException):
     def __init__(self, from_state: str, to_state: str, role: str, reason: str = ""):
         message = f"Invalid state transition from {from_state} to {to_state} for role {role}. {reason}".strip()

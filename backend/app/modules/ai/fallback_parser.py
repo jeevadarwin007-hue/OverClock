@@ -8,9 +8,32 @@ def extract_deterministic_fallback(text: str) -> IntakeExtractionSchema:
     High-speed deterministic regex and keyword fallback parser.
     Executes in < 1ms with zero external network dependencies.
     """
-    text_lower = text.lower()
+    text_clean = text.strip()
+    text_lower = text_clean.lower()
 
-    # 1. Exact node / room code regex pattern
+    # 1. Quick check for greetings / non-problem conversational remarks
+    GREETINGS = {
+        "hi", "hello", "hello s", "hey", "hola", "namaste", "good morning", 
+        "good afternoon", "good evening", "how are you", "what is this", 
+        "testing", "test", "thanks", "thank you", "bye", "ok", "okay", 
+        "sup", "whats up", "what's up", "who are you"
+    }
+    stripped_punct = re.sub(r"[^\w\s]", "", text_lower).strip()
+    if stripped_punct in GREETINGS or len(stripped_punct) < 4:
+        return IntakeExtractionSchema(
+            is_problem=False,
+            decision="REPLY_QUESTION",
+            reply_message="Hello! What campus facility or equipment issue can we assist you with today? Please describe the problem and location.",
+            category=None,
+            extracted_room_or_node_hint=None,
+            extracted_asset_hint=None,
+            reporter_urgency="P3_LOW",
+            safety_hazard_detected=False,
+            concise_summary="User greeting or conversational text.",
+            extractor_used="DETERMINISTIC_FALLBACK"
+        )
+
+    # 2. Exact node / room code regex pattern
     node_pattern = r"\b(RM-[A-Z0-9-]+|LAB-[A-Z0-9-]+|EEC-[A-Z0-9-]+|SUBSTATION-[A-Z0-9-]+|PANEL-[A-Z0-9-]+|SW-[A-Z0-9-]+|AHU-[A-Z0-9-]+)\b"
     node_match = re.search(node_pattern, text, re.IGNORECASE)
     room_hint: Optional[str] = None
@@ -27,7 +50,7 @@ def extract_deterministic_fallback(text: str) -> IntakeExtractionSchema:
             if bldg_match:
                 room_hint = bldg_match.group(0).strip()
 
-    # 2. Asset hints
+    # 3. Asset hints
     asset_keywords = {
         "projector": ["projector", "projection", "smart board", "display"],
         "breaker": ["mccb", "mcb", "circuit breaker", "breaker", "fuse", "panel"],
@@ -43,7 +66,7 @@ def extract_deterministic_fallback(text: str) -> IntakeExtractionSchema:
             extracted_asset = asset
             break
 
-    # 3. Category inference via keyword dictionaries
+    # 4. Category inference via keyword dictionaries
     category_scores = {
         "ELECTRICAL": ["spark", "sparking", "electrical", "blackout", "power", "breaker", "mcb", "mccb", "voltage", "wire", "shock", "tripping", "short circuit"],
         "HVAC": ["ac", "air conditioner", "cooling", "ahu", "chiller", "refrigerant", "compressor", "ventilation", "heating"],
@@ -61,22 +84,30 @@ def extract_deterministic_fallback(text: str) -> IntakeExtractionSchema:
             max_matches = count
             matched_category = cat
 
-    # Default category if none detected
-    if not matched_category:
-        if "wifi" in text_lower or "internet" in text_lower or "network" in text_lower:
-            matched_category = "NETWORK"
-        elif "water" in text_lower or "leak" in text_lower:
-            matched_category = "PLUMBING"
-        elif "light" in text_lower or "power" in text_lower:
-            matched_category = "ELECTRICAL"
-        else:
-            matched_category = "ELECTRICAL"
+    # General fault indicators
+    fault_keywords = ["broken", "damage", "fault", "not working", "failure", "burst", "bursting", "overflow", "stuck", "crack", "sparks", "fire", "smoke"]
+    has_fault_word = any(fw in text_lower for fw in fault_keywords)
 
-    # 4. Safety Hazard Detection
+    # 5. Safety Hazard Detection
     hazard_keywords = ["spark", "sparking", "fire", "smoke", "burning smell", "live wire", "shock", "flooding", "collapse", "explosion"]
     safety_hazard = any(hk in text_lower for hk in hazard_keywords)
 
-    # 5. Urgency Calculation
+    # If NO category matches, NO fault word, NO asset, and NO safety hazard -> NOT A PROBLEM
+    if max_matches == 0 and not has_fault_word and not safety_hazard and not extracted_asset:
+        return IntakeExtractionSchema(
+            is_problem=False,
+            decision="REPLY_QUESTION",
+            reply_message="Could you describe the specific campus maintenance fault, equipment breakdown, or room needing repairs?",
+            category=None,
+            extracted_room_or_node_hint=room_hint,
+            extracted_asset_hint=None,
+            reporter_urgency="P3_LOW",
+            safety_hazard_detected=False,
+            concise_summary="Non-incident query or conversational text.",
+            extractor_used="DETERMINISTIC_FALLBACK"
+        )
+
+    # 6. Urgency Calculation
     has_exam = "exam" in text_lower or "examination" in text_lower or "test" in text_lower
     if safety_hazard:
         urgency = "P0_CRITICAL"
@@ -87,18 +118,20 @@ def extract_deterministic_fallback(text: str) -> IntakeExtractionSchema:
     else:
         urgency = "P2_MEDIUM"
 
-    # 6. Concise Summary
+    # 7. Concise Summary
     summary = text.strip()
     if len(summary) > 120:
         summary = summary[:117] + "..."
 
     return IntakeExtractionSchema(
-        category=matched_category,
+        is_problem=True,
+        decision="ADD_TICKET",
+        reply_message=None,
+        category=matched_category or "ELECTRICAL",
         extracted_room_or_node_hint=room_hint,
         extracted_asset_hint=extracted_asset,
         reporter_urgency=urgency,
         safety_hazard_detected=safety_hazard,
         concise_summary=summary,
-        extractor_used="DETERMINISTIC_REGEX_FALLBACK"
+        extractor_used="DETERMINISTIC_FALLBACK"
     )
-

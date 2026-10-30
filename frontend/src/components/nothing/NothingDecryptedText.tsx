@@ -88,3 +88,4 @@ export const NothingDecryptedText: React.FC<NothingDecryptedTextProps> = ({
     </span>
   );
 };
+

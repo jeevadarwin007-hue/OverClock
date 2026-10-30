@@ -52,12 +52,17 @@ export const WorkOrdersView: React.FC = () => {
     if (!quickIntakeText.trim()) return;
     try {
       setIsSubmittingQuick(true);
-      await api.post('/intake', {
+      const res: any = await api.post('/intake', {
         text: quickIntakeText.trim(),
         channel: 'WORK_ORDERS_LEDGER',
       });
-      setQuickIntakeText('');
-      fetchWorkOrders();
+      if (res.decision === 'REPLY_QUESTION' || !res.is_ticket_created) {
+        setTransitionStatus(`AI Clarification: ${res.reply_message || 'Please describe an equipment or facility problem to file a work order.'}`);
+      } else {
+        setQuickIntakeText('');
+        setTransitionStatus(`Work order #${res.ticket_number} created successfully.`);
+        fetchWorkOrders();
+      }
     } catch (err: any) {
       alert(`Intake failed: ${err.message || 'Error'}`);
     } finally {

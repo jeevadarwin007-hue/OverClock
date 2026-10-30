@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 
 class InboundIntakeRequest(BaseModel):
-    text: str = Field(..., min_length=3)
+    text: str = Field(..., min_length=1)
     conversation_thread_id: Optional[str] = None
     idempotency_key: Optional[str] = None
     channel: str = Field(default="PORTAL_FORM")  # PORTAL_FORM, CHAT, SIMULATED_EMAIL_WEBHOOK
@@ -24,19 +24,21 @@ class EmailWebhookRequest(BaseModel):
 
 
 class IntakeResponse(BaseModel):
-    work_order_id: UUID
-    ticket_number: int
-    conversation_thread_id: str
-    state: str
-    category: Optional[str]
-    target_node_code: Optional[str]
-    target_node_name: Optional[str]
-    clarification_needed: bool
-    clarification_question: Optional[str]
-    partial_slots: Dict[str, Any]
-    correlation_action: str
-    concise_summary: str
-    extractor_used: str
+    is_ticket_created: bool = True
+    decision: str = "ADD_TICKET"  # "ADD_TICKET" or "REPLY_QUESTION"
+    reply_message: Optional[str] = None
+    work_order_id: Optional[UUID] = None
+    ticket_number: Optional[int] = None
+    conversation_thread_id: Optional[str] = None
+    state: Optional[str] = None
+    category: Optional[str] = None
+    target_node_code: Optional[str] = None
+    target_node_name: Optional[str] = None
+    clarification_needed: bool = False
+    clarification_question: Optional[str] = None
+    partial_slots: Dict[str, Any] = {}
+    correlation_action: str = "NONE"
+    concise_summary: str = ""
+    extractor_used: str = "GROQ"
     emergency_instructions: Optional[Dict[str, Any]] = None
-    created_at: datetime
-
+    created_at: Optional[datetime] = None
